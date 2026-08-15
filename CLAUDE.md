@@ -126,6 +126,14 @@ supabase/
 - 設計判断は `docs/` 配下に文書化する
 - 実装コードだけでなく設計書もPR成果物に含める
 
+### ブランチ運用
+
+- `main` は保護ブランチ。直接コミット禁止
+- 作業ブランチを切り、PR 経由で `main` にマージする
+- ブランチ命名: `<type>/<短い説明>` (kebab-case)
+  - 例: `feat/phase-1b-domain-schema`, `fix/rls-policy-bug`, `docs/er-diagram-update`
+  - type は Conventional Commits と同じ: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`
+
 ### コミット
 
 - Conventional Commits 規約（`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`）

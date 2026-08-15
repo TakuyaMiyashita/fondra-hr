@@ -54,6 +54,26 @@ Custom Access Token Hook が `memberships` テーブルを参照し、ユーザ�
 | UPDATE | `invitations_update` | `org_id = current_org_id()` |
 | DELETE | `invitations_delete` | `org_id = current_org_id()` |
 
+### departments / employees / skills / employee_skills / one_on_ones / evaluation_cycles / evaluations
+
+全テーブル共通パターン:
+
+| 操作 | 条件 |
+|------|------|
+| SELECT | `org_id = current_org_id()` |
+| INSERT | `org_id = current_org_id()` |
+| UPDATE | `org_id = current_org_id()` |
+| DELETE | `org_id = current_org_id()` |
+
+### audit_logs
+
+| 操作 | ポリシー | 条件 |
+|------|----------|------|
+| SELECT | `audit_logs_select` | `org_id = current_org_id()` |
+| INSERT | `audit_logs_insert` | `org_id = current_org_id()` |
+| UPDATE | なし + BEFORE トリガーで例外 | — |
+| DELETE | なし + BEFORE トリガーで例外 | — |
+
 ## API アクセス権限
 
 `auto_expose_new_tables` が無効のため、`authenticated` ロールに明示的な GRANT が必要：
@@ -63,13 +83,27 @@ Custom Access Token Hook が `memberships` テーブルを参照し、ユーザ�
 | `organizations` | SELECT, UPDATE |
 | `memberships` | SELECT, INSERT, UPDATE, DELETE |
 | `invitations` | SELECT, INSERT, UPDATE, DELETE |
+| `departments` | SELECT, INSERT, UPDATE, DELETE |
+| `employees` | SELECT, INSERT, UPDATE, DELETE |
+| `skills` | SELECT, INSERT, UPDATE, DELETE |
+| `employee_skills` | SELECT, INSERT, UPDATE, DELETE |
+| `one_on_ones` | SELECT, INSERT, UPDATE, DELETE |
+| `evaluation_cycles` | SELECT, INSERT, UPDATE, DELETE |
+| `evaluations` | SELECT, INSERT, UPDATE, DELETE |
+| `audit_logs` | SELECT, INSERT |
+| `employee_risk_scores` | SELECT |
 
 `anon` ロールにはいずれのテーブルへのアクセスも付与しない。
 
 ## テスト
 
-`tests/rls/tenant-isolation.test.ts` で以下を検証：
+- `tests/rls/tenant-isolation.test.ts` — テナント基盤テーブル（Phase 1A）
+- `tests/rls/domain-tables.test.ts` — 業務ドメインテーブル（Phase 1B）
 
+検証内容:
 - 2つの異なるテナントのユーザーが、相互のデータにアクセスできないこと
 - SELECT / INSERT / UPDATE / DELETE の全操作でテナント分離が機能すること
 - Custom Access Token Hook が JWT に正しく `org_id` / `role` を埋め込むこと
+- `audit_logs` の UPDATE / DELETE が DB レベルで拒否されること
+- 監査ログの自動記録が動作すること
+- `employee_risk_scores` ビューのテナント分離とスコア計算

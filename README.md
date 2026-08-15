@@ -1,36 +1,121 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TalentPulse
 
-## Getting Started
+マルチテナント型タレントマネジメントSaaS。従業員情報・スキル・1on1記録・評価を一元管理する。
 
-First, run the development server:
+## アーキテクチャ
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```mermaid
+graph TB
+    subgraph "Frontend"
+        RSC[React Server Components]
+        SA[Server Actions]
+        CC[Client Components]
+    end
+
+    subgraph "Service Layer"
+        AUTH[authorize‹ctx, action, resource›]
+        BIZ[Business Logic]
+        AUDIT[Audit Logger]
+    end
+
+    subgraph "Data Layer"
+        DRIZZLE[Drizzle ORM]
+        SB_AUTH[Supabase Auth]
+        SB_STORAGE[Supabase Storage]
+    end
+
+    subgraph "Database"
+        PG[(Supabase Postgres)]
+        RLS{RLS Policies}
+    end
+
+    RSC --> AUTH
+    SA --> AUTH
+    CC -->|TanStack Query| RSC
+    AUTH --> BIZ
+    BIZ --> DRIZZLE
+    BIZ --> AUDIT
+    DRIZZLE --> PG
+    PG --> RLS
+    SB_AUTH --> PG
+    SB_STORAGE --> PG
+
+    style RLS fill:#f9f,stroke:#333,stroke-width:2px
+    style AUTH fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### テナント分離の防御多層化
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| レイヤー | 役割 | 仕組み |
+|----------|------|--------|
+| Service Layer | 主防御 | 全クエリに `WHERE org_id = ctx.orgId` を付与 |
+| RLS | 安全網 | `org_id` の単純チェック。どちらかが漏れてもデータは守られる |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 技術スタック
 
-## Learn More
+| カテゴリ | 技術 |
+|----------|------|
+| フレームワーク | Next.js 15 (App Router, RSC) |
+| 言語 | TypeScript (strict) |
+| DB / BaaS | Supabase (Postgres + Auth + Storage + RLS) |
+| ORM | Drizzle ORM |
+| UI | Tailwind CSS + shadcn/ui |
+| データグリッド | TanStack Table |
+| データ取得 | TanStack Query |
+| 可視化 | Recharts |
+| フォーム | React Hook Form + Zod |
+| AI | Vercel AI SDK |
+| テスト | Vitest + Testing Library |
 
-To learn more about Next.js, take a look at the following resources:
+## セットアップ
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 前提条件
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Node.js 20+
+- pnpm 9+
+- Docker（Supabase ローカル実行用）
 
-## Deploy on Vercel
+### 手順
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+# 1. 依存のインストール
+pnpm install
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# 2. 環境変数の設定
+cp .env.example .env.local
+
+# 3. Supabase ローカル起動
+npx supabase start
+
+# 4. マイグレーション適用
+npx supabase db reset
+
+# 5. 開発サーバー起動
+pnpm dev
+```
+
+### npm scripts
+
+| コマンド | 説明 |
+|----------|------|
+| `pnpm dev` | 開発サーバー起動 |
+| `pnpm build` | プロダクションビルド |
+| `pnpm lint` | ESLint 実行 |
+| `pnpm typecheck` | TypeScript 型チェック |
+| `pnpm test` | テスト実行 |
+| `pnpm test:rls` | RLSテスト実行 |
+| `pnpm format` | Prettier フォーマット |
+
+## 設計ドキュメント
+
+詳細な設計書は [`docs/`](./docs/) を参照。
+
+- [システム全体のアーキテクチャ](./docs/architecture/system-overview.md)
+- [テナント分離の防御多層化](./docs/architecture/multi-tenancy.md)
+- [認証・認可モデル](./docs/architecture/auth-and-authorization.md)
+- [ER図](./docs/database/er-diagram.md)
+- [UIデザインガイドライン](./docs/design/ui-guidelines.md)
+
+## ライセンス
+
+MIT

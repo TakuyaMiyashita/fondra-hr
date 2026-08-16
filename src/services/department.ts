@@ -1,4 +1,4 @@
-import { and, asc, count, eq, isNull } from 'drizzle-orm';
+import { and, asc, count, eq } from 'drizzle-orm';
 
 import { db } from '@/db';
 import { auditLogs } from '@/db/schema/audit-logs';

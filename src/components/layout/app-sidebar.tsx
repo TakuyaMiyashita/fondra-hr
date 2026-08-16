@@ -31,7 +31,7 @@ import {
 import type { Role } from '@/services/auth-context';
 
 const mainNav = [
-  { href: '/employees', label: 'ダッシュボード', icon: LayoutDashboard, minRole: 'viewer' as Role },
+  { href: '/dashboard', label: 'ダッシュボード', icon: LayoutDashboard, minRole: 'viewer' as Role },
   { href: '/employees', label: '従業員', icon: Users, minRole: 'viewer' as Role },
   { href: '/departments', label: '組織図', icon: Building2, minRole: 'viewer' as Role },
   { href: '/skills', label: 'スキル', icon: Sparkles, minRole: 'viewer' as Role },

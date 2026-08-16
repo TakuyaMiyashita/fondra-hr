@@ -73,8 +73,10 @@
 
 | 画面 | パス | 状態定義 |
 |------|------|----------|
-| 1on1一覧 | `/one-on-ones` | TBD |
-| 1on1作成・編集 | Sheet/Dialog | TBD |
+| 1on1一覧 | `/one-on-ones` | 通常: カードリスト（実施日/コンディション Badge/対象従業員 ← 面談者/メモ抜粋/操作メニュー）+ 氏名検索（300ms デバウンス）+ 従業員フィルタ。ローディング: Skeleton。空状態: Handshake アイコン + 「1on1記録がありません」+ CTA。エラー: エラーメッセージ + 再試行ボタン |
+| 1on1作成 | Dialog | React Hook Form + zodResolver。フィールド: 対象従業員(Select,必須)/面談者(Select,必須)/実施日(date,必須)/コンディション(1-5ボタン)/メモ(Textarea)。送信中: ボタン disabled + Loader。成功: toast + Dialog 閉じ + 一覧再取得。エラー: toast / インラインバリデーション |
+| 1on1編集 | Dialog | 作成と同じ Dialog を edit モードで使用。既存値をデフォルトとして表示 |
+| 1on1削除 | Dialog | 確認ダイアログ（従業員名 + 実施日を表示）。Destructive ボタン。成功: toast + 一覧再取得 |
 
 ## 評価（Phase 3-5）
 

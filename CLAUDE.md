@@ -16,7 +16,7 @@
 - **可視化**: Recharts
 - **フォーム**: Zod + React Hook Form + @hookform/resolvers
 - **AI**: Vercel AI SDK + @ai-sdk/anthropic
-- **テスト**: Vitest + Testing Library
+- **テスト**: Vitest + Testing Library + Playwright（e2e）
 - **Lint/Format**: ESLint + Prettier
 
 ### 追加可能ライブラリ
@@ -82,6 +82,7 @@ docs/                       # 設計ドキュメント（→ docs/ の構成は�
 tests/
 ├── unit/                   # ユニットテスト
 ├── integration/            # 統合テスト
+├── e2e/                    # Playwright e2eテスト
 └── rls/                    # RLSテスト
 supabase/
 ├── config.toml             # Supabase ローカル設定
@@ -148,7 +149,7 @@ supabase/
 作業完了時は必ず以下を通してから報告する：
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm test
+pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e
 ```
 
 ### フェーズ完了チェックリスト

@@ -1,26 +1,32 @@
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useTransition } from 'react';
+import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { type SignUpInput, signUpSchema } from '@/lib/validations/auth';
 
 import { signUp } from '../actions';
 
 export function SignupForm() {
   const [isPending, startTransition] = useTransition();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignUpInput>({
+    resolver: zodResolver(signUpSchema),
+  });
 
-  async function handleSubmit(formData: FormData) {
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const orgName = formData.get('orgName') as string;
-
+  function onSubmit(data: SignUpInput) {
     startTransition(async () => {
-      const result = await signUp(email, password, orgName);
+      const result = await signUp(data);
       if (!result.success) {
         toast.error(result.error);
       }
@@ -28,43 +34,49 @@ export function SignupForm() {
   }
 
   return (
-    <form action={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="orgName">組織名</Label>
         <Input
           id="orgName"
-          name="orgName"
           placeholder="株式会社○○"
-          required
           disabled={isPending}
+          {...register('orgName')}
         />
+        {errors.orgName && (
+          <p className="text-xs text-destructive">{errors.orgName.message}</p>
+        )}
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="email">メールアドレス</Label>
         <Input
           id="email"
-          name="email"
           type="email"
           placeholder="you@example.com"
-          required
           autoComplete="email"
           disabled={isPending}
+          {...register('email')}
         />
+        {errors.email && (
+          <p className="text-xs text-destructive">{errors.email.message}</p>
+        )}
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="password">パスワード</Label>
         <Input
           id="password"
-          name="password"
           type="password"
-          minLength={8}
-          required
           autoComplete="new-password"
           disabled={isPending}
+          {...register('password')}
         />
-        <p className="text-xs text-muted-foreground">8文字以上で入力してください</p>
+        {errors.password ? (
+          <p className="text-xs text-destructive">{errors.password.message}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">8文字以上で入力してください</p>
+        )}
       </div>
 
       <Button type="submit" className="w-full" disabled={isPending}>

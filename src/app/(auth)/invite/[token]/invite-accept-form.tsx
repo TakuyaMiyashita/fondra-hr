@@ -1,15 +1,24 @@
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useTransition } from 'react';
+import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { acceptInviteAndSignUp } from './actions';
+
+const passwordSchema = z.object({
+  password: z.string().min(8, 'パスワードは8文字以上で入力してください'),
+});
+
+type PasswordInput = z.infer<typeof passwordSchema>;
 
 interface InviteAcceptFormProps {
   invitationId: string;
@@ -30,16 +39,22 @@ export function InviteAcceptForm({
 }: InviteAcceptFormProps) {
   const [isPending, startTransition] = useTransition();
 
-  async function handleSubmit(formData: FormData) {
-    const password = formData.get('password') as string;
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<PasswordInput>({
+    resolver: zodResolver(passwordSchema),
+  });
 
+  function onSubmit(data: PasswordInput) {
     startTransition(async () => {
       const result = await acceptInviteAndSignUp({
         invitationId,
         orgId,
         role,
         email,
-        password,
+        password: data.password,
         token,
       });
       if (!result.success) {
@@ -49,7 +64,7 @@ export function InviteAcceptForm({
   }
 
   return (
-    <form action={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="rounded-md bg-muted p-3 text-sm">
         <p>
           <strong>{orgName}</strong> に <strong>{role}</strong> として参加します
@@ -65,14 +80,16 @@ export function InviteAcceptForm({
         <Label htmlFor="password">パスワード</Label>
         <Input
           id="password"
-          name="password"
           type="password"
-          minLength={8}
-          required
           autoComplete="new-password"
           disabled={isPending}
+          {...register('password')}
         />
-        <p className="text-xs text-muted-foreground">8文字以上で入力してください</p>
+        {errors.password ? (
+          <p className="text-xs text-destructive">{errors.password.message}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">8文字以上で入力してください</p>
+        )}
       </div>
 
       <Button type="submit" className="w-full" disabled={isPending}>

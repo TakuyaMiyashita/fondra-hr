@@ -8,7 +8,7 @@
 
 ### コアスタック（変更禁止）
 
-- **フレームワーク**: Next.js 15 App Router / TypeScript strict / React Server Components
+- **フレームワーク**: Next.js 16 App Router / TypeScript strict / React Server Components
 - **DB/BaaS**: Supabase（Postgres + Auth + Storage + RLS）
 - **ORM**: Drizzle ORM + drizzle-kit（型安全DB アクセス。**Supabase JS Client でのDB操作は禁止**）
 - **UI**: Tailwind CSS + shadcn/ui + lucide-react + sonner（toast）
@@ -40,6 +40,7 @@ RSC / Server Actions
 
 - RSC / Server Action から直接 Drizzle を呼ばない。必ず Service Layer を経由する
 - Service Layer の各メソッドは `ctx: AuthContext` を受け取り、`authorize()` → DB操作 → 監査ログの順で処理
+  - 例外: 認証ブートストラップ関数（`createOrganizationWithOwner`, `getUserMemberships` 等）は AuthContext 未確定時に呼ばれるため、個別パラメータで受け取る
 
 ### テナント分離の防御多層化
 
@@ -76,8 +77,7 @@ src/
 │   ├── utils.ts            # cn() 等
 │   └── result.ts           # Result<T, E> 型
 ├── hooks/                  # カスタムフック
-├── types/                  # 共有型定義
-└── styles/                 # globals.css
+└── types/                  # 共有型定義
 docs/                       # 設計ドキュメント（→ docs/ の構成は下記参照）
 tests/
 ├── unit/                   # ユニットテスト
@@ -93,7 +93,8 @@ supabase/
 ### DB
 
 - 変更は必ず `supabase/migrations/` のマイグレーションファイル経由。Supabase ダッシュボードでの直接変更は禁止
-- 新規テーブルには例外なく `org_id uuid not null` を持たせ、RLSを有効化し、ポリシーを定義する。RLS未設定のテーブルをマージしてはならない
+- 新規テーブルには `org_id uuid not null` を持たせ、RLSを有効化し、ポリシーを定義する。RLS未設定のテーブルをマージしてはならない
+  - 例外: テナントインフラテーブル（`organizations`, `memberships`, `invitations`）は org_id を外部キーとして持つか、テーブル自体がテナントの定義であるため、このルールの対象外
 - Drizzle スキーマ定義を `src/db/schema/` に配置し、マイグレーションと同期を保つ
 
 ### 命名規則
@@ -119,7 +120,9 @@ supabase/
 ### UI/UX
 
 - `docs/design/ui-guidelines.md` に従う
-- 全画面でローディング（Skeleton）/ 空状態（アイコン + 説明 + CTA）/ エラー状態を設計
+- データ取得を行う画面には `loading.tsx`（Skeleton）と `error.tsx` を必ず配置する
+- 空状態（アイコン + 説明 + CTA）は全画面で設計する
+- プレースホルダーページ（実データ取得未実装）には loading/error は不要。実データ取得の実装時に追加する
 
 ### 設計ドキュメント
 
@@ -138,7 +141,7 @@ supabase/
 
 - Conventional Commits 規約（`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`）
 - コミットメッセージは日本語で書く（prefix は英語のまま）
-  - 例: `feat: 従業員テーブルのCRUD実装`
+  - 例: `feat: 従業員一覧画面の実装`, `fix: RLSポリシーの修正`
 
 ### 品質チェック
 
@@ -147,3 +150,24 @@ supabase/
 ```bash
 pnpm lint && pnpm typecheck && pnpm test
 ```
+
+### フェーズ完了チェックリスト
+
+上記の品質チェックに加え、フェーズ完了前に以下を確認する：
+
+- [ ] CLAUDE.md の技術スタック・ディレクトリ構成が実態と一致しているか
+- [ ] 新規 Server Action に Zod バリデーションが実装されているか
+- [ ] データ取得を行う新規ページに `loading.tsx` / `error.tsx` が配置されているか
+- [ ] 新規テーブルに RLS ポリシーが定義されているか
+- [ ] 設計ドキュメント（`docs/`）が更新されているか
+- [ ] 機密情報（`.env`、APIキー、社名等）がコミットに含まれていないか
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

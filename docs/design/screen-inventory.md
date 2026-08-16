@@ -97,12 +97,15 @@
 |------|------|----------|
 | 監査ログ一覧 | `/audit-logs` | 通常: テーブル（日時/操作者メール/リソース種別 Badge/操作 Badge(作成=default,更新=secondary,削除=destructive)/変更内容 Popover）+ リソース種別フィルタ(Select) + ページネーション。ローディング: Skeleton。空状態: FileText アイコン + 「監査ログがまだありません」。エラー: エラーメッセージ + 再試行ボタン |
 
-## 設定（Phase 2+）
+## 設定（Phase 4）
 
 | 画面 | パス | 状態定義 |
 |------|------|----------|
-| 組織設定 | `/settings` | TBD |
-| メンバー管理 | `/settings/members` | TBD |
+| 組織設定 | `/settings` | 通常: タブナビ（一般/メンバー）+ 組織情報カード（組織名編集フォーム + スラッグ・プラン表示）。admin 以上: 編集可。member/viewer: 読み取り専用。ローディング: Skeleton。エラー: エラーメッセージ + 再試行ボタン |
+| メンバー管理 | `/settings/members` | 通常: タブナビ + メンバーテーブル（メールアドレス/ロール Select or Badge/削除ボタン）+ 招待ボタン。admin 以上: ロール変更 Select・メンバー削除・招待可。member/viewer: Badge 表示のみ。保留中の招待カード（メール/ロール/有効期限/取り消しボタン）。ローディング: Skeleton。エラー: エラーメッセージ + 再試行ボタン |
+| メンバー招待 | Dialog | React Hook Form + zodResolver。フィールド: メールアドレス(必須)/ロール(Select: 管理者/メンバー/閲覧者)。重複チェック（既存メンバー/既存有効招待）は Service 側。送信中: ボタン disabled + Loader。成功: toast + Dialog 閉じ + router.refresh()。エラー: toast / インラインバリデーション |
+| メンバー削除 | Dialog | 確認ダイアログ（メールアドレスを表示）。オーナーは削除不可・自分自身は削除不可。Destructive ボタン |
+| 招待取り消し | Dialog | 確認ダイアログ（メールアドレスを表示）。Destructive ボタン |
 
 ## ランディングページ（Phase 5）
 

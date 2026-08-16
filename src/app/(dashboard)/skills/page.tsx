@@ -1,16 +1,24 @@
-import { Sparkles } from 'lucide-react';
+import { getAuthContext } from '@/lib/auth';
+import { getDepartmentsForOrg } from '@/services/employee';
+import { getCategories, listSkills } from '@/services/skill';
 
-export default function SkillsPage() {
+import { SkillPageClient } from './skill-page-client';
+
+export default async function SkillsPage() {
+  const ctx = await getAuthContext();
+
+  const [result, categories, departments] = await Promise.all([
+    listSkills(ctx, { page: 1, perPage: 50 }),
+    getCategories(ctx),
+    getDepartmentsForOrg(ctx),
+  ]);
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">スキル</h1>
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Sparkles className="h-12 w-12 text-muted-foreground/50" />
-        <h3 className="mt-4 text-lg font-semibold">スキルがまだ登録されていません</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          スキルを定義して、従業員のスキルマトリクスを作成しましょう。
-        </p>
-      </div>
-    </div>
+    <SkillPageClient
+      initialSkills={result.skills}
+      initialTotal={result.total}
+      categories={categories}
+      departments={departments}
+    />
   );
 }

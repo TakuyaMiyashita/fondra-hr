@@ -1,16 +1,21 @@
-import { Handshake } from 'lucide-react';
+import { getAuthContext } from '@/lib/auth';
+import { getEmployeesForOrg, listOneOnOnes } from '@/services/one-on-one';
 
-export default function OneOnOnesPage() {
+import { OneOnOneListClient } from './one-on-one-list-client';
+
+export default async function OneOnOnesPage() {
+  const ctx = await getAuthContext();
+
+  const [result, employees] = await Promise.all([
+    listOneOnOnes(ctx, { page: 1, perPage: 20, sort: 'heldOn', order: 'desc' }),
+    getEmployeesForOrg(ctx),
+  ]);
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">1on1</h1>
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Handshake className="h-12 w-12 text-muted-foreground/50" />
-        <h3 className="mt-4 text-lg font-semibold">1on1記録がまだありません</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          1on1ミーティングを記録して、コミュニケーションの質を向上させましょう。
-        </p>
-      </div>
-    </div>
+    <OneOnOneListClient
+      initialRecords={result.records}
+      initialTotal={result.total}
+      employees={employees}
+    />
   );
 }

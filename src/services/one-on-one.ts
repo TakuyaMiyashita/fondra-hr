@@ -179,7 +179,7 @@ export async function createOneOnOne(
       interviewerId: input.interviewerId,
       heldOn: input.heldOn,
       notes: input.notes || null,
-      moodScore: input.moodScore ?? null,
+      moodScore: input.moodScore || null,
     })
     .returning({ id: oneOnOnes.id });
 

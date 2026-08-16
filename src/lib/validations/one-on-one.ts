@@ -13,13 +13,12 @@ export const createOneOnOneSchema = z.object({
     .max(5000, 'メモは5000文字以内で入力してください')
     .optional()
     .or(z.literal('')),
-  moodScore: z.coerce
+  moodScore: z
     .number()
     .int()
-    .min(1, 'コンディションは1以上で入力してください')
+    .min(0)
     .max(5, 'コンディションは5以下で入力してください')
-    .optional()
-    .or(z.literal(0).transform(() => undefined)),
+    .optional(),
 });
 
 export type CreateOneOnOneInput = z.infer<typeof createOneOnOneSchema>;

@@ -65,7 +65,7 @@ export function AppSidebar({ role, orgName }: AppSidebarProps) {
       <SidebarHeader className="border-b border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/employees" />}>
+            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <BarChart3 className="size-4" />
               </div>

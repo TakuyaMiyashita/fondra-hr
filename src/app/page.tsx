@@ -6,7 +6,7 @@ export default async function Home() {
   const user = await getOptionalUser();
 
   if (user) {
-    redirect('/employees');
+    redirect('/dashboard');
   } else {
     redirect('/login');
   }

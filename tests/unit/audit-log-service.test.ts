@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AuthContext } from '@/services/auth-context';
-import { AuthorizationError } from '@/services/authorize';
 
 const adminCtx: AuthContext = { userId: 'user-1', orgId: 'org-1', role: 'admin' };
 const memberCtx: AuthContext = { userId: 'user-2', orgId: 'org-1', role: 'member' };

@@ -3,7 +3,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
-import { useTransition } from 'react';
+import { useEffect, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
@@ -39,6 +39,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultValues?: Department;
+  defaultParentId?: string;
   departments: Department[];
   onSuccess: () => void;
 }
@@ -63,6 +64,7 @@ export function DepartmentFormDialog({
   open,
   onOpenChange,
   defaultValues,
+  defaultParentId,
   departments,
   onSuccess,
 }: Props) {
@@ -85,9 +87,19 @@ export function DepartmentFormDialog({
         }
       : {
           name: '',
-          parentId: '',
+          parentId: defaultParentId ?? '',
         },
   });
+
+  useEffect(() => {
+    if (open) {
+      reset(
+        defaultValues
+          ? { name: defaultValues.name, parentId: defaultValues.parentId ?? '' }
+          : { name: '', parentId: defaultParentId ?? '' },
+      );
+    }
+  }, [open, defaultValues, defaultParentId, reset]);
 
   const parentId = watch('parentId');
 

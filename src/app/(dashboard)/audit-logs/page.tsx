@@ -1,16 +1,21 @@
-import { FileText } from 'lucide-react';
+import { getAuthContext } from '@/lib/auth';
+import { listAuditLogs, getResourceTypes } from '@/services/audit-log';
 
-export default function AuditLogsPage() {
+import { AuditLogListClient } from './audit-log-list-client';
+
+export default async function AuditLogsPage() {
+  const ctx = await getAuthContext();
+
+  const [result, resourceTypes] = await Promise.all([
+    listAuditLogs(ctx, { page: 1, perPage: 20, order: 'desc' }),
+    getResourceTypes(ctx),
+  ]);
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">監査ログ</h1>
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <FileText className="h-12 w-12 text-muted-foreground/50" />
-        <h3 className="mt-4 text-lg font-semibold">監査ログがまだありません</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          データの変更が行われると、自動的にここに記録されます。
-        </p>
-      </div>
-    </div>
+    <AuditLogListClient
+      initialLogs={result.logs}
+      initialTotal={result.total}
+      resourceTypes={resourceTypes}
+    />
   );
 }

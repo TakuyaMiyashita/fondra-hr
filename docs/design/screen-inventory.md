@@ -95,7 +95,7 @@
 
 | 画面 | パス | 状態定義 |
 |------|------|----------|
-| 監査ログ一覧 | `/audit-logs` | TBD |
+| 監査ログ一覧 | `/audit-logs` | 通常: テーブル（日時/操作者メール/リソース種別 Badge/操作 Badge(作成=default,更新=secondary,削除=destructive)/変更内容 Popover）+ リソース種別フィルタ(Select) + ページネーション。ローディング: Skeleton。空状態: FileText アイコン + 「監査ログがまだありません」。エラー: エラーメッセージ + 再試行ボタン |
 
 ## 設定（Phase 2+）
 

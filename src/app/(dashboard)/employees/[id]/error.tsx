@@ -1,0 +1,31 @@
+'use client';
+
+import { AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+import { Button } from '@/components/ui/button';
+
+export default function EmployeeDetailError({
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  const router = useRouter();
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <AlertCircle className="h-12 w-12 text-muted-foreground/50" />
+      <h3 className="mt-4 text-lg font-semibold">従業員情報の取得に失敗しました</h3>
+      <p className="mt-2 text-sm text-muted-foreground">
+        ネットワーク接続を確認し、再度お試しください。
+      </p>
+      <div className="mt-6 flex gap-2">
+        <Button variant="outline" onClick={() => router.push('/employees')}>
+          一覧に戻る
+        </Button>
+        <Button onClick={reset}>再試行</Button>
+      </div>
+    </div>
+  );
+}

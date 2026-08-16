@@ -1,14 +1,17 @@
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTransition } from 'react';
+import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { type SignInInput, signInSchema } from '@/lib/validations/auth';
 
 import { signIn } from '../actions';
 
@@ -17,12 +20,17 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const registered = searchParams.get('registered');
 
-  async function handleSubmit(formData: FormData) {
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignInInput>({
+    resolver: zodResolver(signInSchema),
+  });
 
+  function onSubmit(data: SignInInput) {
     startTransition(async () => {
-      const result = await signIn(email, password);
+      const result = await signIn(data);
       if (!result.success) {
         toast.error(result.error);
       }
@@ -30,7 +38,7 @@ export function LoginForm() {
   }
 
   return (
-    <form action={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {registered && (
         <p className="rounded-md bg-primary/10 p-3 text-center text-sm text-primary">
           アカウントを作成しました。メールを確認してからログインしてください。
@@ -41,13 +49,15 @@ export function LoginForm() {
         <Label htmlFor="email">メールアドレス</Label>
         <Input
           id="email"
-          name="email"
           type="email"
           placeholder="you@example.com"
-          required
           autoComplete="email"
           disabled={isPending}
+          {...register('email')}
         />
+        {errors.email && (
+          <p className="text-xs text-destructive">{errors.email.message}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -62,12 +72,14 @@ export function LoginForm() {
         </div>
         <Input
           id="password"
-          name="password"
           type="password"
-          required
           autoComplete="current-password"
           disabled={isPending}
+          {...register('password')}
         />
+        {errors.password && (
+          <p className="text-xs text-destructive">{errors.password.message}</p>
+        )}
       </div>
 
       <Button type="submit" className="w-full" disabled={isPending}>

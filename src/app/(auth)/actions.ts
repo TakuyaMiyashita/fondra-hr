@@ -5,28 +5,39 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { type Result, err, ok } from '@/lib/result';
 import { createOrganizationWithOwner } from '@/services/auth';
+import {
+  signUpSchema,
+  signInSchema,
+  resetPasswordSchema,
+  switchOrgSchema,
+} from '@/lib/validations/auth';
 
-export async function signUp(
-  email: string,
-  password: string,
-  orgName: string,
-): Promise<Result<void>> {
+export async function signUp(data: {
+  email: string;
+  password: string;
+  orgName: string;
+}): Promise<Result<void>> {
+  const parsed = signUpSchema.safeParse(data);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   const supabase = await createClient();
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
+  const { data: authData, error } = await supabase.auth.signUp({
+    email: parsed.data.email,
+    password: parsed.data.password,
   });
 
   if (error) {
     return err(error.message);
   }
 
-  if (!data.user) {
+  if (!authData.user) {
     return err('ユーザーの作成に失敗しました');
   }
 
-  const orgResult = await createOrganizationWithOwner(data.user.id, orgName);
+  const orgResult = await createOrganizationWithOwner(authData.user.id, parsed.data.orgName);
   if (!orgResult.success) {
     return err(orgResult.error);
   }
@@ -34,15 +45,20 @@ export async function signUp(
   redirect('/login?registered=true');
 }
 
-export async function signIn(
-  email: string,
-  password: string,
-): Promise<Result<void>> {
+export async function signIn(data: {
+  email: string;
+  password: string;
+}): Promise<Result<void>> {
+  const parsed = signInSchema.safeParse(data);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   const supabase = await createClient();
 
   const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+    email: parsed.data.email,
+    password: parsed.data.password,
   });
 
   if (error) {
@@ -61,10 +77,17 @@ export async function signOut(): Promise<void> {
   redirect('/login');
 }
 
-export async function resetPassword(email: string): Promise<Result<void>> {
+export async function resetPassword(data: {
+  email: string;
+}): Promise<Result<void>> {
+  const parsed = resetPasswordSchema.safeParse(data);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
     redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/settings`,
   });
 
@@ -75,11 +98,16 @@ export async function resetPassword(email: string): Promise<Result<void>> {
   return ok(undefined);
 }
 
-export async function switchOrg(orgId: string): Promise<void> {
+export async function switchOrg(data: { orgId: string }): Promise<void> {
+  const parsed = switchOrgSchema.safeParse(data);
+  if (!parsed.success) {
+    return;
+  }
+
   const supabase = await createClient();
 
   await supabase.auth.updateUser({
-    data: { org_id: orgId },
+    data: { org_id: parsed.data.orgId },
   });
 
   await supabase.auth.refreshSession();

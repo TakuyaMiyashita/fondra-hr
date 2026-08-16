@@ -33,7 +33,7 @@ export function OrgSwitcher({ currentOrgId, orgs }: OrgSwitcherProps) {
   function handleSwitch(orgId: string) {
     if (orgId === currentOrgId) return;
     startTransition(async () => {
-      await switchOrg(orgId);
+      await switchOrg({ orgId });
     });
   }
 

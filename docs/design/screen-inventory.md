@@ -53,7 +53,10 @@
 
 | 画面 | パス | 状態定義 |
 |------|------|----------|
-| 組織図 | `/departments` | TBD |
+| 組織図 | `/departments` | 通常: ツリー表示（再帰コンポーネント）。各ノード: 部署名 + 所属人数 Badge + アクションメニュー（子部署追加/編集/削除）。展開・折りたたみ（depth < 2 はデフォルト展開）。ローディング: ツリー形状 Skeleton。空状態: Building2 アイコン + 「部署がまだ登録されていません」+ CTA。エラー: エラーメッセージ + 再試行ボタン |
+| 部署作成 | Dialog | React Hook Form + zodResolver。フィールド: 部署名(必須)/親部署(Select、なし=トップレベル)。送信中: ボタン disabled + Loader。成功: toast + Dialog 閉じ + router.refresh()。エラー: toast / インラインバリデーション |
+| 部署編集 | Dialog | 作成と同じ Dialog を edit モードで使用。編集時は自身と子孫を親部署候補から除外（循環参照防止）。親部署変更時は Service 側でも子孫チェック |
+| 部署削除 | Dialog | 確認ダイアログ（部署名を表示）。子部署・所属従業員がある場合は Service 側でエラー返却。Destructive ボタン。成功: toast + ツリー再取得 |
 
 ## スキルマトリクス（Phase 3-3）
 

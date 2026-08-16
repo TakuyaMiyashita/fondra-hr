@@ -1,16 +1,19 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PaginationState, SortingState } from '@tanstack/react-table';
+import { Plus } from 'lucide-react';
 import { parseAsInteger, parseAsString, parseAsStringEnum, useQueryState } from 'nuqs';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { DataTable, type VisibilityState } from '@/components/shared/data-table';
 import { DataTablePagination } from '@/components/shared/data-table-pagination';
+import { Button } from '@/components/ui/button';
 import type { DepartmentOption, EmployeeListResult, EmployeeStatus } from '@/types/employee';
 
 import { fetchEmployees } from './actions';
 import { employeeColumns } from './employee-columns';
+import { EmployeeFormSheet } from './employee-form-sheet';
 import { EmployeeTableToolbar } from './employee-table-toolbar';
 import { useEmployeeCsvExport } from './use-employee-csv-export';
 
@@ -22,6 +25,8 @@ interface EmployeeListClientProps {
 type SortKey = 'employeeCode' | 'fullName' | 'email' | 'position' | 'hiredOn' | 'status' | 'createdAt';
 
 export function EmployeeListClient({ initialData, departments }: EmployeeListClientProps) {
+  const queryClient = useQueryClient();
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
   const [perPage, setPerPage] = useQueryState('perPage', parseAsInteger.withDefault(20));
   const [sort, setSort] = useQueryState('sort', parseAsString.withDefault('createdAt'));
@@ -139,7 +144,8 @@ export function EmployeeListClient({ initialData, departments }: EmployeeListCli
 
   return (
     <div className="space-y-4">
-      <EmployeeTableToolbar
+      <div className="flex items-center justify-between">
+        <EmployeeTableToolbar
         search={search}
         onSearchChange={handleSearchChange}
         status={status ?? undefined}
@@ -152,6 +158,11 @@ export function EmployeeListClient({ initialData, departments }: EmployeeListCli
         onCsvExport={handleCsvExport}
         isExporting={isExporting}
       />
+        <Button onClick={() => setSheetOpen(true)}>
+          <Plus className="mr-1.5 size-4" />
+          新規登録
+        </Button>
+      </div>
       <DataTable
         columns={employeeColumns}
         data={data.employees}
@@ -175,6 +186,16 @@ export function EmployeeListClient({ initialData, departments }: EmployeeListCli
         onPerPageChange={(pp) => {
           void setPerPage(pp);
           void setPage(1);
+        }}
+      />
+      <EmployeeFormSheet
+        mode="create"
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        departments={departments}
+        onSuccess={() => {
+          setSheetOpen(false);
+          void queryClient.invalidateQueries({ queryKey: ['employees'] });
         }}
       />
     </div>

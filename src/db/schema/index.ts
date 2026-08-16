@@ -1,3 +1,11 @@
 export { organizations } from './organizations';
 export { authUsers, memberships } from './memberships';
 export { invitations } from './invitations';
+export { departments } from './departments';
+export { employees } from './employees';
+export { skills } from './skills';
+export { employeeSkills } from './employee-skills';
+export { oneOnOnes } from './one-on-ones';
+export { evaluationCycles } from './evaluation-cycles';
+export { evaluations } from './evaluations';
+export { auditLogs } from './audit-logs';

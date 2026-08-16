@@ -137,6 +137,8 @@ supabase/
 ### コミット
 
 - Conventional Commits 規約（`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`）
+- コミットメッセージは日本語で書く（prefix は英語のまま）
+  - 例: `feat: 従業員テーブルのCRUD実装`
 
 ### 品質チェック
 

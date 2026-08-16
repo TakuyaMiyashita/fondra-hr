@@ -82,8 +82,14 @@
 
 | 画面 | パス | 状態定義 |
 |------|------|----------|
-| 評価サイクル一覧 | `/evaluations` | TBD |
-| 評価入力 | `/evaluations/[cycleId]/[employeeId]` | TBD |
+| 評価サイクル一覧 | `/evaluations` | 通常: カードリスト（サイクル名/ステータス Badge/期間/評価件数）。クリックで詳細ビュー遷移。ローディング: Skeleton。空状態: ClipboardList アイコン + 「評価サイクルがまだ作成されていません」+ CTA。エラー: エラーメッセージ + 再試行ボタン |
+| 評価サイクル詳細 | `/evaluations` (detail view) | 通常: サイクル情報ヘッダー + 評価一覧カード（従業員名/社員番号/ステータス Badge/評価者/平均スコア/コメント抜粋）。空状態: 「まだ評価が追加されていません」+ CTA |
+| 評価サイクル作成 | Dialog | React Hook Form + zodResolver。フィールド: サイクル名(必須)/開始日(date,必須)/終了日(date,必須)。送信中: ボタン disabled + Loader。成功: toast + Dialog 閉じ + 一覧再取得。エラー: toast / インラインバリデーション |
+| 評価サイクル編集 | Dialog | 作成と同じ Dialog を edit モードで使用。ステータス変更（下書き/進行中/完了）も可能 |
+| 評価サイクル削除 | Dialog | 確認ダイアログ（サイクル名を表示）。評価が紐づいている場合は Service 側でエラー返却。Destructive ボタン |
+| 評価追加 | Dialog | 対象従業員(Select,必須)/評価者(Select,必須)。重複チェックは Service 側 |
+| 評価入力 | Dialog | 評価項目（業績/能力/態度）の 1-5 ボタン入力 + コメント(Textarea) + ステータス変更(Select)。保存時: toast + 一覧再取得 |
+| 評価削除 | Dialog | 確認ダイアログ（従業員名を表示）。Destructive ボタン |
 
 ## 監査ログ（Phase 3-6）
 

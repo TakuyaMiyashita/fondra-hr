@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { EmployeeOption } from '@/types/one-on-one';
+import type { EmployeeOption } from '@/types/employee';
 import type { CycleWithEvaluations, Evaluation } from '@/types/evaluation';
 
 import { EvaluationDeleteDialog } from './evaluation-delete-dialog';

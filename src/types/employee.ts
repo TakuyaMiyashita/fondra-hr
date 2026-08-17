@@ -57,3 +57,9 @@ export interface DepartmentOption {
   id: string;
   name: string;
 }
+
+export interface EmployeeOption {
+  id: string;
+  fullName: string;
+  employeeCode: string;
+}

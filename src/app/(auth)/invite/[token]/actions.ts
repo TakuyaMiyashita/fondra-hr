@@ -5,7 +5,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { type Result, err } from '@/lib/result';
 import { acceptInvitation } from '@/services/auth';
-import type { Role } from '@/services/auth-context';
 import { acceptInviteSchema } from '@/lib/validations/auth';
 
 export async function acceptInviteAndSignUp(
@@ -42,7 +41,7 @@ export async function acceptInviteAndSignUp(
     parsed.data.invitationId,
     authData.user.id,
     parsed.data.orgId,
-    parsed.data.role as Role,
+    parsed.data.role,
   );
 
   if (!result.success) {

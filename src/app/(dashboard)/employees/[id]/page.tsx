@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { getAuthContext } from '@/lib/auth';
@@ -9,6 +10,10 @@ import { EmployeeDetailClient } from './employee-detail-client';
 interface Props {
   params: Promise<{ id: string }>;
 }
+
+export const metadata: Metadata = {
+  title: '従業員詳細',
+};
 
 export default async function EmployeeDetailPage({ params }: Props) {
   const { id } = await params;

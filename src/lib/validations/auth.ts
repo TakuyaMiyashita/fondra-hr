@@ -24,7 +24,7 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export const acceptInviteSchema = z.object({
   invitationId: z.string().uuid(),
   orgId: z.string().uuid(),
-  role: z.string().min(1),
+  role: z.enum(['owner', 'admin', 'member', 'viewer']),
   email: z.string().email(),
   password: z.string().min(8, 'パスワードは8文字以上で入力してください'),
   token: z.string().uuid(),

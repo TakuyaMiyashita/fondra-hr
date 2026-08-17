@@ -82,7 +82,9 @@ export async function listOneOnOnes(
     .innerJoin(emp, eq(oneOnOnes.employeeId, emp.id))
     .innerJoin(interviewer, eq(oneOnOnes.interviewerId, interviewer.id))
     .where(where)
-    .orderBy(orderFn(orderCol))
+    // heldOn / createdAt は一意ではない。タイブレーカーが無いと
+    // ページ間で行の重複・欠落が起きるため id を併用する。
+    .orderBy(orderFn(orderCol), asc(oneOnOnes.id))
     .limit(query.perPage)
     .offset(offset);
 

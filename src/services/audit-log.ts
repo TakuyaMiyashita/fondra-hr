@@ -64,7 +64,9 @@ export async function listAuditLogs(
     .from(auditLogs)
     .leftJoin(authUsers, eq(auditLogs.actorUserId, authUsers.id))
     .where(where)
-    .orderBy(orderFn(auditLogs.createdAt))
+    // createdAt は一意ではない（同一トランザクションの一括操作で同値になる）。
+    // タイブレーカーが無いとページ間で行の重複・欠落が起きるため id を併用する。
+    .orderBy(orderFn(auditLogs.createdAt), asc(auditLogs.id))
     .limit(query.perPage)
     .offset(offset);
 

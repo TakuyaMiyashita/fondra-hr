@@ -31,7 +31,7 @@ graph TB
 
     RSC --> AUTH
     SA --> AUTH
-    CC -->|TanStack Query| RSC
+    CC -->|Server Actions| SA
     AUTH --> BIZ
     BIZ --> DRIZZLE
     BIZ --> AUDIT
@@ -106,6 +106,10 @@ pnpm dev
 | `pnpm test:e2e` | E2Eテスト実行 (Playwright) |
 | `pnpm test:rls` | RLSテスト実行 |
 | `pnpm format` | Prettier フォーマット |
+| `pnpm format:check` | フォーマットチェック |
+| `pnpm db:generate` | Drizzle マイグレーション生成 |
+| `pnpm db:migrate` | マイグレーション適用 |
+| `pnpm db:studio` | Drizzle Studio 起動 |
 
 ## 設計ドキュメント
 

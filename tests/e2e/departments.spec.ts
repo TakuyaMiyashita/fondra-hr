@@ -10,7 +10,10 @@ test.describe('部署管理', () => {
     await page.goto('/departments');
     const emptyHeading = page.getByRole('heading', { name: '部署がまだ登録されていません' });
     const addButton = page.getByRole('button', { name: '部署を追加' });
-    await expect(emptyHeading.or(addButton)).toBeVisible();
+    // 空状態では見出しと「部署を追加」ボタンが同時に存在するため、
+    // .or() は 2 要素にマッチする（strict mode 違反）。
+    // ここで確認したいのは「どちらかが描画されていること」なので first() を取る。
+    await expect(emptyHeading.or(addButton).first()).toBeVisible();
   });
 
   test('creates a new department', async ({ page }) => {

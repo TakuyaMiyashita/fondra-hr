@@ -87,12 +87,27 @@ cp .env.example .env.local
 # 3. Supabase ローカル起動
 npx supabase start
 
-# 4. マイグレーション適用
+# 4. マイグレーション適用 + デモデータ投入
 npx supabase db reset
 
 # 5. 開発サーバー起動
 pnpm dev
 ```
+
+### デモデータ
+
+`npx supabase db reset` を実行すると `supabase/seed.sql` が自動適用され、
+デモ組織「株式会社フォンドラ」（従業員30名 / 部署12件 / スキル22件 / スキル割当139件 /
+1on1 108件 / 評価2サイクル56件 / 監査ログ52件）が投入される。以下のアカウントでログインできる。
+
+| メールアドレス | パスワード | ロール |
+|----------------|------------|--------|
+| `owner@fondra.example.com` | `demo-password123` | owner |
+| `hr@fondra.example.com` | `demo-password123` | admin |
+| `manager@fondra.example.com` | `demo-password123` | member |
+
+日付はすべて実行日からの相対で生成されるため、いつ reset しても「直近90日の1on1」
+「進行中の評価サイクル」が成立する。ローカル開発・デモ専用であり、本番環境では実行しない。
 
 ### npm scripts
 

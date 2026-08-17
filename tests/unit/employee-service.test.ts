@@ -103,6 +103,30 @@ describe('listEmployees', () => {
     expect(result).toHaveProperty('total');
   });
 
+  it('orders by a unique tie-breaker in addition to the sort column', async () => {
+    // createdAt など一意でない列でソートすると、タイブレーカーが無い限り
+    // LIMIT/OFFSET のページ間で行の重複・欠落が起きる。
+    const { listEmployees } = await import('@/services/employee');
+
+    const db = await getDb();
+    let callCount = 0;
+    db.select.mockImplementation(() => {
+      callCount++;
+      if (callCount === 2) return createChainMock([{ total: 0 }]);
+      return selectChain;
+    });
+
+    await listEmployees(adminCtx, {
+      page: 2,
+      perPage: 20,
+      sort: 'createdAt',
+      order: 'desc',
+    });
+
+    expect(selectChain.orderBy).toHaveBeenCalledTimes(1);
+    expect(selectChain.orderBy.mock.calls[0]).toHaveLength(2);
+  });
+
   it('returns employees and total count', async () => {
     const { listEmployees } = await import('@/services/employee');
 

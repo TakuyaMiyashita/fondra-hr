@@ -85,7 +85,9 @@ export async function listEmployees(
       .from(employees)
       .leftJoin(departments, eq(employees.departmentId, departments.id))
       .where(where)
-      .orderBy(orderFn(sortCol))
+      // ソート列は一意ではない（createdAt / status / position 等）。
+      // タイブレーカーが無いとページ間で行の重複・欠落が起きるため id を併用する。
+      .orderBy(orderFn(sortCol), asc(employees.id))
       .limit(query.perPage)
       .offset(offset),
     db.select({ total: count() }).from(employees).where(where),

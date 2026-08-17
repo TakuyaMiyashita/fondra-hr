@@ -2,6 +2,7 @@
 
 import {
   BarChart3,
+  Bot,
   Building2,
   ClipboardList,
   FileText,
@@ -40,6 +41,7 @@ const mainNav = [
 ];
 
 const adminNav = [
+  { href: '/ai-assistant', label: 'AI アシスタント', icon: Bot, minRole: 'viewer' as Role },
   { href: '/audit-logs', label: '監査ログ', icon: FileText, minRole: 'viewer' as Role },
   { href: '/settings', label: '設定', icon: Settings, minRole: 'admin' as Role },
 ];

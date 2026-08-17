@@ -1,7 +1,6 @@
 import { and, asc, count, eq, ilike, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { auditLogs } from '@/db/schema/audit-logs';
 import { departments } from '@/db/schema/departments';
 import { employeeSkills } from '@/db/schema/employee-skills';
 import { employees } from '@/db/schema/employees';
@@ -14,6 +13,7 @@ import type {
   SkillMatrixQuery,
   UpdateSkillInput,
 } from '@/lib/validations/skill';
+import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
 import type {
@@ -24,22 +24,6 @@ import type {
   SkillMatrixEmployee,
   SkillWithCount,
 } from '@/types/skill';
-
-async function writeAuditLog(
-  ctx: AuthContext,
-  action: string,
-  resourceId: string | null,
-  changes?: Record<string, unknown>,
-) {
-  await db.insert(auditLogs).values({
-    orgId: ctx.orgId,
-    actorUserId: ctx.userId,
-    action,
-    resourceType: 'skill',
-    resourceId,
-    changes: changes ?? null,
-  });
-}
 
 export async function listSkills(
   ctx: AuthContext,
@@ -139,7 +123,7 @@ export async function createSkill(
     })
     .returning({ id: skills.id });
 
-  await writeAuditLog(ctx, 'skill.create', created.id, {
+  await writeAuditLog(ctx, 'skill.create', 'skill', created.id, {
     name: input.name,
     category: input.category || null,
   });
@@ -194,7 +178,7 @@ export async function updateSkill(
     .set({ name: input.name, category, updatedAt: new Date() })
     .where(and(eq(skills.id, input.id), eq(skills.orgId, ctx.orgId)));
 
-  await writeAuditLog(ctx, 'skill.update', input.id, changes);
+  await writeAuditLog(ctx, 'skill.update', 'skill', input.id, changes);
 
   return ok(undefined);
 }
@@ -228,7 +212,7 @@ export async function deleteSkill(
     .delete(skills)
     .where(and(eq(skills.id, id), eq(skills.orgId, ctx.orgId)));
 
-  await writeAuditLog(ctx, 'skill.delete', id, { name: target.name });
+  await writeAuditLog(ctx, 'skill.delete', 'skill', id, { name: target.name });
 
   return ok(undefined);
 }
@@ -373,7 +357,7 @@ export async function assignSkill(
       })
       .where(eq(employeeSkills.id, existing.id));
 
-    await writeAuditLog(ctx, 'employee_skill.update', existing.id, {
+    await writeAuditLog(ctx, 'employee_skill.update', 'employee_skill', existing.id, {
       employeeId: input.employeeId,
       skillId: input.skillId,
       level: input.level,
@@ -390,7 +374,7 @@ export async function assignSkill(
       })
       .returning({ id: employeeSkills.id });
 
-    await writeAuditLog(ctx, 'employee_skill.create', created.id, {
+    await writeAuditLog(ctx, 'employee_skill.create', 'employee_skill', created.id, {
       employeeId: input.employeeId,
       skillId: input.skillId,
       level: input.level,
@@ -427,7 +411,7 @@ export async function removeSkillAssignment(
     .delete(employeeSkills)
     .where(eq(employeeSkills.id, existing.id));
 
-  await writeAuditLog(ctx, 'employee_skill.delete', existing.id, {
+  await writeAuditLog(ctx, 'employee_skill.delete', 'employee_skill', existing.id, {
     employeeId,
     skillId,
   });

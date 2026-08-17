@@ -1,7 +1,6 @@
 import { and, asc, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { auditLogs } from '@/db/schema/audit-logs';
 import { departments } from '@/db/schema/departments';
 import { employeeSkills } from '@/db/schema/employee-skills';
 import { employees } from '@/db/schema/employees';
@@ -11,6 +10,7 @@ import { oneOnOnes } from '@/db/schema/one-on-ones';
 import { skills } from '@/db/schema/skills';
 import { type Result, err, ok } from '@/lib/result';
 import type { CreateEmployeeInput, EmployeeListQuery } from '@/lib/validations/employee';
+import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
 import type {
@@ -22,22 +22,6 @@ import type {
   EvaluationRow,
   OneOnOneRow,
 } from '@/types/employee';
-
-async function writeAuditLog(
-  ctx: AuthContext,
-  action: string,
-  resourceId: string | null,
-  changes?: Record<string, unknown>,
-) {
-  await db.insert(auditLogs).values({
-    orgId: ctx.orgId,
-    actorUserId: ctx.userId,
-    action,
-    resourceType: 'employee',
-    resourceId,
-    changes: changes ?? null,
-  });
-}
 
 export async function listEmployees(
   ctx: AuthContext,
@@ -191,7 +175,7 @@ export async function createEmployee(
     .values({ ...data, orgId: ctx.orgId })
     .returning({ id: employees.id });
 
-  await writeAuditLog(ctx, 'employee.create', created.id, data);
+  await writeAuditLog(ctx, 'employee.create', 'employee', created.id, data);
 
   return ok({ id: created.id });
 }
@@ -252,7 +236,7 @@ export async function updateEmployee(
     .set(updateData)
     .where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
 
-  await writeAuditLog(ctx, 'employee.update', id, changes);
+  await writeAuditLog(ctx, 'employee.update', 'employee', id, changes);
 
   return ok(undefined);
 }
@@ -277,7 +261,7 @@ export async function deleteEmployee(
     .delete(employees)
     .where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
 
-  await writeAuditLog(ctx, 'employee.delete', id, { fullName: target.fullName });
+  await writeAuditLog(ctx, 'employee.delete', 'employee', id, { fullName: target.fullName });
 
   return ok(undefined);
 }
@@ -393,7 +377,7 @@ export async function updateEmployeeAvatar(
     .set({ avatarPath, updatedAt: new Date() })
     .where(and(eq(employees.id, employeeId), eq(employees.orgId, ctx.orgId)));
 
-  await writeAuditLog(ctx, 'employee.avatar_update', employeeId, { avatarPath });
+  await writeAuditLog(ctx, 'employee.avatar_update', 'employee', employeeId, { avatarPath });
 
   return ok(undefined);
 }

@@ -35,6 +35,14 @@ import type { EvaluationCycle } from '@/types/evaluation';
 
 import { createCycleAction, updateCycleAction } from './actions';
 
+// Base UI の Select は items を渡さないと、選択中の値をラベルではなく
+// 生の値（draft / in_progress など）のまま表示する。
+const STATUS_ITEMS: Record<string, string> = {
+  draft: '下書き',
+  in_progress: '進行中',
+  completed: '完了',
+};
+
 interface Props {
   mode: 'create' | 'edit';
   open: boolean;
@@ -160,6 +168,7 @@ export function CycleFormDialog({ mode, open, onOpenChange, defaultValues, onSuc
             <div className="space-y-2">
               <Label>ステータス</Label>
               <Select
+                items={STATUS_ITEMS}
                 value={status || defaultValues?.status || 'draft'}
                 onValueChange={(val) => {
                   if (val) setValue('status', val as CycleStatus);
@@ -170,9 +179,11 @@ export function CycleFormDialog({ mode, open, onOpenChange, defaultValues, onSuc
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="draft">下書き</SelectItem>
-                  <SelectItem value="in_progress">進行中</SelectItem>
-                  <SelectItem value="completed">完了</SelectItem>
+                  {Object.entries(STATUS_ITEMS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -47,6 +47,15 @@ const columnLabels: Record<string, string> = {
   hiredOn: '入社日',
 };
 
+// Base UI の Select は items を渡さないと、選択中の値をラベルではなく
+// 生の値（active / __all__ など）のまま表示する。
+const STATUS_ITEMS: Record<string, string> = {
+  __all__: '全て',
+  active: '在籍',
+  inactive: '休職',
+  retired: '退職',
+};
+
 export function EmployeeTableToolbar({
   search,
   onSearchChange,
@@ -87,6 +96,7 @@ export function EmployeeTableToolbar({
           />
         </div>
         <Select
+          items={STATUS_ITEMS}
           value={status ?? '__all__'}
           onValueChange={(v) => onStatusChange(v === '__all__' ? undefined : (v as EmployeeStatus))}
         >
@@ -94,14 +104,19 @@ export function EmployeeTableToolbar({
             <SelectValue placeholder="ステータス" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">全て</SelectItem>
-            <SelectItem value="active">在籍</SelectItem>
-            <SelectItem value="inactive">休職</SelectItem>
-            <SelectItem value="retired">退職</SelectItem>
+            {Object.entries(STATUS_ITEMS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         {departments.length > 0 && (
           <Select
+            items={{
+              __all__: '全部署',
+              ...Object.fromEntries(departments.map((d) => [d.id, d.name])),
+            }}
             value={departmentId ?? '__all__'}
             onValueChange={(v) => onDepartmentChange(v === '__all__' || v == null ? undefined : v)}
           >

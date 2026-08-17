@@ -112,6 +112,10 @@ export function OneOnOneListClient({ initialRecords, initialTotal, employees }: 
         </InputGroup>
         {employees.length > 0 && (
           <Select
+            items={{
+              __all__: 'すべての従業員',
+              ...Object.fromEntries(employees.map((emp) => [emp.id, emp.fullName])),
+            }}
             value={employeeFilter || '__all__'}
             onValueChange={(val) => setEmployeeFilter(!val || val === '__all__' ? '' : val)}
           >

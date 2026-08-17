@@ -62,6 +62,15 @@ export function EvaluationFormDialog({ open, onOpenChange, cycleId, employees, o
     }
   }, [open, cycleId, reset]);
 
+  // Base UI の Select は items を渡さないと、選択中の値をラベルではなく
+  // 生の値（UUID や __none__）のまま表示する。
+  const employeeItems: Record<string, string> = {
+    __none__: '選択してください',
+    ...Object.fromEntries(
+      employees.map((emp) => [emp.id, `${emp.fullName}（${emp.employeeCode}）`]),
+    ),
+  };
+
   const employeeId = watch('employeeId');
   const evaluatorId = watch('evaluatorId');
 
@@ -89,6 +98,7 @@ export function EvaluationFormDialog({ open, onOpenChange, cycleId, employees, o
           <div className="space-y-2">
             <Label>対象従業員 *</Label>
             <Select
+              items={employeeItems}
               value={employeeId || '__none__'}
               onValueChange={(val) => setValue('employeeId', !val || val === '__none__' ? '' : val)}
               disabled={isPending}
@@ -113,6 +123,7 @@ export function EvaluationFormDialog({ open, onOpenChange, cycleId, employees, o
           <div className="space-y-2">
             <Label>評価者 *</Label>
             <Select
+              items={employeeItems}
               value={evaluatorId || '__none__'}
               onValueChange={(val) =>
                 setValue('evaluatorId', !val || val === '__none__' ? '' : val)

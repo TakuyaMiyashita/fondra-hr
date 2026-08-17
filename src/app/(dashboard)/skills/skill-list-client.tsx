@@ -98,6 +98,7 @@ export function SkillListClient({ initialSkills, initialTotal, categories }: Pro
           </InputGroup>
           {categories.length > 0 && (
             <Select
+              items={{ __all__: 'すべて', ...Object.fromEntries(categories.map((c) => [c, c])) }}
               value={categoryFilter || '__all__'}
               onValueChange={(val) => setCategoryFilter(!val || val === '__all__' ? '' : val)}
             >

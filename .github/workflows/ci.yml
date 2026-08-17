@@ -35,8 +35,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # NOTE: pnpm format:check は既存コードの大半が未フォーマットのため未導入。
-      # リポジトリ全体に `pnpm format` をかける別コミットを入れてから追加する。
+      - name: Format check
+        run: pnpm format:check
+
       - name: Lint
         run: pnpm lint
 

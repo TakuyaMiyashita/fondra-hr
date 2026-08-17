@@ -154,13 +154,15 @@ describe('getResourceTypes', () => {
   it('returns distinct resource types', async () => {
     const { getResourceTypes } = await import('@/services/audit-log');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([
-        { resourceType: 'department' },
-        { resourceType: 'employee' },
-        { resourceType: 'skill' },
-      ]).then(cb),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) =>
+        Promise.resolve([
+          { resourceType: 'department' },
+          { resourceType: 'employee' },
+          { resourceType: 'skill' },
+        ]).then(cb),
+      );
 
     const result = await getResourceTypes(adminCtx);
 
@@ -170,9 +172,7 @@ describe('getResourceTypes', () => {
   it('returns empty array when no logs', async () => {
     const { getResourceTypes } = await import('@/services/audit-log');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([]).then(cb),
-    );
+    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([]).then(cb));
 
     const result = await getResourceTypes(adminCtx);
 

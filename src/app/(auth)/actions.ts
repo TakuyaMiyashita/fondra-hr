@@ -45,10 +45,7 @@ export async function signUp(data: {
   redirect('/login?registered=true');
 }
 
-export async function signIn(data: {
-  email: string;
-  password: string;
-}): Promise<Result<void>> {
+export async function signIn(data: { email: string; password: string }): Promise<Result<void>> {
   const parsed = signInSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -77,9 +74,7 @@ export async function signOut(): Promise<void> {
   redirect('/login');
 }
 
-export async function resetPassword(data: {
-  email: string;
-}): Promise<Result<void>> {
+export async function resetPassword(data: { email: string }): Promise<Result<void>> {
   const parsed = resetPasswordSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);

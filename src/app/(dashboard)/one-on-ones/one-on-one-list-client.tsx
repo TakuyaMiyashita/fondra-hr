@@ -13,11 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@/components/ui/input-group';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import {
   Select,
   SelectContent,
@@ -45,17 +41,11 @@ interface Props {
 
 function MoodBadge({ score }: { score: number }) {
   const variant =
-    score >= 4 ? ('default' as const)
-    : score >= 3 ? ('secondary' as const)
-    : ('outline' as const);
+    score >= 4 ? ('default' as const) : score >= 3 ? ('secondary' as const) : ('outline' as const);
   return <Badge variant={variant}>{score}</Badge>;
 }
 
-export function OneOnOneListClient({
-  initialRecords,
-  initialTotal,
-  employees,
-}: Props) {
+export function OneOnOneListClient({ initialRecords, initialTotal, employees }: Props) {
   const router = useRouter();
   const [records, setRecords] = useState(initialRecords);
   const [total, setTotal] = useState(initialTotal);
@@ -142,9 +132,9 @@ export function OneOnOneListClient({
 
       {records.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Handshake className="h-12 w-12 text-muted-foreground/50" />
+          <Handshake className="text-muted-foreground/50 h-12 w-12" />
           <h3 className="mt-4 text-lg font-semibold">1on1記録がありません</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-2 text-sm">
             1on1ミーティングを記録して、コミュニケーションの質を向上させましょう。
           </p>
           <Button className="mt-6" onClick={() => setCreateOpen(true)}>
@@ -169,9 +159,7 @@ export function OneOnOneListClient({
                       <span className="text-muted-foreground">{record.interviewerName}</span>
                     </div>
                     {record.notes && (
-                      <p className="line-clamp-2 text-sm text-muted-foreground">
-                        {record.notes}
-                      </p>
+                      <p className="text-muted-foreground line-clamp-2 text-sm">{record.notes}</p>
                     )}
                   </div>
                   <DropdownMenu>
@@ -193,7 +181,7 @@ export function OneOnOneListClient({
               </Card>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">全 {total} 件</p>
+          <p className="text-muted-foreground text-xs">全 {total} 件</p>
         </>
       )}
 
@@ -209,7 +197,9 @@ export function OneOnOneListClient({
         <OneOnOneFormDialog
           mode="edit"
           open={true}
-          onOpenChange={(open) => { if (!open) setEditRecord(null); }}
+          onOpenChange={(open) => {
+            if (!open) setEditRecord(null);
+          }}
           defaultValues={editRecord}
           employees={employees}
           onSuccess={handleSuccess}
@@ -219,7 +209,9 @@ export function OneOnOneListClient({
       {deleteRecord && (
         <OneOnOneDeleteDialog
           open={true}
-          onOpenChange={(open) => { if (!open) setDeleteRecord(null); }}
+          onOpenChange={(open) => {
+            if (!open) setDeleteRecord(null);
+          }}
           recordId={deleteRecord.id}
           employeeName={deleteRecord.employeeName}
           heldOn={deleteRecord.heldOn}

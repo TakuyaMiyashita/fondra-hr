@@ -40,7 +40,7 @@ export function ResetPasswordForm() {
   if (sent) {
     return (
       <div className="space-y-4 text-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           パスワードリセット用のメールを送信しました。メールに記載されたリンクからパスワードを再設定してください。
         </p>
         <Link href="/login">
@@ -64,9 +64,7 @@ export function ResetPasswordForm() {
           disabled={isPending}
           {...register('email')}
         />
-        {errors.email && (
-          <p className="text-xs text-destructive">{errors.email.message}</p>
-        )}
+        {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
       </div>
 
       <Button type="submit" className="w-full" disabled={isPending}>
@@ -74,8 +72,8 @@ export function ResetPasswordForm() {
         リセットメールを送信
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
-        <Link href="/login" className="font-medium text-foreground hover:underline">
+      <p className="text-muted-foreground text-center text-sm">
+        <Link href="/login" className="text-foreground font-medium hover:underline">
           ログインに戻る
         </Link>
       </p>

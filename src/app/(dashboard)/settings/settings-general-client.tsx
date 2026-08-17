@@ -14,10 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  updateOrgSchema,
-  type UpdateOrgInput,
-} from '@/lib/validations/settings';
+import { updateOrgSchema, type UpdateOrgInput } from '@/lib/validations/settings';
 import type { Role } from '@/services/auth-context';
 import type { OrgInfo } from '@/types/settings';
 
@@ -72,36 +69,24 @@ export function SettingsGeneralClient({ org, role }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>組織情報</CardTitle>
-          <CardDescription>
-            組織の基本情報を管理します
-          </CardDescription>
+          <CardDescription>組織の基本情報を管理します</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="org-name">組織名</Label>
-              <Input
-                id="org-name"
-                disabled={isPending || !isAdmin}
-                {...register('name')}
-              />
-              {errors.name && (
-                <p className="text-xs text-destructive">
-                  {errors.name.message}
-                </p>
-              )}
+              <Input id="org-name" disabled={isPending || !isAdmin} {...register('name')} />
+              {errors.name && <p className="text-destructive text-xs">{errors.name.message}</p>}
             </div>
             {isAdmin && (
               <Button type="submit" disabled={isPending}>
-                {isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 保存
               </Button>
             )}
           </form>
 
-          <div className="space-y-2 pt-4 border-t">
+          <div className="space-y-2 border-t pt-4">
             <div className="flex items-center gap-2">
               <Label className="text-muted-foreground">スラッグ</Label>
               <span className="text-sm">{org.slug}</span>

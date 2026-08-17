@@ -43,19 +43,19 @@ graph LR
 
 ## 対象テーブル一覧
 
-| テーブル | org_id | RLS | 備考 |
-|----------|--------|-----|------|
-| organizations | `id` が org_id | Yes | `id = current_org_id()` |
-| memberships | Yes | Yes | |
-| invitations | Yes | Yes | |
-| departments | Yes | Yes | |
-| employees | Yes | Yes | |
-| skills | Yes | Yes | |
-| employee_skills | Yes | Yes | |
-| one_on_ones | Yes | Yes | |
-| evaluation_cycles | Yes | Yes | |
-| evaluations | Yes | Yes | |
-| audit_logs | Yes | Yes | SELECT + INSERT のみ |
+| テーブル          | org_id         | RLS | 備考                    |
+| ----------------- | -------------- | --- | ----------------------- |
+| organizations     | `id` が org_id | Yes | `id = current_org_id()` |
+| memberships       | Yes            | Yes |                         |
+| invitations       | Yes            | Yes |                         |
+| departments       | Yes            | Yes |                         |
+| employees         | Yes            | Yes |                         |
+| skills            | Yes            | Yes |                         |
+| employee_skills   | Yes            | Yes |                         |
+| one_on_ones       | Yes            | Yes |                         |
+| evaluation_cycles | Yes            | Yes |                         |
+| evaluations       | Yes            | Yes |                         |
+| audit_logs        | Yes            | Yes | SELECT + INSERT のみ    |
 
 ## 監査ログの不変性
 

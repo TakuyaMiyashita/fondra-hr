@@ -2,10 +2,7 @@
 
 import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
-import {
-  auditLogListQuerySchema,
-  type AuditLogListQuery,
-} from '@/lib/validations/audit-log';
+import { auditLogListQuerySchema, type AuditLogListQuery } from '@/lib/validations/audit-log';
 import { AuthorizationError } from '@/services/authorize';
 import {
   getResourceTypes as getResourceTypesSvc,

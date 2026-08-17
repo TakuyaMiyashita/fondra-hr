@@ -10,7 +10,7 @@ export default function DepartmentsLoading() {
         </div>
         <Skeleton className="h-9 w-28" />
       </div>
-      <div className="rounded-md border p-4 space-y-3">
+      <div className="space-y-3 rounded-md border p-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3" style={{ paddingLeft: `${i * 24}px` }}>
             <Skeleton className="h-4 w-4" />

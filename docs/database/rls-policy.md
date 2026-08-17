@@ -27,19 +27,19 @@ Custom Access Token Hook が `memberships` テーブルを参照し、ユーザ�
 
 ### organizations
 
-| 操作 | ポリシー | 条件 |
-|------|----------|------|
-| SELECT | `organizations_select` | `id = current_org_id()` |
-| UPDATE | `organizations_update` | `id = current_org_id()` |
-| INSERT | なし（service_role のみ） | — |
-| DELETE | なし（service_role のみ） | — |
+| 操作   | ポリシー                  | 条件                    |
+| ------ | ------------------------- | ----------------------- |
+| SELECT | `organizations_select`    | `id = current_org_id()` |
+| UPDATE | `organizations_update`    | `id = current_org_id()` |
+| INSERT | なし（service_role のみ） | —                       |
+| DELETE | なし（service_role のみ） | —                       |
 
 組織の作成・削除は Service Layer が `service_role` クライアント経由で行う。サインアップ時の組織作成は認証済みユーザーの JWT にまだ `org_id` がないため、`authenticated` による INSERT は不可。
 
 ### memberships
 
-| 操作 | ポリシー | 条件 |
-|------|----------|------|
+| 操作   | ポリシー             | 条件                        |
+| ------ | -------------------- | --------------------------- |
 | SELECT | `memberships_select` | `org_id = current_org_id()` |
 | INSERT | `memberships_insert` | `org_id = current_org_id()` |
 | UPDATE | `memberships_update` | `org_id = current_org_id()` |
@@ -47,8 +47,8 @@ Custom Access Token Hook が `memberships` テーブルを参照し、ユーザ�
 
 ### invitations
 
-| 操作 | ポリシー | 条件 |
-|------|----------|------|
+| 操作   | ポリシー             | 条件                        |
+| ------ | -------------------- | --------------------------- |
 | SELECT | `invitations_select` | `org_id = current_org_id()` |
 | INSERT | `invitations_insert` | `org_id = current_org_id()` |
 | UPDATE | `invitations_update` | `org_id = current_org_id()` |
@@ -58,8 +58,8 @@ Custom Access Token Hook が `memberships` テーブルを参照し、ユーザ�
 
 全テーブル共通パターン:
 
-| 操作 | 条件 |
-|------|------|
+| 操作   | 条件                        |
+| ------ | --------------------------- |
 | SELECT | `org_id = current_org_id()` |
 | INSERT | `org_id = current_org_id()` |
 | UPDATE | `org_id = current_org_id()` |
@@ -67,31 +67,31 @@ Custom Access Token Hook が `memberships` テーブルを参照し、ユーザ�
 
 ### audit_logs
 
-| 操作 | ポリシー | 条件 |
-|------|----------|------|
-| SELECT | `audit_logs_select` | `org_id = current_org_id()` |
-| INSERT | `audit_logs_insert` | `org_id = current_org_id()` |
-| UPDATE | なし + BEFORE トリガーで例外 | — |
-| DELETE | なし + BEFORE トリガーで例外 | — |
+| 操作   | ポリシー                     | 条件                        |
+| ------ | ---------------------------- | --------------------------- |
+| SELECT | `audit_logs_select`          | `org_id = current_org_id()` |
+| INSERT | `audit_logs_insert`          | `org_id = current_org_id()` |
+| UPDATE | なし + BEFORE トリガーで例外 | —                           |
+| DELETE | なし + BEFORE トリガーで例外 | —                           |
 
 ## API アクセス権限
 
 `auto_expose_new_tables` が無効のため、`authenticated` ロールに明示的な GRANT が必要：
 
-| テーブル | GRANT |
-|----------|-------|
-| `organizations` | SELECT, UPDATE |
-| `memberships` | SELECT, INSERT, UPDATE, DELETE |
-| `invitations` | SELECT, INSERT, UPDATE, DELETE |
-| `departments` | SELECT, INSERT, UPDATE, DELETE |
-| `employees` | SELECT, INSERT, UPDATE, DELETE |
-| `skills` | SELECT, INSERT, UPDATE, DELETE |
-| `employee_skills` | SELECT, INSERT, UPDATE, DELETE |
-| `one_on_ones` | SELECT, INSERT, UPDATE, DELETE |
-| `evaluation_cycles` | SELECT, INSERT, UPDATE, DELETE |
-| `evaluations` | SELECT, INSERT, UPDATE, DELETE |
-| `audit_logs` | SELECT, INSERT |
-| `employee_risk_scores` | SELECT |
+| テーブル               | GRANT                          |
+| ---------------------- | ------------------------------ |
+| `organizations`        | SELECT, UPDATE                 |
+| `memberships`          | SELECT, INSERT, UPDATE, DELETE |
+| `invitations`          | SELECT, INSERT, UPDATE, DELETE |
+| `departments`          | SELECT, INSERT, UPDATE, DELETE |
+| `employees`            | SELECT, INSERT, UPDATE, DELETE |
+| `skills`               | SELECT, INSERT, UPDATE, DELETE |
+| `employee_skills`      | SELECT, INSERT, UPDATE, DELETE |
+| `one_on_ones`          | SELECT, INSERT, UPDATE, DELETE |
+| `evaluation_cycles`    | SELECT, INSERT, UPDATE, DELETE |
+| `evaluations`          | SELECT, INSERT, UPDATE, DELETE |
+| `audit_logs`           | SELECT, INSERT                 |
+| `employee_risk_scores` | SELECT                         |
 
 `anon` ロールにはいずれのテーブルへのアクセスも付与しない。
 
@@ -101,6 +101,7 @@ Custom Access Token Hook が `memberships` テーブルを参照し、ユーザ�
 - `tests/rls/domain-tables.test.ts` — 業務ドメインテーブル
 
 検証内容:
+
 - 2つの異なるテナントのユーザーが、相互のデータにアクセスできないこと
 - SELECT / INSERT / UPDATE / DELETE の全操作でテナント分離が機能すること
 - Custom Access Token Hook が JWT に正しく `org_id` / `role` を埋め込むこと

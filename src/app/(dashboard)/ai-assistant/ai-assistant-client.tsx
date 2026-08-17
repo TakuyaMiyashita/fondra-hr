@@ -148,26 +148,20 @@ export function AiAssistantClient() {
     <div className="flex h-[calc(100vh-4rem)] flex-col">
       <div className="flex items-center justify-between border-b px-6 py-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            AI アシスタント
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            組織の人材データについて質問できます
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">AI アシスタント</h1>
+          <p className="text-muted-foreground text-sm">組織の人材データについて質問できます</p>
         </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-6">
-            <div className="flex size-16 items-center justify-center rounded-full bg-primary/10">
-              <Bot className="size-8 text-primary" />
+            <div className="bg-primary/10 flex size-16 items-center justify-center rounded-full">
+              <Bot className="text-primary size-8" />
             </div>
             <div className="text-center">
-              <h2 className="text-lg font-semibold">
-                何でも聞いてください
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <h2 className="text-lg font-semibold">何でも聞いてください</h2>
+              <p className="text-muted-foreground mt-1 text-sm">
                 組織の人材データに基づいて回答します
               </p>
             </div>
@@ -176,7 +170,7 @@ export function AiAssistantClient() {
                 <Button
                   key={s}
                   variant="outline"
-                  className="h-auto whitespace-normal text-left text-sm"
+                  className="h-auto text-left text-sm whitespace-normal"
                   onClick={() => sendMessage(s)}
                 >
                   {s}
@@ -192,8 +186,8 @@ export function AiAssistantClient() {
                 className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}
               >
                 {msg.role === 'assistant' && (
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    <Bot className="size-4 text-primary" />
+                  <div className="bg-primary/10 flex size-8 shrink-0 items-center justify-center rounded-full">
+                    <Bot className="text-primary size-4" />
                   </div>
                 )}
                 <Card
@@ -201,16 +195,14 @@ export function AiAssistantClient() {
                 >
                   <CardContent className="p-3">
                     {msg.content ? (
-                      <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                        {msg.content}
-                      </p>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                     ) : (
-                      <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                      <Loader2 className="text-muted-foreground size-4 animate-spin" />
                     )}
                   </CardContent>
                 </Card>
                 {msg.role === 'user' && (
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                  <div className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-full">
                     <User className="size-4" />
                   </div>
                 )}
@@ -220,7 +212,7 @@ export function AiAssistantClient() {
         )}
       </div>
 
-      <div className="border-t bg-background px-6 py-4">
+      <div className="bg-background border-t px-6 py-4">
         <div className="mx-auto flex max-w-2xl gap-2">
           <Textarea
             value={input}
@@ -236,11 +228,7 @@ export function AiAssistantClient() {
             onClick={() => sendMessage(input)}
             disabled={isLoading || !input.trim()}
           >
-            {isLoading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Send className="size-4" />
-            )}
+            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </div>
       </div>

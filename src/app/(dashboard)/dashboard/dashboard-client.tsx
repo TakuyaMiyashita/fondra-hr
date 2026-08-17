@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  Building2,
-  ClipboardList,
-  Sparkles,
-  Users,
-} from 'lucide-react';
+import { Building2, ClipboardList, Sparkles, Users } from 'lucide-react';
 import Link from 'next/link';
 import {
   Bar,
@@ -124,10 +119,8 @@ function StatCard({ title, value, icon: Icon, href }: StatCardProps) {
     <Link href={href}>
       <Card className="hover:bg-muted/30 transition-colors">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            {title}
-          </CardTitle>
-          <Icon className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-muted-foreground text-sm font-medium">{title}</CardTitle>
+          <Icon className="text-muted-foreground h-4 w-4" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{value}</div>
@@ -139,27 +132,15 @@ function StatCard({ title, value, icon: Icon, href }: StatCardProps) {
 
 function DepartmentChart({ data }: { data: DepartmentHeadcount[] }) {
   if (data.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        部署データがありません
-      </p>
-    );
+    return <p className="text-muted-foreground py-8 text-center text-sm">部署データがありません</p>;
   }
 
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-        <XAxis
-          dataKey="name"
-          tick={{ fontSize: 12 }}
-          className="fill-muted-foreground"
-        />
-        <YAxis
-          allowDecimals={false}
-          tick={{ fontSize: 12 }}
-          className="fill-muted-foreground"
-        />
+        <XAxis dataKey="name" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} className="fill-muted-foreground" />
         <Tooltip
           contentStyle={{
             backgroundColor: 'hsl(var(--popover))',
@@ -182,9 +163,7 @@ function DepartmentChart({ data }: { data: DepartmentHeadcount[] }) {
 function SkillCategoryChart({ data }: { data: SkillCategoryCount[] }) {
   if (data.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        スキルデータがありません
-      </p>
+      <p className="text-muted-foreground py-8 text-center text-sm">スキルデータがありません</p>
     );
   }
 
@@ -200,9 +179,7 @@ function SkillCategoryChart({ data }: { data: SkillCategoryCount[] }) {
           innerRadius={60}
           outerRadius={100}
           paddingAngle={2}
-          label={({ name, value }) =>
-            `${name} (${value})`
-          }
+          label={({ name, value }) => `${name} (${value})`}
         >
           {data.map((_, i) => (
             <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
@@ -225,9 +202,7 @@ function SkillCategoryChart({ data }: { data: SkillCategoryCount[] }) {
 function EmployeeStatusChart({ data }: { data: EmployeeStatusCount[] }) {
   if (data.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        従業員データがありません
-      </p>
+      <p className="text-muted-foreground py-8 text-center text-sm">従業員データがありません</p>
     );
   }
 
@@ -248,9 +223,7 @@ function EmployeeStatusChart({ data }: { data: EmployeeStatusCount[] }) {
           innerRadius={60}
           outerRadius={100}
           paddingAngle={2}
-          label={({ name, value }) =>
-            `${name} (${value})`
-          }
+          label={({ name, value }) => `${name} (${value})`}
         >
           {labeled.map((entry, i) => (
             <Cell
@@ -293,24 +266,14 @@ export function DashboardClient({
       <h1 className="text-2xl font-bold tracking-tight">ダッシュボード</h1>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="従業員数"
-          value={stats.employeeCount}
-          icon={Users}
-          href="/employees"
-        />
+        <StatCard title="従業員数" value={stats.employeeCount} icon={Users} href="/employees" />
         <StatCard
           title="部署数"
           value={stats.departmentCount}
           icon={Building2}
           href="/departments"
         />
-        <StatCard
-          title="スキル数"
-          value={stats.skillCount}
-          icon={Sparkles}
-          href="/skills"
-        />
+        <StatCard title="スキル数" value={stats.skillCount} icon={Sparkles} href="/skills" />
         <StatCard
           title="進行中の評価サイクル"
           value={stats.activeCycleCount}
@@ -354,7 +317,7 @@ export function DashboardClient({
         </CardHeader>
         <CardContent>
           {recentActivity.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
+            <p className="text-muted-foreground py-4 text-center text-sm">
               まだアクティビティがありません
             </p>
           ) : (
@@ -371,13 +334,13 @@ export function DashboardClient({
                         {formatResourceType(activity.resourceType)}
                       </span>
                       {activity.actorEmail && (
-                        <span className="ml-2 text-xs text-muted-foreground">
+                        <span className="text-muted-foreground ml-2 text-xs">
                           by {activity.actorEmail}
                         </span>
                       )}
                     </div>
                   </div>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  <span className="text-muted-foreground text-xs whitespace-nowrap">
                     {formatRelativeTime(activity.createdAt)}
                   </span>
                 </div>

@@ -41,9 +41,7 @@ export async function fetchDepartmentList(): Promise<Result<Department[]>> {
   }
 }
 
-export async function createDepartmentAction(
-  data: unknown,
-): Promise<Result<{ id: string }>> {
+export async function createDepartmentAction(data: unknown): Promise<Result<{ id: string }>> {
   const parsed = createDepartmentSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -63,9 +61,7 @@ export async function createDepartmentAction(
   }
 }
 
-export async function updateDepartmentAction(
-  data: unknown,
-): Promise<Result<void>> {
+export async function updateDepartmentAction(data: unknown): Promise<Result<void>> {
   const parsed = updateDepartmentSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -111,9 +107,7 @@ export async function moveDepartmentAction(
   }
 }
 
-export async function deleteDepartmentAction(
-  id: string,
-): Promise<Result<void>> {
+export async function deleteDepartmentAction(id: string): Promise<Result<void>> {
   try {
     const ctx = await getAuthContext();
     const result = await deleteDepartmentSvc(ctx, id);

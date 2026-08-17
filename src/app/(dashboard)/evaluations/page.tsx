@@ -13,15 +13,7 @@ export const metadata: Metadata = {
 export default async function EvaluationsPage() {
   const ctx = await getAuthContext();
 
-  const [cycles, employees] = await Promise.all([
-    listCycles(ctx),
-    getEmployeesForOrg(ctx),
-  ]);
+  const [cycles, employees] = await Promise.all([listCycles(ctx), getEmployeesForOrg(ctx)]);
 
-  return (
-    <EvaluationPageClient
-      initialCycles={cycles}
-      employees={employees}
-    />
-  );
+  return <EvaluationPageClient initialCycles={cycles} employees={employees} />;
 }

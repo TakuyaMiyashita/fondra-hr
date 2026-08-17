@@ -58,9 +58,10 @@ export async function buildSystemPrompt(ctx: AuthContext): Promise<string> {
     ]);
 
   const orgName = orgRow?.name ?? '不明';
-  const deptSummary = deptList.length > 0
-    ? deptList.map((d) => `  - ${d.name}（${d.memberCount}名）`).join('\n')
-    : '  部署データなし';
+  const deptSummary =
+    deptList.length > 0
+      ? deptList.map((d) => `  - ${d.name}（${d.memberCount}名）`).join('\n')
+      : '  部署データなし';
 
   return `あなたは「${orgName}」のHRアシスタントです。
 組織の人材データについて質問に答え、分析を提供します。

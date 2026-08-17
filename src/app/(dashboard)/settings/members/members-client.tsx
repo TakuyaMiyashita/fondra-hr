@@ -9,13 +9,7 @@ import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -42,11 +36,7 @@ import {
 import type { Role } from '@/services/auth-context';
 import type { OrgMember, PendingInvitation } from '@/types/settings';
 
-import {
-  changeRoleAction,
-  removeMemberAction,
-  revokeInvitationAction,
-} from '../actions';
+import { changeRoleAction, removeMemberAction, revokeInvitationAction } from '../actions';
 import { InviteDialog } from './invite-dialog';
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -70,19 +60,12 @@ interface Props {
   currentUserId: string;
 }
 
-export function MembersClient({
-  members,
-  invitations,
-  role,
-  currentUserId,
-}: Props) {
+export function MembersClient({ members, invitations, role, currentUserId }: Props) {
   const router = useRouter();
   const isAdmin = role === 'owner' || role === 'admin';
   const [inviteOpen, setInviteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<OrgMember | null>(null);
-  const [revokeTarget, setRevokeTarget] = useState<PendingInvitation | null>(
-    null,
-  );
+  const [revokeTarget, setRevokeTarget] = useState<PendingInvitation | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleRoleChange(membershipId: string, newRole: string) {
@@ -145,9 +128,7 @@ export function MembersClient({
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>メンバー</CardTitle>
-            <CardDescription>
-              組織のメンバーとロールを管理します
-            </CardDescription>
+            <CardDescription>組織のメンバーとロールを管理します</CardDescription>
           </div>
           {isAdmin && (
             <Button size="sm" onClick={() => setInviteOpen(true)}>
@@ -158,69 +139,67 @@ export function MembersClient({
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>メールアドレス</TableHead>
-                <TableHead>ロール</TableHead>
-                <TableHead className="w-24">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.map((m) => (
-                <TableRow key={m.id}>
-                  <TableCell className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    {m.email ?? '(不明)'}
-                    {m.userId === currentUserId && (
-                      <Badge variant="outline" className="text-xs">
-                        自分
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {isAdmin && m.role !== 'owner' && m.userId !== currentUserId ? (
-                      <Select
-                        value={m.role}
-                        onValueChange={(val) => {
-                          if (val) handleRoleChange(m.id, val);
-                        }}
-                        disabled={isPending}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">管理者</SelectItem>
-                          <SelectItem value="member">メンバー</SelectItem>
-                          <SelectItem value="viewer">閲覧者</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Badge variant={ROLE_VARIANT[m.role]}>
-                        <Shield className="mr-1 h-3 w-3" />
-                        {ROLE_LABELS[m.role]}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {isAdmin &&
-                      m.role !== 'owner' &&
-                      m.userId !== currentUserId && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>メールアドレス</TableHead>
+                  <TableHead>ロール</TableHead>
+                  <TableHead className="w-24">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="flex items-center gap-2">
+                      <Mail className="text-muted-foreground h-4 w-4" />
+                      {m.email ?? '(不明)'}
+                      {m.userId === currentUserId && (
+                        <Badge variant="outline" className="text-xs">
+                          自分
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isAdmin && m.role !== 'owner' && m.userId !== currentUserId ? (
+                        <Select
+                          value={m.role}
+                          onValueChange={(val) => {
+                            if (val) handleRoleChange(m.id, val);
+                          }}
+                          disabled={isPending}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">管理者</SelectItem>
+                            <SelectItem value="member">メンバー</SelectItem>
+                            <SelectItem value="viewer">閲覧者</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge variant={ROLE_VARIANT[m.role]}>
+                          <Shield className="mr-1 h-3 w-3" />
+                          {ROLE_LABELS[m.role]}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isAdmin && m.role !== 'owner' && m.userId !== currentUserId && (
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => setDeleteTarget(m)}
                           disabled={isPending}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="text-destructive h-4 w-4" />
                         </Button>
                       )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
@@ -229,50 +208,46 @@ export function MembersClient({
         <Card>
           <CardHeader>
             <CardTitle>保留中の招待</CardTitle>
-            <CardDescription>
-              まだ承諾されていない招待の一覧です
-            </CardDescription>
+            <CardDescription>まだ承諾されていない招待の一覧です</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>メールアドレス</TableHead>
-                  <TableHead>ロール</TableHead>
-                  <TableHead>有効期限</TableHead>
-                  <TableHead className="w-24">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invitations.map((inv) => (
-                  <TableRow key={inv.id}>
-                    <TableCell className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      {inv.email}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={ROLE_VARIANT[inv.role]}>
-                        {ROLE_LABELS[inv.role]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {new Date(inv.expiresAt).toLocaleDateString('ja-JP')}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setRevokeTarget(inv)}
-                        disabled={isPending}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>メールアドレス</TableHead>
+                    <TableHead>ロール</TableHead>
+                    <TableHead>有効期限</TableHead>
+                    <TableHead className="w-24">操作</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {invitations.map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="flex items-center gap-2">
+                        <Mail className="text-muted-foreground h-4 w-4" />
+                        {inv.email}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={ROLE_VARIANT[inv.role]}>{ROLE_LABELS[inv.role]}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {new Date(inv.expiresAt).toLocaleDateString('ja-JP')}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setRevokeTarget(inv)}
+                          disabled={isPending}
+                        >
+                          <Trash2 className="text-destructive h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
@@ -287,10 +262,7 @@ export function MembersClient({
         }}
       />
 
-      <Dialog
-        open={!!deleteTarget}
-        onOpenChange={(v) => !v && setDeleteTarget(null)}
-      >
+      <Dialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>メンバーの削除</DialogTitle>
@@ -300,18 +272,10 @@ export function MembersClient({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteTarget(null)}
-              disabled={isPending}
-            >
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isPending}>
               キャンセル
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRemoveMember}
-              disabled={isPending}
-            >
+            <Button variant="destructive" onClick={handleRemoveMember} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               削除
             </Button>
@@ -319,31 +283,19 @@ export function MembersClient({
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={!!revokeTarget}
-        onOpenChange={(v) => !v && setRevokeTarget(null)}
-      >
+      <Dialog open={!!revokeTarget} onOpenChange={(v) => !v && setRevokeTarget(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>招待の取り消し</DialogTitle>
             <DialogDescription>
-              <strong>{revokeTarget?.email ?? ''}</strong>{' '}
-              への招待を取り消します。
+              <strong>{revokeTarget?.email ?? ''}</strong> への招待を取り消します。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setRevokeTarget(null)}
-              disabled={isPending}
-            >
+            <Button variant="outline" onClick={() => setRevokeTarget(null)} disabled={isPending}>
               キャンセル
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRevokeInvitation}
-              disabled={isPending}
-            >
+            <Button variant="destructive" onClick={handleRevokeInvitation} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               取り消し
             </Button>

@@ -63,15 +63,15 @@ export function DepartmentTreeItem({
       <div
         ref={setDragRef}
         className={cn(
-          'group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent',
+          'group hover:bg-accent flex items-center gap-2 rounded-md px-2 py-1.5',
           isDragging && 'opacity-50',
-          isOver && 'bg-primary/10 ring-2 ring-primary/30',
+          isOver && 'bg-primary/10 ring-primary/30 ring-2',
         )}
         style={{ paddingLeft: `${depth * 24 + 8}px` }}
       >
         <button
           type="button"
-          className="flex size-5 shrink-0 cursor-grab items-center justify-center rounded-sm text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          className="text-muted-foreground hover:text-foreground flex size-5 shrink-0 cursor-grab items-center justify-center rounded-sm active:cursor-grabbing"
           {...attributes}
           {...listeners}
         >
@@ -82,19 +82,16 @@ export function DepartmentTreeItem({
           type="button"
           onClick={() => setExpanded(!expanded)}
           className={cn(
-            'flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground',
+            'text-muted-foreground hover:text-foreground flex size-5 shrink-0 items-center justify-center rounded-sm',
             !hasChildren && 'invisible',
           )}
         >
           <ChevronRight
-            className={cn(
-              'size-4 transition-transform duration-200',
-              expanded && 'rotate-90',
-            )}
+            className={cn('size-4 transition-transform duration-200', expanded && 'rotate-90')}
           />
         </button>
 
-        <Building2 className="size-4 shrink-0 text-muted-foreground" />
+        <Building2 className="text-muted-foreground size-4 shrink-0" />
 
         <span className="flex-1 truncate text-sm font-medium">{node.name}</span>
 

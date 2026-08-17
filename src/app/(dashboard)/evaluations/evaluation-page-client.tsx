@@ -104,11 +104,9 @@ export function EvaluationPageClient({ initialCycles, employees }: Props) {
 
       {cycles.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <ClipboardList className="h-12 w-12 text-muted-foreground/50" />
-          <h3 className="mt-4 text-lg font-semibold">
-            評価サイクルがまだ作成されていません
-          </h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <ClipboardList className="text-muted-foreground/50 h-12 w-12" />
+          <h3 className="mt-4 text-lg font-semibold">評価サイクルがまだ作成されていません</h3>
+          <p className="text-muted-foreground mt-2 text-sm">
             評価サイクルを作成して、体系的な人事評価を開始しましょう。
           </p>
           <Button className="mt-6" onClick={() => setCreateOpen(true)}>
@@ -130,7 +128,7 @@ export function EvaluationPageClient({ initialCycles, employees }: Props) {
                     <span className="font-medium">{cycle.name}</span>
                     <StatusBadge status={cycle.status} />
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <div className="text-muted-foreground flex items-center gap-3 text-sm">
                     <span>
                       {cycle.periodStart} 〜 {cycle.periodEnd}
                     </span>
@@ -169,7 +167,7 @@ export function EvaluationPageClient({ initialCycles, employees }: Props) {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="text-muted-foreground h-4 w-4" />
                 </div>
               </CardContent>
             </Card>

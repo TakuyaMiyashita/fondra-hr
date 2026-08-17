@@ -102,25 +102,21 @@ describe('RLS: domain tables tenant isolation', () => {
       .single();
     skillAId = skillA!.id;
 
-    await admin
-      .from('employee_skills')
-      .insert({
-        org_id: orgAId,
-        employee_id: empAId,
-        skill_id: skillAId,
-        level: 3,
-      });
+    await admin.from('employee_skills').insert({
+      org_id: orgAId,
+      employee_id: empAId,
+      skill_id: skillAId,
+      level: 3,
+    });
 
-    await admin
-      .from('one_on_ones')
-      .insert({
-        org_id: orgAId,
-        employee_id: empAId,
-        interviewer_id: empA2Id,
-        held_on: '2026-08-01',
-        notes: 'Test 1on1',
-        mood_score: 4,
-      });
+    await admin.from('one_on_ones').insert({
+      org_id: orgAId,
+      employee_id: empAId,
+      interviewer_id: empA2Id,
+      held_on: '2026-08-01',
+      notes: 'Test 1on1',
+      mood_score: 4,
+    });
 
     const { data: cycleA } = await admin
       .from('evaluation_cycles')
@@ -134,27 +130,21 @@ describe('RLS: domain tables tenant isolation', () => {
       .single();
     cycleAId = cycleA!.id;
 
-    await admin
-      .from('evaluations')
-      .insert({
-        org_id: orgAId,
-        cycle_id: cycleAId,
-        employee_id: empAId,
-        evaluator_id: empA2Id,
-      });
+    await admin.from('evaluations').insert({
+      org_id: orgAId,
+      cycle_id: cycleAId,
+      employee_id: empAId,
+      evaluator_id: empA2Id,
+    });
 
     // Create test data for org B
-    await admin
-      .from('departments')
-      .insert({ org_id: orgBId, name: `Dept B ${testId}` });
+    await admin.from('departments').insert({ org_id: orgBId, name: `Dept B ${testId}` });
 
-    await admin
-      .from('employees')
-      .insert({
-        org_id: orgBId,
-        employee_code: `EMP-B1-${testId}`,
-        full_name: 'Employee B1',
-      });
+    await admin.from('employees').insert({
+      org_id: orgBId,
+      employee_code: `EMP-B1-${testId}`,
+      full_name: 'Employee B1',
+    });
 
     // Sign in
     clientA = createClient(SUPABASE_URL, ANON_KEY);
@@ -293,10 +283,7 @@ describe('RLS: domain tables tenant isolation', () => {
     });
 
     it('user B cannot see org A evaluation_cycles', async () => {
-      const { data } = await clientB
-        .from('evaluation_cycles')
-        .select()
-        .eq('org_id', orgAId);
+      const { data } = await clientB.from('evaluation_cycles').select().eq('org_id', orgAId);
       expect(data).toHaveLength(0);
     });
   });
@@ -353,10 +340,7 @@ describe('RLS: domain tables tenant isolation', () => {
         .eq('org_id', orgAId)
         .limit(1);
       if (logs && logs.length > 0) {
-        const { error } = await admin
-          .from('audit_logs')
-          .delete()
-          .eq('id', logs[0].id);
+        const { error } = await admin.from('audit_logs').delete().eq('id', logs[0].id);
         expect(error).not.toBeNull();
         expect(error!.message).toContain('cannot be modified');
       }
@@ -390,10 +374,7 @@ describe('RLS: domain tables tenant isolation', () => {
     });
 
     it('user B cannot see org A risk scores', async () => {
-      const { data } = await clientB
-        .from('employee_risk_scores')
-        .select()
-        .eq('org_id', orgAId);
+      const { data } = await clientB.from('employee_risk_scores').select().eq('org_id', orgAId);
       expect(data).toHaveLength(0);
     });
 

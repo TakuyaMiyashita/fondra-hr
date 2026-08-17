@@ -25,10 +25,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import {
-  createEmployeeSchema,
-  type CreateEmployeeInput,
-} from '@/lib/validations/employee';
+import { createEmployeeSchema, type CreateEmployeeInput } from '@/lib/validations/employee';
 import type { z } from 'zod';
 
 type FormInput = z.input<typeof createEmployeeSchema>;
@@ -129,7 +126,7 @@ export function EmployeeFormSheet({
                 {...register('employeeCode')}
               />
               {errors.employeeCode && (
-                <p className="text-xs text-destructive">{errors.employeeCode.message}</p>
+                <p className="text-destructive text-xs">{errors.employeeCode.message}</p>
               )}
             </div>
 
@@ -142,7 +139,7 @@ export function EmployeeFormSheet({
                 {...register('fullName')}
               />
               {errors.fullName && (
-                <p className="text-xs text-destructive">{errors.fullName.message}</p>
+                <p className="text-destructive text-xs">{errors.fullName.message}</p>
               )}
             </div>
 
@@ -155,7 +152,7 @@ export function EmployeeFormSheet({
                 {...register('fullNameKana')}
               />
               {errors.fullNameKana && (
-                <p className="text-xs text-destructive">{errors.fullNameKana.message}</p>
+                <p className="text-destructive text-xs">{errors.fullNameKana.message}</p>
               )}
             </div>
 
@@ -168,9 +165,7 @@ export function EmployeeFormSheet({
                 disabled={isPending}
                 {...register('email')}
               />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
-              )}
+              {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
             </div>
 
             <div className="space-y-2">
@@ -192,7 +187,7 @@ export function EmployeeFormSheet({
                 </SelectContent>
               </Select>
               {errors.departmentId && (
-                <p className="text-xs text-destructive">{errors.departmentId.message}</p>
+                <p className="text-destructive text-xs">{errors.departmentId.message}</p>
               )}
             </div>
 
@@ -205,33 +200,23 @@ export function EmployeeFormSheet({
                 {...register('position')}
               />
               {errors.position && (
-                <p className="text-xs text-destructive">{errors.position.message}</p>
+                <p className="text-destructive text-xs">{errors.position.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="hiredOn">入社日</Label>
-              <Input
-                id="hiredOn"
-                type="date"
-                disabled={isPending}
-                {...register('hiredOn')}
-              />
+              <Input id="hiredOn" type="date" disabled={isPending} {...register('hiredOn')} />
               {errors.hiredOn && (
-                <p className="text-xs text-destructive">{errors.hiredOn.message}</p>
+                <p className="text-destructive text-xs">{errors.hiredOn.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="birthDate">生年月日</Label>
-              <Input
-                id="birthDate"
-                type="date"
-                disabled={isPending}
-                {...register('birthDate')}
-              />
+              <Input id="birthDate" type="date" disabled={isPending} {...register('birthDate')} />
               {errors.birthDate && (
-                <p className="text-xs text-destructive">{errors.birthDate.message}</p>
+                <p className="text-destructive text-xs">{errors.birthDate.message}</p>
               )}
             </div>
 
@@ -255,9 +240,7 @@ export function EmployeeFormSheet({
           </div>
 
           <SheetFooter className="mt-6">
-            <SheetClose render={<Button variant="outline" type="button" />}>
-              キャンセル
-            </SheetClose>
+            <SheetClose render={<Button variant="outline" type="button" />}>キャンセル</SheetClose>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEdit ? '更新' : '登録'}

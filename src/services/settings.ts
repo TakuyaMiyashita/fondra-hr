@@ -36,10 +36,7 @@ export async function getOrgInfo(ctx: AuthContext): Promise<Result<OrgInfo>> {
   return ok(org);
 }
 
-export async function updateOrg(
-  ctx: AuthContext,
-  input: UpdateOrgInput,
-): Promise<Result<void>> {
+export async function updateOrg(ctx: AuthContext, input: UpdateOrgInput): Promise<Result<void>> {
   authorize(ctx, 'update', 'organization', (c) => hasMinRole(c, 'admin'));
 
   const [current] = await db
@@ -87,18 +84,13 @@ export async function listMembers(ctx: AuthContext): Promise<OrgMember[]> {
   return rows as OrgMember[];
 }
 
-export async function changeRole(
-  ctx: AuthContext,
-  input: ChangeRoleInput,
-): Promise<Result<void>> {
+export async function changeRole(ctx: AuthContext, input: ChangeRoleInput): Promise<Result<void>> {
   authorize(ctx, 'update', 'membership', (c) => hasMinRole(c, 'admin'));
 
   const [target] = await db
     .select()
     .from(memberships)
-    .where(
-      and(eq(memberships.id, input.membershipId), eq(memberships.orgId, ctx.orgId)),
-    )
+    .where(and(eq(memberships.id, input.membershipId), eq(memberships.orgId, ctx.orgId)))
     .limit(1);
 
   if (!target) {
@@ -125,18 +117,13 @@ export async function changeRole(
   return ok(undefined);
 }
 
-export async function removeMember(
-  ctx: AuthContext,
-  membershipId: string,
-): Promise<Result<void>> {
+export async function removeMember(ctx: AuthContext, membershipId: string): Promise<Result<void>> {
   authorize(ctx, 'delete', 'membership', (c) => hasMinRole(c, 'admin'));
 
   const [target] = await db
     .select()
     .from(memberships)
-    .where(
-      and(eq(memberships.id, membershipId), eq(memberships.orgId, ctx.orgId)),
-    )
+    .where(and(eq(memberships.id, membershipId), eq(memberships.orgId, ctx.orgId)))
     .limit(1);
 
   if (!target) {
@@ -151,9 +138,7 @@ export async function removeMember(
     return err('自分自身を削除することはできません');
   }
 
-  await db
-    .delete(memberships)
-    .where(eq(memberships.id, membershipId));
+  await db.delete(memberships).where(eq(memberships.id, membershipId));
 
   await writeAuditLog(ctx, 'membership.delete', 'membership', membershipId, {
     userId: target.userId,
@@ -172,9 +157,7 @@ export async function createInvitation(
     .select({ id: memberships.id })
     .from(memberships)
     .innerJoin(authUsers, eq(memberships.userId, authUsers.id))
-    .where(
-      and(eq(memberships.orgId, ctx.orgId), eq(authUsers.email, input.email)),
-    )
+    .where(and(eq(memberships.orgId, ctx.orgId), eq(authUsers.email, input.email)))
     .limit(1);
 
   if (existingMember.length > 0) {
@@ -219,9 +202,7 @@ export async function createInvitation(
   return ok({ token: created.token });
 }
 
-export async function listPendingInvitations(
-  ctx: AuthContext,
-): Promise<PendingInvitation[]> {
+export async function listPendingInvitations(ctx: AuthContext): Promise<PendingInvitation[]> {
   authorize(ctx, 'read', 'invitation', (c) => hasMinRole(c, 'admin'));
 
   const rows = await db

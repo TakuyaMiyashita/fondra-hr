@@ -38,14 +38,11 @@ export function UserMenu({ email }: UserMenuProps) {
         <DropdownMenuLabel>
           <div className="flex items-center gap-2">
             <User className="h-4 w-4" />
-            <span className="truncate text-xs font-normal text-muted-foreground">{email}</span>
+            <span className="text-muted-foreground truncate text-xs font-normal">{email}</span>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          disabled={isPending}
-          onClick={() => startTransition(() => signOut())}
-        >
+        <DropdownMenuItem disabled={isPending} onClick={() => startTransition(() => signOut())}>
           <LogOut className="mr-2 h-4 w-4" />
           ログアウト
         </DropdownMenuItem>

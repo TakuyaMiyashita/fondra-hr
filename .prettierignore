@@ -1,0 +1,13 @@
+# Prettier 3 は既定で .gitignore も参照するため、node_modules や .next は
+# ここに書かなくても除外される。以下は「Git 管理下だがフォーマット対象外」のもの。
+
+# pnpm が生成・管理するロックファイル。整形すると差分が暴れ、
+# CI の --frozen-lockfile とも噛み合わない。
+pnpm-lock.yaml
+
+# 末尾のブロックを `next dev` が自動で書き戻すため、整形しても差分が復活する。
+CLAUDE.md
+
+# shadcn/ui の自動生成コンポーネント（手動編集しない方針）。
+# 整形すると `npx shadcn add` の出力と食い違い、追加のたびに format:check が落ちる。
+src/components/ui/

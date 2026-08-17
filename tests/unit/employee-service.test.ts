@@ -77,9 +77,9 @@ describe('listEmployees', () => {
   it('calls authorize with read action', async () => {
     const { listEmployees } = await import('@/services/employee');
 
-    selectChain.then = vi.fn().mockImplementation((onFulfilled) =>
-      Promise.resolve([]).then(onFulfilled),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((onFulfilled) => Promise.resolve([]).then(onFulfilled));
 
     const db = await getDb();
     let callCount = 0;
@@ -279,9 +279,7 @@ describe('createEmployee', () => {
       expect(result.data.id).toBe('new-emp-1');
     }
 
-    expect(insertChain.values).toHaveBeenCalledWith(
-      expect.objectContaining({ orgId: 'org-1' }),
-    );
+    expect(insertChain.values).toHaveBeenCalledWith(expect.objectContaining({ orgId: 'org-1' }));
   });
 
   it('writes audit log on creation', async () => {
@@ -381,9 +379,7 @@ describe('updateEmployee', () => {
 
     await updateEmployee(adminCtx, 'emp-1', { fullName: '山田花子' });
 
-    expect(updateChain.set).toHaveBeenCalledWith(
-      expect.objectContaining({ fullName: '山田花子' }),
-    );
+    expect(updateChain.set).toHaveBeenCalledWith(expect.objectContaining({ fullName: '山田花子' }));
   });
 
   it('writes audit log with before/after changes', async () => {
@@ -424,9 +420,9 @@ describe('updateEmployee', () => {
   it('throws AuthorizationError for viewer', async () => {
     const { updateEmployee } = await import('@/services/employee');
 
-    await expect(
-      updateEmployee(viewerCtx, 'emp-1', { fullName: 'テスト' }),
-    ).rejects.toThrow(AuthorizationError);
+    await expect(updateEmployee(viewerCtx, 'emp-1', { fullName: 'テスト' })).rejects.toThrow(
+      AuthorizationError,
+    );
   });
 
   it('returns error when updated employee code conflicts', async () => {

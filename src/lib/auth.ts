@@ -5,12 +5,8 @@ import type { Role } from '@/services/auth-context';
 
 import { createClient } from './supabase/server';
 
-export function parseJwtClaims(
-  accessToken: string,
-): { orgId: string; role: Role } | null {
-  const payload = JSON.parse(
-    Buffer.from(accessToken.split('.')[1], 'base64url').toString(),
-  );
+export function parseJwtClaims(accessToken: string): { orgId: string; role: Role } | null {
+  const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64url').toString());
   const orgId = payload.app_metadata?.org_id;
   const role = payload.app_metadata?.role;
   if (!orgId || !role) return null;

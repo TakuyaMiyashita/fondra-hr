@@ -10,9 +10,7 @@ export const updateOrgSchema = z.object({
 export type UpdateOrgInput = z.infer<typeof updateOrgSchema>;
 
 export const inviteMemberSchema = z.object({
-  email: z
-    .string()
-    .email('有効なメールアドレスを入力してください'),
+  email: z.string().email('有効なメールアドレスを入力してください'),
   role: z.enum(['admin', 'member', 'viewer'], {
     message: 'ロールを選択してください',
   }),

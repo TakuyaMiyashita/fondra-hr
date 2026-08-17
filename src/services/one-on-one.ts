@@ -21,7 +21,11 @@ import type {
 
 const employee = (alias: string) =>
   db
-    .select({ id: employees.id, fullName: employees.fullName, employeeCode: employees.employeeCode })
+    .select({
+      id: employees.id,
+      fullName: employees.fullName,
+      employeeCode: employees.employeeCode,
+    })
     .from(employees)
     .as(alias);
 
@@ -94,10 +98,7 @@ export async function listOneOnOnes(
   };
 }
 
-export async function getOneOnOne(
-  ctx: AuthContext,
-  id: string,
-): Promise<Result<OneOnOneDetail>> {
+export async function getOneOnOne(ctx: AuthContext, id: string): Promise<Result<OneOnOneDetail>> {
   authorize(ctx, 'read', 'one_on_one');
 
   const emp = employee('emp');
@@ -226,10 +227,7 @@ export async function updateOneOnOne(
   return ok(undefined);
 }
 
-export async function deleteOneOnOne(
-  ctx: AuthContext,
-  id: string,
-): Promise<Result<void>> {
+export async function deleteOneOnOne(ctx: AuthContext, id: string): Promise<Result<void>> {
   authorize(ctx, 'delete', 'one_on_one');
 
   const [target] = await db
@@ -242,18 +240,14 @@ export async function deleteOneOnOne(
     return err('1on1記録が見つかりません');
   }
 
-  await db
-    .delete(oneOnOnes)
-    .where(and(eq(oneOnOnes.id, id), eq(oneOnOnes.orgId, ctx.orgId)));
+  await db.delete(oneOnOnes).where(and(eq(oneOnOnes.id, id), eq(oneOnOnes.orgId, ctx.orgId)));
 
   await writeAuditLog(ctx, 'one_on_one.delete', 'one_on_one', id);
 
   return ok(undefined);
 }
 
-export async function getEmployeesForOrg(
-  ctx: AuthContext,
-): Promise<EmployeeOption[]> {
+export async function getEmployeesForOrg(ctx: AuthContext): Promise<EmployeeOption[]> {
   authorize(ctx, 'read', 'one_on_one');
 
   return db

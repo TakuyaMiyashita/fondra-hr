@@ -4,11 +4,7 @@ import { Loader2, X } from 'lucide-react';
 import { useState, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 import { assignSkillAction, removeSkillAssignmentAction } from './actions';
@@ -66,20 +62,12 @@ export function SkillMatrixCell({ employeeId, skillId, level, onUpdate }: Props)
           <button
             className={cn(
               'flex h-8 w-full items-center justify-center rounded text-xs font-medium transition-colors',
-              level
-                ? LEVEL_STYLES[level]
-                : 'text-muted-foreground/30 hover:bg-muted/50',
+              level ? LEVEL_STYLES[level] : 'text-muted-foreground/30 hover:bg-muted/50',
             )}
           />
         }
       >
-        {isPending ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
-        ) : level ? (
-          level
-        ) : (
-          '—'
-        )}
+        {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : level ? level : '—'}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="center">
         <div className="flex items-center gap-1">
@@ -99,7 +87,7 @@ export function SkillMatrixCell({ employeeId, skillId, level, onUpdate }: Props)
             <Button
               variant="ghost"
               size="icon-sm"
-              className="ml-1 text-destructive"
+              className="text-destructive ml-1"
               disabled={isPending}
               onClick={handleRemove}
             >

@@ -81,7 +81,14 @@ describe('listSkills', () => {
     const { listSkills } = await import('@/services/skill');
 
     const skills = [
-      { id: 's1', name: 'React', category: 'フロントエンド', createdAt: new Date(), updatedAt: new Date(), employeeCount: 3 },
+      {
+        id: 's1',
+        name: 'React',
+        category: 'フロントエンド',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        employeeCount: 3,
+      },
     ];
     const countResult = [{ count: 1 }];
 
@@ -136,7 +143,9 @@ describe('createSkill', () => {
   it('returns error on duplicate name', async () => {
     const { createSkill } = await import('@/services/skill');
 
-    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([{ id: 'existing' }]).then(cb));
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) => Promise.resolve([{ id: 'existing' }]).then(cb));
 
     const result = await createSkill(adminCtx, { name: 'React' });
 
@@ -157,7 +166,14 @@ describe('updateSkill', () => {
   it('updates a skill and writes audit log', async () => {
     const { updateSkill } = await import('@/services/skill');
 
-    const current = { id: 's1', name: 'React', category: null, orgId: 'org-1', createdAt: new Date(), updatedAt: new Date() };
+    const current = {
+      id: 's1',
+      name: 'React',
+      category: null,
+      orgId: 'org-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     let selectCount = 0;
     selectChain.then = vi.fn().mockImplementation((cb) => {
       selectCount++;
@@ -165,7 +181,11 @@ describe('updateSkill', () => {
       return Promise.resolve([]).then(cb);
     });
 
-    const result = await updateSkill(adminCtx, { id: 's1', name: 'React.js', category: 'フロントエンド' });
+    const result = await updateSkill(adminCtx, {
+      id: 's1',
+      name: 'React.js',
+      category: 'フロントエンド',
+    });
 
     expect(result.success).toBe(true);
     const db = await getDb();
@@ -189,7 +209,14 @@ describe('updateSkill', () => {
   it('returns error on duplicate name', async () => {
     const { updateSkill } = await import('@/services/skill');
 
-    const current = { id: 's1', name: 'React', category: null, orgId: 'org-1', createdAt: new Date(), updatedAt: new Date() };
+    const current = {
+      id: 's1',
+      name: 'React',
+      category: null,
+      orgId: 'org-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     let selectCount = 0;
     selectChain.then = vi.fn().mockImplementation((cb) => {
       selectCount++;
@@ -208,7 +235,14 @@ describe('updateSkill', () => {
   it('returns ok when no changes', async () => {
     const { updateSkill } = await import('@/services/skill');
 
-    const current = { id: 's1', name: 'React', category: null, orgId: 'org-1', createdAt: new Date(), updatedAt: new Date() };
+    const current = {
+      id: 's1',
+      name: 'React',
+      category: null,
+      orgId: 'org-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([current]).then(cb));
 
     const result = await updateSkill(adminCtx, { id: 's1', name: 'React', category: '' });
@@ -277,7 +311,9 @@ describe('getSkillMatrix', () => {
   it('returns matrix data', async () => {
     const { getSkillMatrix } = await import('@/services/skill');
 
-    const emps = [{ id: 'e1', employeeCode: 'EMP-001', fullName: '田中太郎', departmentName: '開発部' }];
+    const emps = [
+      { id: 'e1', employeeCode: 'EMP-001', fullName: '田中太郎', departmentName: '開発部' },
+    ];
     const skls = [{ id: 's1', name: 'React', category: 'フロントエンド' }];
     const cells = [{ employeeId: 'e1', skillId: 's1', level: 3, certifiedAt: null }];
 
@@ -409,7 +445,9 @@ describe('removeSkillAssignment', () => {
   it('removes an assignment', async () => {
     const { removeSkillAssignment } = await import('@/services/skill');
 
-    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([{ id: 'es1' }]).then(cb));
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) => Promise.resolve([{ id: 'es1' }]).then(cb));
 
     const result = await removeSkillAssignment(adminCtx, 'e1', 's1');
 
@@ -434,8 +472,6 @@ describe('removeSkillAssignment', () => {
   it('rejects removal by viewer', async () => {
     const { removeSkillAssignment } = await import('@/services/skill');
 
-    await expect(
-      removeSkillAssignment(viewerCtx, 'e1', 's1'),
-    ).rejects.toThrow(AuthorizationError);
+    await expect(removeSkillAssignment(viewerCtx, 'e1', 's1')).rejects.toThrow(AuthorizationError);
   });
 });

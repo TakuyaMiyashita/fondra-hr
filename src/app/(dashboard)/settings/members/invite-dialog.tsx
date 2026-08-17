@@ -25,10 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  inviteMemberSchema,
-  type InviteMemberInput,
-} from '@/lib/validations/settings';
+import { inviteMemberSchema, type InviteMemberInput } from '@/lib/validations/settings';
 
 import { inviteMemberAction } from '../actions';
 
@@ -79,9 +76,7 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: Props) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>メンバーを招待</DialogTitle>
-          <DialogDescription>
-            メールアドレスとロールを指定して招待します
-          </DialogDescription>
+          <DialogDescription>メールアドレスとロールを指定して招待します</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
@@ -93,11 +88,7 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: Props) {
               disabled={isPending}
               {...register('email')}
             />
-            {errors.email && (
-              <p className="text-xs text-destructive">
-                {errors.email.message}
-              </p>
-            )}
+            {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
           </div>
           <div className="space-y-2">
             <Label>ロール</Label>
@@ -117,11 +108,7 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: Props) {
                 <SelectItem value="viewer">閲覧者</SelectItem>
               </SelectContent>
             </Select>
-            {errors.role && (
-              <p className="text-xs text-destructive">
-                {errors.role.message}
-              </p>
-            )}
+            {errors.role && <p className="text-destructive text-xs">{errors.role.message}</p>}
           </div>
           <DialogFooter>
             <Button
@@ -136,9 +123,7 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: Props) {
               キャンセル
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               招待する
             </Button>
           </DialogFooter>

@@ -25,12 +25,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-export function DepartmentDeleteDialog({
-  open,
-  onOpenChange,
-  department,
-  onSuccess,
-}: Props) {
+export function DepartmentDeleteDialog({ open, onOpenChange, department, onSuccess }: Props) {
   const [isPending, startTransition] = useTransition();
 
   function handleDelete() {
@@ -53,25 +48,19 @@ export function DepartmentDeleteDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <TriangleAlert className="h-5 w-5 text-destructive" />
+            <TriangleAlert className="text-destructive h-5 w-5" />
             部署を削除
           </DialogTitle>
           <DialogDescription>
             <strong>{department?.name}</strong> を削除しますか？この操作は元に戻せません。
           </DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           子部署や所属する従業員が存在する場合は削除できません。
         </p>
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
-            キャンセル
-          </DialogClose>
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={isPending}
-          >
+          <DialogClose render={<Button variant="outline" />}>キャンセル</DialogClose>
+          <Button variant="destructive" onClick={handleDelete} disabled={isPending}>
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             削除
           </Button>

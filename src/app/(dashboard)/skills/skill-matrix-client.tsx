@@ -4,11 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Sparkles, Users } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@/components/ui/input-group';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import {
   Select,
   SelectContent,
@@ -71,7 +67,10 @@ export function SkillMatrixClient({ categories, departments }: Props) {
     }
   }
 
-  const groupedSkills: { category: string; skills: typeof data extends undefined ? never : NonNullable<typeof data>['skills'] }[] = [];
+  const groupedSkills: {
+    category: string;
+    skills: typeof data extends undefined ? never : NonNullable<typeof data>['skills'];
+  }[] = [];
   if (data) {
     const catMap = new Map<string, typeof data.skills>();
     for (const skill of data.skills) {
@@ -143,35 +142,38 @@ export function SkillMatrixClient({ categories, departments }: Props) {
         </div>
       ) : !data || (data.employees.length === 0 && data.skills.length === 0) ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Sparkles className="h-12 w-12 text-muted-foreground/50" />
+          <Sparkles className="text-muted-foreground/50 h-12 w-12" />
           <h3 className="mt-4 text-lg font-semibold">マトリクスデータがありません</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-2 text-sm">
             スキル一覧タブでスキルを追加し、従業員を登録してください。
           </p>
         </div>
       ) : data.skills.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Sparkles className="h-12 w-12 text-muted-foreground/50" />
+          <Sparkles className="text-muted-foreground/50 h-12 w-12" />
           <h3 className="mt-4 text-lg font-semibold">スキルが登録されていません</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-2 text-sm">
             先にスキル一覧タブでスキルを追加してください。
           </p>
         </div>
       ) : data.employees.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Users className="h-12 w-12 text-muted-foreground/50" />
+          <Users className="text-muted-foreground/50 h-12 w-12" />
           <h3 className="mt-4 text-lg font-semibold">該当する従業員がいません</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-2 text-sm">
             フィルタ条件を変更するか、従業員を登録してください。
           </p>
         </div>
       ) : (
-        <div className="overflow-auto rounded-lg border border-border" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+        <div
+          className="border-border overflow-auto rounded-lg border"
+          style={{ maxHeight: 'calc(100vh - 280px)' }}
+        >
           <table className="w-max min-w-full border-collapse text-sm">
             <thead>
-              <tr className="sticky top-0 z-20 bg-muted">
+              <tr className="bg-muted sticky top-0 z-20">
                 <th
-                  className="sticky left-0 z-30 min-w-[200px] border-b border-r border-border bg-muted px-3 py-2 text-left font-medium"
+                  className="border-border bg-muted sticky left-0 z-30 min-w-[200px] border-r border-b px-3 py-2 text-left font-medium"
                   rowSpan={groupedSkills.some((g) => g.category !== '未分類') ? 2 : 1}
                 >
                   従業員
@@ -180,19 +182,19 @@ export function SkillMatrixClient({ categories, departments }: Props) {
                   <th
                     key={group.category}
                     colSpan={group.skills.length}
-                    className="border-b border-r border-border px-2 py-1.5 text-center text-xs font-medium text-muted-foreground"
+                    className="border-border text-muted-foreground border-r border-b px-2 py-1.5 text-center text-xs font-medium"
                   >
                     {group.category}
                   </th>
                 ))}
               </tr>
               {groupedSkills.some((g) => g.category !== '未分類') && (
-                <tr className="sticky top-[33px] z-20 bg-muted">
+                <tr className="bg-muted sticky top-[33px] z-20">
                   {groupedSkills.flatMap((group) =>
                     group.skills.map((skill) => (
                       <th
                         key={skill.id}
-                        className="min-w-[72px] border-b border-r border-border px-2 py-1.5 text-center text-xs font-medium"
+                        className="border-border min-w-[72px] border-r border-b px-2 py-1.5 text-center text-xs font-medium"
                       >
                         {skill.name}
                       </th>
@@ -201,11 +203,11 @@ export function SkillMatrixClient({ categories, departments }: Props) {
                 </tr>
               )}
               {!groupedSkills.some((g) => g.category !== '未分類') && (
-                <tr className="sticky top-[33px] z-20 bg-muted">
+                <tr className="bg-muted sticky top-[33px] z-20">
                   {data.skills.map((skill) => (
                     <th
                       key={skill.id}
-                      className="min-w-[72px] border-b border-r border-border px-2 py-1.5 text-center text-xs font-medium"
+                      className="border-border min-w-[72px] border-r border-b px-2 py-1.5 text-center text-xs font-medium"
                     >
                       {skill.name}
                     </th>
@@ -216,19 +218,16 @@ export function SkillMatrixClient({ categories, departments }: Props) {
             <tbody>
               {data.employees.map((emp) => (
                 <tr key={emp.id} className="hover:bg-muted/30">
-                  <td className="sticky left-0 z-10 border-b border-r border-border bg-background px-3 py-1.5">
+                  <td className="border-border bg-background sticky left-0 z-10 border-r border-b px-3 py-1.5">
                     <div className="font-medium">{emp.fullName}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-muted-foreground text-xs">
                       {emp.employeeCode}
                       {emp.departmentName && ` · ${emp.departmentName}`}
                     </div>
                   </td>
                   {groupedSkills.flatMap((group) =>
                     group.skills.map((skill) => (
-                      <td
-                        key={skill.id}
-                        className="border-b border-r border-border px-1 py-1"
-                      >
+                      <td key={skill.id} className="border-border border-r border-b px-1 py-1">
                         <SkillMatrixCell
                           employeeId={emp.id}
                           skillId={skill.id}

@@ -8,17 +8,8 @@ export const createOneOnOneSchema = z.object({
   employeeId: z.string().uuid('対象従業員を選択してください'),
   interviewerId: z.string().uuid('面談者を選択してください'),
   heldOn: dateString,
-  notes: z
-    .string()
-    .max(5000, 'メモは5000文字以内で入力してください')
-    .optional()
-    .or(z.literal('')),
-  moodScore: z
-    .number()
-    .int()
-    .min(0)
-    .max(5, 'コンディションは5以下で入力してください')
-    .optional(),
+  notes: z.string().max(5000, 'メモは5000文字以内で入力してください').optional().or(z.literal('')),
+  moodScore: z.number().int().min(0).max(5, 'コンディションは5以下で入力してください').optional(),
 });
 
 export type CreateOneOnOneInput = z.infer<typeof createOneOnOneSchema>;
@@ -28,11 +19,7 @@ export const updateOneOnOneSchema = z.object({
   employeeId: z.string().uuid('対象従業員を選択してください'),
   interviewerId: z.string().uuid('面談者を選択してください'),
   heldOn: dateString,
-  notes: z
-    .string()
-    .max(5000, 'メモは5000文字以内で入力してください')
-    .optional()
-    .or(z.literal('')),
+  notes: z.string().max(5000, 'メモは5000文字以内で入力してください').optional().or(z.literal('')),
   moodScore: z.coerce
     .number()
     .int()

@@ -314,7 +314,9 @@ describe('createEvaluation', () => {
   it('returns error for duplicate evaluation', async () => {
     const { createEvaluation } = await import('@/services/evaluation');
 
-    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([{ id: 'existing' }]).then(cb));
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) => Promise.resolve([{ id: 'existing' }]).then(cb));
 
     const result = await createEvaluation(adminCtx, {
       cycleId: 'c1',
@@ -429,7 +431,9 @@ describe('deleteEvaluation', () => {
   it('deletes an evaluation', async () => {
     const { deleteEvaluation } = await import('@/services/evaluation');
 
-    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([{ id: 'ev1' }]).then(cb));
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) => Promise.resolve([{ id: 'ev1' }]).then(cb));
 
     const result = await deleteEvaluation(adminCtx, 'ev1');
 

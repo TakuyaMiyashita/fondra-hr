@@ -17,7 +17,7 @@ interface Props {
 function InfoItem({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className="text-muted-foreground text-xs">{label}</dt>
       <dd className="mt-1 text-sm">{value || <span className="text-muted-foreground">—</span>}</dd>
     </div>
   );

@@ -25,13 +25,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-export function CycleDeleteDialog({
-  open,
-  onOpenChange,
-  cycleId,
-  cycleName,
-  onSuccess,
-}: Props) {
+export function CycleDeleteDialog({ open, onOpenChange, cycleId, cycleName, onSuccess }: Props) {
   const [isPending, startTransition] = useTransition();
 
   function handleDelete() {
@@ -56,14 +50,8 @@ export function CycleDeleteDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" type="button" />}>
-            キャンセル
-          </DialogClose>
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={isPending}
-          >
+          <DialogClose render={<Button variant="outline" type="button" />}>キャンセル</DialogClose>
+          <Button variant="destructive" onClick={handleDelete} disabled={isPending}>
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             削除
           </Button>

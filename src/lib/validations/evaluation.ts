@@ -7,7 +7,13 @@ const dateString = z
 export const cycleStatus = z.enum(['draft', 'in_progress', 'completed']);
 export type CycleStatus = z.infer<typeof cycleStatus>;
 
-export const evaluationStatus = z.enum(['draft', 'in_progress', 'submitted', 'confirmed', 'returned']);
+export const evaluationStatus = z.enum([
+  'draft',
+  'in_progress',
+  'submitted',
+  'confirmed',
+  'returned',
+]);
 export type EvaluationStatus = z.infer<typeof evaluationStatus>;
 
 export const createCycleSchema = z.object({

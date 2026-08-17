@@ -56,11 +56,7 @@ export function EmployeeDeleteDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
             キャンセル
           </Button>
           <Button variant="destructive" onClick={handleDelete} disabled={isPending}>

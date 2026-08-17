@@ -72,12 +72,14 @@ describe('getOrgInfo', () => {
     const { getOrgInfo } = await import('@/services/settings');
 
     selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{
-        id: 'org-1',
-        name: 'テスト組織',
-        slug: 'test-org',
-        plan: 'free',
-      }]).then(cb),
+      Promise.resolve([
+        {
+          id: 'org-1',
+          name: 'テスト組織',
+          slug: 'test-org',
+          plan: 'free',
+        },
+      ]).then(cb),
     );
 
     const result = await getOrgInfo(ownerCtx);
@@ -91,9 +93,7 @@ describe('getOrgInfo', () => {
   it('returns error when org not found', async () => {
     const { getOrgInfo } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([]).then(cb),
-    );
+    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([]).then(cb));
 
     const result = await getOrgInfo(ownerCtx);
 
@@ -104,12 +104,14 @@ describe('getOrgInfo', () => {
     const { getOrgInfo } = await import('@/services/settings');
 
     selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{
-        id: 'org-1',
-        name: 'テスト組織',
-        slug: 'test-org',
-        plan: 'free',
-      }]).then(cb),
+      Promise.resolve([
+        {
+          id: 'org-1',
+          name: 'テスト組織',
+          slug: 'test-org',
+          plan: 'free',
+        },
+      ]).then(cb),
     );
 
     const result = await getOrgInfo(viewerCtx);
@@ -121,9 +123,9 @@ describe('updateOrg', () => {
   it('updates organization name (admin)', async () => {
     const { updateOrg } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ name: '旧名称' }]).then(cb),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) => Promise.resolve([{ name: '旧名称' }]).then(cb));
 
     const result = await updateOrg(adminCtx, { name: '新名称' });
 
@@ -133,25 +135,21 @@ describe('updateOrg', () => {
   it('rejects update from member', async () => {
     const { updateOrg } = await import('@/services/settings');
 
-    await expect(
-      updateOrg(memberCtx, { name: '新名称' }),
-    ).rejects.toThrow(AuthorizationError);
+    await expect(updateOrg(memberCtx, { name: '新名称' })).rejects.toThrow(AuthorizationError);
   });
 
   it('rejects update from viewer', async () => {
     const { updateOrg } = await import('@/services/settings');
 
-    await expect(
-      updateOrg(viewerCtx, { name: '新名称' }),
-    ).rejects.toThrow(AuthorizationError);
+    await expect(updateOrg(viewerCtx, { name: '新名称' })).rejects.toThrow(AuthorizationError);
   });
 
   it('skips update if name is unchanged', async () => {
     const { updateOrg } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ name: '同じ名前' }]).then(cb),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) => Promise.resolve([{ name: '同じ名前' }]).then(cb));
 
     const db = await getDb();
     const result = await updateOrg(adminCtx, { name: '同じ名前' });
@@ -167,8 +165,20 @@ describe('listMembers', () => {
 
     selectChain.then = vi.fn().mockImplementation((cb) =>
       Promise.resolve([
-        { id: 'm-1', userId: 'user-1', email: 'owner@example.com', role: 'owner', createdAt: new Date() },
-        { id: 'm-2', userId: 'user-2', email: 'admin@example.com', role: 'admin', createdAt: new Date() },
+        {
+          id: 'm-1',
+          userId: 'user-1',
+          email: 'owner@example.com',
+          role: 'owner',
+          createdAt: new Date(),
+        },
+        {
+          id: 'm-2',
+          userId: 'user-2',
+          email: 'admin@example.com',
+          role: 'admin',
+          createdAt: new Date(),
+        },
       ]).then(cb),
     );
 
@@ -180,9 +190,7 @@ describe('listMembers', () => {
   it('allows viewer to read members', async () => {
     const { listMembers } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([]).then(cb),
-    );
+    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([]).then(cb));
 
     const result = await listMembers(viewerCtx);
     expect(result).toEqual([]);
@@ -193,9 +201,11 @@ describe('changeRole', () => {
   it('changes member role (admin)', async () => {
     const { changeRole } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ id: 'm-3', userId: 'user-3', orgId: 'org-1', role: 'member' }]).then(cb),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) =>
+        Promise.resolve([{ id: 'm-3', userId: 'user-3', orgId: 'org-1', role: 'member' }]).then(cb),
+      );
 
     const result = await changeRole(adminCtx, { membershipId: 'm-3', role: 'viewer' });
 
@@ -205,9 +215,11 @@ describe('changeRole', () => {
   it('rejects changing owner role', async () => {
     const { changeRole } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ id: 'm-1', userId: 'user-1', orgId: 'org-1', role: 'owner' }]).then(cb),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) =>
+        Promise.resolve([{ id: 'm-1', userId: 'user-1', orgId: 'org-1', role: 'owner' }]).then(cb),
+      );
 
     const result = await changeRole(adminCtx, { membershipId: 'm-1', role: 'member' });
 
@@ -220,9 +232,9 @@ describe('changeRole', () => {
   it('rejects role change from member', async () => {
     const { changeRole } = await import('@/services/settings');
 
-    await expect(
-      changeRole(memberCtx, { membershipId: 'm-2', role: 'viewer' }),
-    ).rejects.toThrow(AuthorizationError);
+    await expect(changeRole(memberCtx, { membershipId: 'm-2', role: 'viewer' })).rejects.toThrow(
+      AuthorizationError,
+    );
   });
 });
 
@@ -230,9 +242,11 @@ describe('removeMember', () => {
   it('removes a member (admin)', async () => {
     const { removeMember } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ id: 'm-3', userId: 'user-3', orgId: 'org-1', role: 'member' }]).then(cb),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) =>
+        Promise.resolve([{ id: 'm-3', userId: 'user-3', orgId: 'org-1', role: 'member' }]).then(cb),
+      );
 
     const result = await removeMember(adminCtx, 'm-3');
 
@@ -242,9 +256,11 @@ describe('removeMember', () => {
   it('rejects removing owner', async () => {
     const { removeMember } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ id: 'm-1', userId: 'user-1', orgId: 'org-1', role: 'owner' }]).then(cb),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) =>
+        Promise.resolve([{ id: 'm-1', userId: 'user-1', orgId: 'org-1', role: 'owner' }]).then(cb),
+      );
 
     const result = await removeMember(adminCtx, 'm-1');
 
@@ -257,9 +273,11 @@ describe('removeMember', () => {
   it('rejects self-removal', async () => {
     const { removeMember } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ id: 'm-2', userId: 'user-2', orgId: 'org-1', role: 'admin' }]).then(cb),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) =>
+        Promise.resolve([{ id: 'm-2', userId: 'user-2', orgId: 'org-1', role: 'admin' }]).then(cb),
+      );
 
     const result = await removeMember(adminCtx, 'm-2');
 
@@ -272,9 +290,7 @@ describe('removeMember', () => {
   it('rejects removal from member role', async () => {
     const { removeMember } = await import('@/services/settings');
 
-    await expect(
-      removeMember(memberCtx, 'm-2'),
-    ).rejects.toThrow(AuthorizationError);
+    await expect(removeMember(memberCtx, 'm-2')).rejects.toThrow(AuthorizationError);
   });
 });
 
@@ -282,12 +298,10 @@ describe('createInvitation', () => {
   it('creates invitation (admin)', async () => {
     const { createInvitation } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([]).then(cb),
-    );
-    insertChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ id: 'inv-1', token: 'abc123' }]).then(cb),
-    );
+    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([]).then(cb));
+    insertChain.then = vi
+      .fn()
+      .mockImplementation((cb) => Promise.resolve([{ id: 'inv-1', token: 'abc123' }]).then(cb));
 
     const result = await createInvitation(adminCtx, {
       email: 'new@example.com',
@@ -303,9 +317,9 @@ describe('createInvitation', () => {
   it('rejects duplicate member', async () => {
     const { createInvitation } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ id: 'm-existing' }]).then(cb),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) => Promise.resolve([{ id: 'm-existing' }]).then(cb));
 
     const result = await createInvitation(adminCtx, {
       email: 'existing@example.com',
@@ -334,9 +348,11 @@ describe('revokeInvitation', () => {
   it('revokes invitation (admin)', async () => {
     const { revokeInvitation } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ id: 'inv-1', email: 'invited@example.com' }]).then(cb),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) =>
+        Promise.resolve([{ id: 'inv-1', email: 'invited@example.com' }]).then(cb),
+      );
 
     const result = await revokeInvitation(adminCtx, 'inv-1');
 
@@ -346,9 +362,7 @@ describe('revokeInvitation', () => {
   it('returns error for non-existent invitation', async () => {
     const { revokeInvitation } = await import('@/services/settings');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([]).then(cb),
-    );
+    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([]).then(cb));
 
     const result = await revokeInvitation(adminCtx, 'inv-999');
 
@@ -361,8 +375,6 @@ describe('revokeInvitation', () => {
   it('rejects revocation from viewer', async () => {
     const { revokeInvitation } = await import('@/services/settings');
 
-    await expect(
-      revokeInvitation(viewerCtx, 'inv-1'),
-    ).rejects.toThrow(AuthorizationError);
+    await expect(revokeInvitation(viewerCtx, 'inv-1')).rejects.toThrow(AuthorizationError);
   });
 });

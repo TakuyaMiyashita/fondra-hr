@@ -43,10 +43,7 @@ export async function listAuditLogs(
 
   const where = and(...conditions);
 
-  const [totalRow] = await db
-    .select({ count: count() })
-    .from(auditLogs)
-    .where(where);
+  const [totalRow] = await db.select({ count: count() }).from(auditLogs).where(where);
 
   const offset = (query.page - 1) * query.perPage;
   const orderFn = query.order === 'asc' ? asc : desc;

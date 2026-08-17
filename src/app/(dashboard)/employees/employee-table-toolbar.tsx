@@ -78,7 +78,7 @@ export function EmployeeTableToolbar({
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-1 items-center gap-2">
         <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+          <Search className="text-muted-foreground absolute top-2.5 left-2.5 size-4" />
           <Input
             placeholder="名前・社員番号で検索..."
             value={localSearch}

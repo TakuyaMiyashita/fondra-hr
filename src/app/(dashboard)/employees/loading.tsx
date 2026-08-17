@@ -8,7 +8,7 @@ export default function EmployeesLoading() {
         <Skeleton className="mt-2 h-4 w-64" />
       </div>
       <div className="flex items-center gap-2">
-        <Skeleton className="h-9 flex-1 max-w-sm" />
+        <Skeleton className="h-9 max-w-sm flex-1" />
         <Skeleton className="h-9 w-[120px]" />
         <Skeleton className="h-9 w-[160px]" />
       </div>

@@ -12,3 +12,18 @@ export interface RecentActivity {
   resourceType: string;
   createdAt: Date;
 }
+
+export interface DepartmentHeadcount {
+  name: string;
+  count: number;
+}
+
+export interface SkillCategoryCount {
+  category: string;
+  count: number;
+}
+
+export interface EmployeeStatusCount {
+  status: string;
+  count: number;
+}

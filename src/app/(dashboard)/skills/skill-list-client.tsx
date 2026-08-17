@@ -143,6 +143,7 @@ export function SkillListClient({
         </div>
       ) : (
         <>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -195,6 +196,7 @@ export function SkillListClient({
               ))}
             </TableBody>
           </Table>
+          </div>
           <p className="text-xs text-muted-foreground">全 {total} 件</p>
         </>
       )}

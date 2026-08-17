@@ -157,6 +157,7 @@ export function MembersClient({
           )}
         </CardHeader>
         <CardContent>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -220,6 +221,7 @@ export function MembersClient({
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -232,6 +234,7 @@ export function MembersClient({
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -270,6 +273,7 @@ export function MembersClient({
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       )}

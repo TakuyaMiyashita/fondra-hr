@@ -29,7 +29,7 @@ import {
   createEvaluationSchema,
   type CreateEvaluationInput,
 } from '@/lib/validations/evaluation';
-import type { EmployeeOption } from '@/types/one-on-one';
+import type { EmployeeOption } from '@/types/employee';
 
 import { createEvaluationAction } from './actions';
 

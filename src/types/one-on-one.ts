@@ -21,8 +21,4 @@ export interface OneOnOneListResult {
   total: number;
 }
 
-export interface EmployeeOption {
-  id: string;
-  fullName: string;
-  employeeCode: string;
-}
+export type { EmployeeOption } from '@/types/employee';

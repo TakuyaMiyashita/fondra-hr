@@ -21,7 +21,7 @@ import {
   updateCycle as updateCycleSvc,
   updateEvaluation as updateEvalSvc,
 } from '@/services/evaluation';
-import type { EmployeeOption } from '@/types/one-on-one';
+import type { EmployeeOption } from '@/types/employee';
 import type { CycleWithEvaluations, EvaluationCycle } from '@/types/evaluation';
 import { getEmployeesForOrg } from '@/services/one-on-one';
 

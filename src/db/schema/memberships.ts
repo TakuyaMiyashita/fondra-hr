@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { index, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import { pgSchema } from 'drizzle-orm/pg-core';
 
 import { organizations } from './organizations';
@@ -24,5 +24,9 @@ export const memberships = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [unique('memberships_user_id_org_id_key').on(t.userId, t.orgId)],
+  (t) => [
+    unique('memberships_user_id_org_id_key').on(t.userId, t.orgId),
+    index('idx_memberships_org_id').on(t.orgId),
+    index('idx_memberships_user_id').on(t.userId),
+  ],
 );

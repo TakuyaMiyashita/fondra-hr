@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, index } from 'drizzle-orm/pg-core';
+import { type AnyPgColumn, pgTable, text, timestamp, uuid, index } from 'drizzle-orm/pg-core';
 
 import { organizations } from './organizations';
 
@@ -10,7 +10,7 @@ export const departments = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    parentId: uuid('parent_id'),
+    parentId: uuid('parent_id').references((): AnyPgColumn => departments.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -1,3 +1,5 @@
+import type { Metadata } from 'next';
+
 import { getAuthContext } from '@/lib/auth';
 import {
   getDashboardStats,
@@ -8,6 +10,10 @@ import {
 } from '@/services/dashboard';
 
 import { DashboardClient } from './dashboard-client';
+
+export const metadata: Metadata = {
+  title: 'ダッシュボード',
+};
 
 export default async function DashboardPage() {
   const ctx = await getAuthContext();

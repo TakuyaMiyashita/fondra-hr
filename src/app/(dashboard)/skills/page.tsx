@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
+
 import { getAuthContext } from '@/lib/auth';
 import { getDepartmentsForOrg } from '@/services/employee';
 import { getCategories, listSkills } from '@/services/skill';
 
 import { SkillPageClient } from './skill-page-client';
+
+export const metadata: Metadata = {
+  title: 'スキル管理',
+};
 
 export default async function SkillsPage() {
   const ctx = await getAuthContext();

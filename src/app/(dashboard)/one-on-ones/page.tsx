@@ -1,7 +1,13 @@
+import type { Metadata } from 'next';
+
 import { getAuthContext } from '@/lib/auth';
 import { getEmployeesForOrg, listOneOnOnes } from '@/services/one-on-one';
 
 import { OneOnOneListClient } from './one-on-one-list-client';
+
+export const metadata: Metadata = {
+  title: '1on1',
+};
 
 export default async function OneOnOnesPage() {
   const ctx = await getAuthContext();

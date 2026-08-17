@@ -17,7 +17,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'TalentPulse',
+  title: {
+    default: 'TalentPulse',
+    template: '%s | TalentPulse',
+  },
   description: 'マルチテナント型タレントマネジメントSaaS',
 };
 

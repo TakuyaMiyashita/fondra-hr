@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Users } from 'lucide-react';
 
 import { getAuthContext } from '@/lib/auth';
@@ -5,6 +6,10 @@ import { employeeListQuerySchema } from '@/lib/validations/employee';
 import { getDepartmentsForOrg, listEmployees } from '@/services/employee';
 
 import { EmployeeListClient } from './employee-list-client';
+
+export const metadata: Metadata = {
+  title: '従業員一覧',
+};
 
 export default async function EmployeesPage({
   searchParams,

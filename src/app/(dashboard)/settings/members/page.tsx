@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
+
 import { getAuthContext } from '@/lib/auth';
 import { listMembers, listPendingInvitations } from '@/services/settings';
 import { hasMinRole } from '@/services/authorize';
 
 import { MembersClient } from './members-client';
+
+export const metadata: Metadata = {
+  title: 'メンバー管理',
+};
 
 export default async function MembersPage() {
   const ctx = await getAuthContext();

@@ -1,7 +1,13 @@
+import type { Metadata } from 'next';
+
 import { getAuthContext } from '@/lib/auth';
 import { getOrgInfo } from '@/services/settings';
 
 import { SettingsGeneralClient } from './settings-general-client';
+
+export const metadata: Metadata = {
+  title: '設定',
+};
 
 export default async function SettingsPage() {
   const ctx = await getAuthContext();

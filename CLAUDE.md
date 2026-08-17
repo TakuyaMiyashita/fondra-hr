@@ -1,4 +1,4 @@
-# TalentPulse — タレントマネジメント SaaS
+# FondraHR — タレントマネジメント SaaS
 
 ## プロダクト概要
 

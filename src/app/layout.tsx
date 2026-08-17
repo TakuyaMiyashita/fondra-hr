@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'TalentPulse',
-    template: '%s | TalentPulse',
+    default: 'FondraHR',
+    template: '%s | FondraHR',
   },
   description: 'マルチテナント型タレントマネジメントSaaS',
 };

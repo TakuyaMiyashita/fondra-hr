@@ -6,7 +6,7 @@ import { getOptionalUser } from '@/lib/auth';
 import { LandingPage } from './landing-page';
 
 export const metadata: Metadata = {
-  title: 'TalentPulse — タレントマネジメント SaaS',
+  title: 'FondraHR — タレントマネジメント SaaS',
 };
 
 export default async function Home() {

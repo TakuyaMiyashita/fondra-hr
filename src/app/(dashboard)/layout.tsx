@@ -24,7 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <SidebarProvider>
-      <AppSidebar role={ctx.role} orgName={currentOrg?.orgName ?? 'TalentPulse'} />
+      <AppSidebar role={ctx.role} orgName={currentOrg?.orgName ?? 'FondraHR'} />
       <SidebarInset>
         <AppHeader email={user?.email ?? ''} currentOrgId={ctx.orgId} orgs={orgs} />
         <main className="flex-1 p-6">{children}</main>

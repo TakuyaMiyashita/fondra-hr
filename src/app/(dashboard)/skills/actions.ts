@@ -26,9 +26,7 @@ import {
 } from '@/services/skill';
 import type { SkillListResult, SkillMatrixData } from '@/types/skill';
 
-export async function fetchSkills(
-  query: SkillListQuery,
-): Promise<Result<SkillListResult>> {
+export async function fetchSkills(query: SkillListQuery): Promise<Result<SkillListResult>> {
   const parsed = skillListQuerySchema.safeParse(query);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -44,9 +42,7 @@ export async function fetchSkills(
   }
 }
 
-export async function createSkillAction(
-  data: unknown,
-): Promise<Result<{ id: string }>> {
+export async function createSkillAction(data: unknown): Promise<Result<{ id: string }>> {
   const parsed = createSkillSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -65,9 +61,7 @@ export async function createSkillAction(
   }
 }
 
-export async function updateSkillAction(
-  data: unknown,
-): Promise<Result<void>> {
+export async function updateSkillAction(data: unknown): Promise<Result<void>> {
   const parsed = updateSkillSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -86,9 +80,7 @@ export async function updateSkillAction(
   }
 }
 
-export async function deleteSkillAction(
-  id: string,
-): Promise<Result<void>> {
+export async function deleteSkillAction(id: string): Promise<Result<void>> {
   try {
     const ctx = await getAuthContext();
     const result = await deleteSkillSvc(ctx, id);
@@ -112,9 +104,7 @@ export async function fetchCategories(): Promise<string[]> {
   }
 }
 
-export async function fetchSkillMatrix(
-  query: SkillMatrixQuery,
-): Promise<Result<SkillMatrixData>> {
+export async function fetchSkillMatrix(query: SkillMatrixQuery): Promise<Result<SkillMatrixData>> {
   const parsed = skillMatrixQuerySchema.safeParse(query);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -130,9 +120,7 @@ export async function fetchSkillMatrix(
   }
 }
 
-export async function assignSkillAction(
-  data: unknown,
-): Promise<Result<void>> {
+export async function assignSkillAction(data: unknown): Promise<Result<void>> {
   const parsed = assignSkillSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);

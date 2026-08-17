@@ -99,10 +99,7 @@ export async function listEmployees(
   };
 }
 
-export async function getEmployee(
-  ctx: AuthContext,
-  id: string,
-): Promise<Result<EmployeeDetail>> {
+export async function getEmployee(ctx: AuthContext, id: string): Promise<Result<EmployeeDetail>> {
   authorize(ctx, 'read', 'employee');
 
   const [row] = await db
@@ -160,12 +157,7 @@ export async function createEmployee(
   const existing = await db
     .select({ id: employees.id })
     .from(employees)
-    .where(
-      and(
-        eq(employees.orgId, ctx.orgId),
-        eq(employees.employeeCode, data.employeeCode),
-      ),
-    )
+    .where(and(eq(employees.orgId, ctx.orgId), eq(employees.employeeCode, data.employeeCode)))
     .limit(1);
 
   if (existing.length > 0) {
@@ -203,12 +195,7 @@ export async function updateEmployee(
     const dup = await db
       .select({ id: employees.id })
       .from(employees)
-      .where(
-        and(
-          eq(employees.orgId, ctx.orgId),
-          eq(employees.employeeCode, input.employeeCode),
-        ),
-      )
+      .where(and(eq(employees.orgId, ctx.orgId), eq(employees.employeeCode, input.employeeCode)))
       .limit(1);
 
     if (dup.length > 0) {
@@ -243,10 +230,7 @@ export async function updateEmployee(
   return ok(undefined);
 }
 
-export async function deleteEmployee(
-  ctx: AuthContext,
-  id: string,
-): Promise<Result<void>> {
+export async function deleteEmployee(ctx: AuthContext, id: string): Promise<Result<void>> {
   authorize(ctx, 'delete', 'employee', (c) => hasMinRole(c, 'admin'));
 
   const [target] = await db
@@ -259,9 +243,7 @@ export async function deleteEmployee(
     return err('従業員が見つかりません');
   }
 
-  await db
-    .delete(employees)
-    .where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
+  await db.delete(employees).where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
 
   await writeAuditLog(ctx, 'employee.delete', 'employee', id, { fullName: target.fullName });
 
@@ -285,12 +267,7 @@ export async function getEmployeeSkills(
     })
     .from(employeeSkills)
     .innerJoin(skills, eq(employeeSkills.skillId, skills.id))
-    .where(
-      and(
-        eq(employeeSkills.employeeId, employeeId),
-        eq(employeeSkills.orgId, ctx.orgId),
-      ),
-    )
+    .where(and(eq(employeeSkills.employeeId, employeeId), eq(employeeSkills.orgId, ctx.orgId)))
     .orderBy(asc(skills.name));
 }
 
@@ -316,12 +293,7 @@ export async function getEmployeeOneOnOnes(
     })
     .from(oneOnOnes)
     .innerJoin(interviewer, eq(oneOnOnes.interviewerId, interviewer.id))
-    .where(
-      and(
-        eq(oneOnOnes.employeeId, employeeId),
-        eq(oneOnOnes.orgId, ctx.orgId),
-      ),
-    )
+    .where(and(eq(oneOnOnes.employeeId, employeeId), eq(oneOnOnes.orgId, ctx.orgId)))
     .orderBy(desc(oneOnOnes.heldOn));
 }
 
@@ -348,12 +320,7 @@ export async function getEmployeeEvaluations(
     .from(evaluations)
     .innerJoin(evaluationCycles, eq(evaluations.cycleId, evaluationCycles.id))
     .innerJoin(evaluator, eq(evaluations.evaluatorId, evaluator.id))
-    .where(
-      and(
-        eq(evaluations.employeeId, employeeId),
-        eq(evaluations.orgId, ctx.orgId),
-      ),
-    )
+    .where(and(eq(evaluations.employeeId, employeeId), eq(evaluations.orgId, ctx.orgId)))
     .orderBy(desc(evaluations.createdAt));
 }
 
@@ -384,9 +351,7 @@ export async function updateEmployeeAvatar(
   return ok(undefined);
 }
 
-export async function getDepartmentsForOrg(
-  ctx: AuthContext,
-): Promise<DepartmentOption[]> {
+export async function getDepartmentsForOrg(ctx: AuthContext): Promise<DepartmentOption[]> {
   authorize(ctx, 'read', 'employee');
 
   return db

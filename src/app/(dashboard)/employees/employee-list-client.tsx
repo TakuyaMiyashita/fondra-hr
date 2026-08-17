@@ -22,7 +22,8 @@ interface EmployeeListClientProps {
   departments: DepartmentOption[];
 }
 
-type SortKey = 'employeeCode' | 'fullName' | 'email' | 'position' | 'hiredOn' | 'status' | 'createdAt';
+type SortKey =
+  'employeeCode' | 'fullName' | 'email' | 'position' | 'hiredOn' | 'status' | 'createdAt';
 
 export function EmployeeListClient({ initialData, departments }: EmployeeListClientProps) {
   const queryClient = useQueryClient();
@@ -41,20 +42,33 @@ export function EmployeeListClient({ initialData, departments }: EmployeeListCli
   );
   const [departmentId, setDepartmentId] = useQueryState('departmentId', parseAsString);
 
-  const [columnVisibility, setColumnVisibility] = useQueryState(
-    'cols',
-    {
-      parse: (v: string) => {
-        try { return JSON.parse(v) as VisibilityState; } catch { return {}; }
-      },
-      serialize: (v: VisibilityState) => JSON.stringify(v),
-      defaultValue: {} as VisibilityState,
-      eq: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+  const [columnVisibility, setColumnVisibility] = useQueryState('cols', {
+    parse: (v: string) => {
+      try {
+        return JSON.parse(v) as VisibilityState;
+      } catch {
+        return {};
+      }
     },
-  );
+    serialize: (v: VisibilityState) => JSON.stringify(v),
+    defaultValue: {} as VisibilityState,
+    eq: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+  });
 
   const queryKey = useMemo(
-    () => ['employees', { page, perPage, sort, order, search: search || undefined, status: status ?? undefined, departmentId: departmentId ?? undefined }] as const,
+    () =>
+      [
+        'employees',
+        {
+          page,
+          perPage,
+          sort,
+          order,
+          search: search || undefined,
+          status: status ?? undefined,
+          departmentId: departmentId ?? undefined,
+        },
+      ] as const,
     [page, perPage, sort, order, search, status, departmentId],
   );
 
@@ -146,18 +160,18 @@ export function EmployeeListClient({ initialData, departments }: EmployeeListCli
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <EmployeeTableToolbar
-        search={search}
-        onSearchChange={handleSearchChange}
-        status={status ?? undefined}
-        onStatusChange={handleStatusChange}
-        departmentId={departmentId ?? undefined}
-        onDepartmentChange={handleDepartmentChange}
-        departments={departments}
-        columnVisibility={columnVisibility}
-        onColumnVisibilityChange={(v) => void setColumnVisibility(v)}
-        onCsvExport={handleCsvExport}
-        isExporting={isExporting}
-      />
+          search={search}
+          onSearchChange={handleSearchChange}
+          status={status ?? undefined}
+          onStatusChange={handleStatusChange}
+          departmentId={departmentId ?? undefined}
+          onDepartmentChange={handleDepartmentChange}
+          departments={departments}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={(v) => void setColumnVisibility(v)}
+          onCsvExport={handleCsvExport}
+          isExporting={isExporting}
+        />
         <Button onClick={() => setSheetOpen(true)}>
           <Plus className="mr-1.5 size-4" />
           新規登録

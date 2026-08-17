@@ -155,10 +155,7 @@ describe('RLS: tenant isolation', () => {
     });
 
     it('user B cannot see org A memberships', async () => {
-      const { data } = await clientB
-        .from('memberships')
-        .select()
-        .eq('org_id', orgAId);
+      const { data } = await clientB.from('memberships').select().eq('org_id', orgAId);
       expect(data).toHaveLength(0);
     });
 
@@ -172,11 +169,7 @@ describe('RLS: tenant isolation', () => {
     });
 
     it('user A cannot delete memberships in org B', async () => {
-      const { data } = await clientA
-        .from('memberships')
-        .delete()
-        .eq('org_id', orgBId)
-        .select();
+      const { data } = await clientA.from('memberships').delete().eq('org_id', orgBId).select();
       expect(data).toHaveLength(0);
     });
   });
@@ -192,10 +185,7 @@ describe('RLS: tenant isolation', () => {
     });
 
     it('user B cannot see org A invitations', async () => {
-      const { data } = await clientB
-        .from('invitations')
-        .select()
-        .eq('org_id', orgAId);
+      const { data } = await clientB.from('invitations').select().eq('org_id', orgAId);
       expect(data).toHaveLength(0);
     });
 
@@ -219,11 +209,7 @@ describe('RLS: tenant isolation', () => {
     });
 
     it('user A cannot delete invitations in org B', async () => {
-      const { data } = await clientA
-        .from('invitations')
-        .delete()
-        .eq('id', invitationBId)
-        .select();
+      const { data } = await clientA.from('invitations').delete().eq('id', invitationBId).select();
       expect(data).toHaveLength(0);
     });
   });

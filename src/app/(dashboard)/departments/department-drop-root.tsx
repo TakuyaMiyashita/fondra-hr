@@ -14,7 +14,7 @@ export function DepartmentDropRoot() {
     <div
       ref={setNodeRef}
       className={cn(
-        'mx-2 mb-2 flex items-center justify-center gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground transition-colors',
+        'text-muted-foreground mx-2 mb-2 flex items-center justify-center gap-2 rounded-md border border-dashed p-3 text-sm transition-colors',
         isOver && 'border-primary bg-primary/10 text-primary',
       )}
     >

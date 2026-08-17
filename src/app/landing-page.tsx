@@ -46,11 +46,11 @@ const features = [
 
 export function LandingPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
+    <div className="bg-background text-foreground flex min-h-screen flex-col">
+      <header className="bg-background/80 sticky top-0 z-50 border-b backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <div className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-lg">
               <BarChart3 className="size-4" />
             </div>
             <span className="text-lg font-bold tracking-tight">FondraHR</span>
@@ -67,16 +67,15 @@ export function LandingPage() {
       </header>
 
       <main className="flex-1">
-        <section className="mx-auto max-w-5xl px-6 pb-20 pt-24 text-center">
-          <h1 className="mx-auto max-w-2xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+        <section className="mx-auto max-w-5xl px-6 pt-24 pb-20 text-center">
+          <h1 className="mx-auto max-w-2xl text-4xl leading-tight font-bold tracking-tight sm:text-5xl">
             人材マネジメントを、
             <br />
             シンプルに。
           </h1>
-          <p className="mx-auto mt-6 max-w-lg text-lg text-muted-foreground">
+          <p className="text-muted-foreground mx-auto mt-6 max-w-lg text-lg">
             従業員情報・スキル・1on1・評価を一つのプラットフォームで管理。
-            中小〜中堅企業のHR部門・マネージャーのための
-            タレントマネジメントSaaS。
+            中小〜中堅企業のHR部門・マネージャーのための タレントマネジメントSaaS。
           </p>
           <div className="mt-10 flex items-center justify-center gap-4">
             <Button size="lg" render={<Link href="/signup" />}>
@@ -88,25 +87,25 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="border-t bg-muted/30 py-20">
+        <section className="bg-muted/30 border-t py-20">
           <div className="mx-auto max-w-5xl px-6">
             <h2 className="text-center text-2xl font-bold tracking-tight">
               必要な機能を、すべて一箇所に
             </h2>
-            <p className="mx-auto mt-3 max-w-md text-center text-muted-foreground">
+            <p className="text-muted-foreground mx-auto mt-3 max-w-md text-center">
               人材管理に必要な機能をモダンなUIで提供します
             </p>
             <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
               {features.map((f) => (
                 <div
                   key={f.title}
-                  className="rounded-lg border bg-card p-6 transition-colors hover:border-primary/30"
+                  className="bg-card hover:border-primary/30 rounded-lg border p-6 transition-colors"
                 >
-                  <div className="flex size-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <div className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-md">
                     <f.icon className="size-5" />
                   </div>
                   <h3 className="mt-4 font-semibold">{f.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
                     {f.description}
                   </p>
                 </div>
@@ -117,10 +116,8 @@ export function LandingPage() {
 
         <section className="py-20">
           <div className="mx-auto max-w-5xl px-6 text-center">
-            <h2 className="text-2xl font-bold tracking-tight">
-              今すぐ始めましょう
-            </h2>
-            <p className="mx-auto mt-3 max-w-md text-muted-foreground">
+            <h2 className="text-2xl font-bold tracking-tight">今すぐ始めましょう</h2>
+            <p className="text-muted-foreground mx-auto mt-3 max-w-md">
               アカウントを作成するだけで、すべての機能を無料でお試しいただけます
             </p>
             <Button size="lg" className="mt-8" render={<Link href="/signup" />}>
@@ -130,7 +127,7 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t py-8 text-center text-sm text-muted-foreground">
+      <footer className="text-muted-foreground border-t py-8 text-center text-sm">
         <p>&copy; {new Date().getFullYear()} FondraHR. All rights reserved.</p>
       </footer>
     </div>

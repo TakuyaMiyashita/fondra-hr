@@ -16,35 +16,35 @@ Linear / Vercel Dashboard / Notion のようなモダンSaaSのデザイン言�
 
 shadcn/ui の CSS 変数をそのまま使用する（`globals.css` で定義済み）。
 
-| 用途 | 変数 | 使用場面 |
-|------|------|----------|
-| 背景 | `--background` | ページ全体の背景 |
-| テキスト | `--foreground` | 本文テキスト |
-| 補足テキスト | `--muted-foreground` | 日付・補足情報・プレースホルダー |
-| Primary | `--primary` | CTA ボタン・リンク・アクティブ状態 |
-| Destructive | `--destructive` | 削除ボタン・エラー表示 |
-| Border | `--border` | カード・テーブル・入力フィールドの枠線 |
-| Accent | `--accent` | ホバー背景・選択状態 |
-| Chart 1-5 | `--chart-1` 〜 `--chart-5` | グラフの配色 |
+| 用途         | 変数                       | 使用場面                               |
+| ------------ | -------------------------- | -------------------------------------- |
+| 背景         | `--background`             | ページ全体の背景                       |
+| テキスト     | `--foreground`             | 本文テキスト                           |
+| 補足テキスト | `--muted-foreground`       | 日付・補足情報・プレースホルダー       |
+| Primary      | `--primary`                | CTA ボタン・リンク・アクティブ状態     |
+| Destructive  | `--destructive`            | 削除ボタン・エラー表示                 |
+| Border       | `--border`                 | カード・テーブル・入力フィールドの枠線 |
+| Accent       | `--accent`                 | ホバー背景・選択状態                   |
+| Chart 1-5    | `--chart-1` 〜 `--chart-5` | グラフの配色                           |
 
 ### タイポグラフィ
 
-| 要素 | クラス | 用途 |
-|------|--------|------|
-| ページタイトル | `text-2xl font-bold tracking-tight` | 各ページの最上部 |
-| セクション見出し | `text-lg font-semibold` | カード内のセクション見出し |
-| 本文 | `text-sm` | テーブルセル・フォームラベル・一般テキスト |
-| 補足 | `text-xs text-muted-foreground` | タイムスタンプ・ヘルプテキスト |
+| 要素             | クラス                              | 用途                                       |
+| ---------------- | ----------------------------------- | ------------------------------------------ |
+| ページタイトル   | `text-2xl font-bold tracking-tight` | 各ページの最上部                           |
+| セクション見出し | `text-lg font-semibold`             | カード内のセクション見出し                 |
+| 本文             | `text-sm`                           | テーブルセル・フォームラベル・一般テキスト |
+| 補足             | `text-xs text-muted-foreground`     | タイムスタンプ・ヘルプテキスト             |
 
 ### スペーシング
 
-| コンテキスト | 値 |
-|--------------|-----|
-| ページのパディング | `p-6` (24px) |
-| カード内パディング | `p-4` (16px) or `p-6` (24px) |
-| セクション間 | `space-y-6` (24px) |
-| フォームフィールド間 | `space-y-4` (16px) |
-| インライン要素間 | `gap-2` (8px) |
+| コンテキスト         | 値                           |
+| -------------------- | ---------------------------- |
+| ページのパディング   | `p-6` (24px)                 |
+| カード内パディング   | `p-4` (16px) or `p-6` (24px) |
+| セクション間         | `space-y-6` (24px)           |
+| フォームフィールド間 | `space-y-4` (16px)           |
+| インライン要素間     | `gap-2` (8px)                |
 
 ### コーナー半径
 
@@ -54,13 +54,13 @@ shadcn/ui の `--radius: 0.625rem` を基準。個別指定は避け、shadcn/ui
 
 ### ボタン
 
-| バリアント | 用途 |
-|-----------|------|
-| `default` | 主要アクション（保存・作成・送信） |
-| `secondary` | 副次アクション（キャンセル・フィルタリセット） |
-| `outline` | テーブル行内のアクション |
-| `destructive` | 削除・破壊的操作 |
-| `ghost` | ナビゲーション・アイコンボタン |
+| バリアント    | 用途                                           |
+| ------------- | ---------------------------------------------- |
+| `default`     | 主要アクション（保存・作成・送信）             |
+| `secondary`   | 副次アクション（キャンセル・フィルタリセット） |
+| `outline`     | テーブル行内のアクション                       |
+| `destructive` | 削除・破壊的操作                               |
+| `ghost`       | ナビゲーション・アイコンボタン                 |
 
 ### フォーム
 
@@ -91,9 +91,9 @@ shadcn/ui の `--radius: 0.625rem` を基準。個別指定は避け、shadcn/ui
 
 ```tsx
 <div className="flex flex-col items-center justify-center py-12 text-center">
-  <Icon className="h-12 w-12 text-muted-foreground/50" />
+  <Icon className="text-muted-foreground/50 h-12 w-12" />
   <h3 className="mt-4 text-lg font-semibold">タイトル</h3>
-  <p className="mt-2 text-sm text-muted-foreground">説明文</p>
+  <p className="text-muted-foreground mt-2 text-sm">説明文</p>
   <Button className="mt-6">CTAボタン</Button>
 </div>
 ```
@@ -131,8 +131,8 @@ shadcn/ui の `--radius: 0.625rem` を基準。個別指定は避け、shadcn/ui
 
 ## レスポンシブ
 
-| ブレークポイント | 対応 |
-|-----------------|------|
-| < 768px (mobile) | サイドナビ → Sheet、テーブル → 水平スクロール |
-| 768px - 1024px (tablet) | サイドナビ折りたたみ（アイコンのみ） |
-| > 1024px (desktop) | フル表示 |
+| ブレークポイント        | 対応                                          |
+| ----------------------- | --------------------------------------------- |
+| < 768px (mobile)        | サイドナビ → Sheet、テーブル → 水平スクロール |
+| 768px - 1024px (tablet) | サイドナビ折りたたみ（アイコンのみ）          |
+| > 1024px (desktop)      | フル表示                                      |

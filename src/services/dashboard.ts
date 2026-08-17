@@ -18,9 +18,7 @@ import type {
   SkillCategoryCount,
 } from '@/types/dashboard';
 
-export async function getDashboardStats(
-  ctx: AuthContext,
-): Promise<DashboardStats> {
+export async function getDashboardStats(ctx: AuthContext): Promise<DashboardStats> {
   authorize(ctx, 'read', 'dashboard');
 
   const [empRow, deptRow, skillRow, cycleRow] = await Promise.all([
@@ -28,22 +26,13 @@ export async function getDashboardStats(
       .select({ count: count() })
       .from(employees)
       .where(and(eq(employees.orgId, ctx.orgId), eq(employees.status, 'active'))),
-    db
-      .select({ count: count() })
-      .from(departments)
-      .where(eq(departments.orgId, ctx.orgId)),
-    db
-      .select({ count: count() })
-      .from(skills)
-      .where(eq(skills.orgId, ctx.orgId)),
+    db.select({ count: count() }).from(departments).where(eq(departments.orgId, ctx.orgId)),
+    db.select({ count: count() }).from(skills).where(eq(skills.orgId, ctx.orgId)),
     db
       .select({ count: count() })
       .from(evaluationCycles)
       .where(
-        and(
-          eq(evaluationCycles.orgId, ctx.orgId),
-          eq(evaluationCycles.status, 'in_progress'),
-        ),
+        and(eq(evaluationCycles.orgId, ctx.orgId), eq(evaluationCycles.status, 'in_progress')),
       ),
   ]);
 
@@ -55,10 +44,7 @@ export async function getDashboardStats(
   };
 }
 
-export async function getRecentActivity(
-  ctx: AuthContext,
-  limit = 10,
-): Promise<RecentActivity[]> {
+export async function getRecentActivity(ctx: AuthContext, limit = 10): Promise<RecentActivity[]> {
   authorize(ctx, 'read', 'dashboard');
 
   const rows = await db
@@ -78,9 +64,7 @@ export async function getRecentActivity(
   return rows as RecentActivity[];
 }
 
-export async function getDepartmentHeadcounts(
-  ctx: AuthContext,
-): Promise<DepartmentHeadcount[]> {
+export async function getDepartmentHeadcounts(ctx: AuthContext): Promise<DepartmentHeadcount[]> {
   authorize(ctx, 'read', 'dashboard');
 
   const rows = await db
@@ -91,10 +75,7 @@ export async function getDepartmentHeadcounts(
     .from(departments)
     .leftJoin(
       employees,
-      and(
-        eq(employees.departmentId, departments.id),
-        eq(employees.status, 'active'),
-      ),
+      and(eq(employees.departmentId, departments.id), eq(employees.status, 'active')),
     )
     .where(eq(departments.orgId, ctx.orgId))
     .groupBy(departments.name)
@@ -103,9 +84,7 @@ export async function getDepartmentHeadcounts(
   return rows;
 }
 
-export async function getSkillCategoryCounts(
-  ctx: AuthContext,
-): Promise<SkillCategoryCount[]> {
+export async function getSkillCategoryCounts(ctx: AuthContext): Promise<SkillCategoryCount[]> {
   authorize(ctx, 'read', 'dashboard');
 
   const categoryCol = sql<string>`coalesce(${skills.category}, '未分類')`;
@@ -124,9 +103,7 @@ export async function getSkillCategoryCounts(
   return rows as SkillCategoryCount[];
 }
 
-export async function getEmployeeStatusCounts(
-  ctx: AuthContext,
-): Promise<EmployeeStatusCount[]> {
+export async function getEmployeeStatusCounts(ctx: AuthContext): Promise<EmployeeStatusCount[]> {
   authorize(ctx, 'read', 'dashboard');
 
   const rows = await db

@@ -48,9 +48,9 @@ describe('getDashboardStats', () => {
   it('returns aggregated stats', async () => {
     const { getDashboardStats } = await import('@/services/dashboard');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ count: 10 }]).then(cb),
-    );
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) => Promise.resolve([{ count: 10 }]).then(cb));
 
     const result = await getDashboardStats(adminCtx);
 
@@ -65,9 +65,7 @@ describe('getDashboardStats', () => {
   it('allows viewer to read dashboard', async () => {
     const { getDashboardStats } = await import('@/services/dashboard');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([{ count: 0 }]).then(cb),
-    );
+    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([{ count: 0 }]).then(cb));
 
     const result = await getDashboardStats(viewerCtx);
 
@@ -88,9 +86,7 @@ describe('getRecentActivity', () => {
         createdAt: new Date(),
       },
     ];
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve(activities).then(cb),
-    );
+    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve(activities).then(cb));
 
     const result = await getRecentActivity(adminCtx);
 
@@ -101,9 +97,7 @@ describe('getRecentActivity', () => {
   it('returns empty array when no activity', async () => {
     const { getRecentActivity } = await import('@/services/dashboard');
 
-    selectChain.then = vi.fn().mockImplementation((cb) =>
-      Promise.resolve([]).then(cb),
-    );
+    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([]).then(cb));
 
     const result = await getRecentActivity(adminCtx);
 

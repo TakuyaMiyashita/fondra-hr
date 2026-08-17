@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
 export const signUpSchema = z.object({
-  orgName: z.string().min(1, '組織名を入力してください').max(100, '組織名は100文字以内で入力してください'),
+  orgName: z
+    .string()
+    .min(1, '組織名を入力してください')
+    .max(100, '組織名は100文字以内で入力してください'),
   email: z.string().email('有効なメールアドレスを入力してください'),
   password: z.string().min(8, 'パスワードは8文字以上で入力してください'),
 });

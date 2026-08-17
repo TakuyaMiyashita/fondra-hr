@@ -25,10 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  createEvaluationSchema,
-  type CreateEvaluationInput,
-} from '@/lib/validations/evaluation';
+import { createEvaluationSchema, type CreateEvaluationInput } from '@/lib/validations/evaluation';
 import type { EmployeeOption } from '@/types/employee';
 
 import { createEvaluationAction } from './actions';
@@ -41,13 +38,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-export function EvaluationFormDialog({
-  open,
-  onOpenChange,
-  cycleId,
-  employees,
-  onSuccess,
-}: Props) {
+export function EvaluationFormDialog({ open, onOpenChange, cycleId, employees, onSuccess }: Props) {
   const [isPending, startTransition] = useTransition();
 
   const {
@@ -92,18 +83,14 @@ export function EvaluationFormDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>評価を追加</DialogTitle>
-          <DialogDescription>
-            評価対象の従業員と評価者を選択します。
-          </DialogDescription>
+          <DialogDescription>評価対象の従業員と評価者を選択します。</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label>対象従業員 *</Label>
             <Select
               value={employeeId || '__none__'}
-              onValueChange={(val) =>
-                setValue('employeeId', !val || val === '__none__' ? '' : val)
-              }
+              onValueChange={(val) => setValue('employeeId', !val || val === '__none__' ? '' : val)}
               disabled={isPending}
             >
               <SelectTrigger className="w-full">
@@ -119,9 +106,7 @@ export function EvaluationFormDialog({
               </SelectContent>
             </Select>
             {errors.employeeId && (
-              <p className="text-xs text-destructive">
-                {errors.employeeId.message}
-              </p>
+              <p className="text-destructive text-xs">{errors.employeeId.message}</p>
             )}
           </div>
 
@@ -147,9 +132,7 @@ export function EvaluationFormDialog({
               </SelectContent>
             </Select>
             {errors.evaluatorId && (
-              <p className="text-xs text-destructive">
-                {errors.evaluatorId.message}
-              </p>
+              <p className="text-destructive text-xs">{errors.evaluatorId.message}</p>
             )}
           </div>
 

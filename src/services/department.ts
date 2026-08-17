@@ -10,9 +10,7 @@ import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
 import type { Department, DepartmentTreeNode } from '@/types/department';
 
-export async function listDepartments(
-  ctx: AuthContext,
-): Promise<Department[]> {
+export async function listDepartments(ctx: AuthContext): Promise<Department[]> {
   authorize(ctx, 'read', 'department');
 
   return db
@@ -28,9 +26,7 @@ export async function listDepartments(
     .orderBy(asc(departments.name));
 }
 
-export async function getDepartmentTree(
-  ctx: AuthContext,
-): Promise<DepartmentTreeNode[]> {
+export async function getDepartmentTree(ctx: AuthContext): Promise<DepartmentTreeNode[]> {
   authorize(ctx, 'read', 'department');
 
   const [allDepts, empCounts] = await Promise.all([
@@ -56,9 +52,7 @@ export async function getDepartmentTree(
   ]);
 
   const countMap = new Map(
-    empCounts
-      .filter((e) => e.departmentId !== null)
-      .map((e) => [e.departmentId!, e.count]),
+    empCounts.filter((e) => e.departmentId !== null).map((e) => [e.departmentId!, e.count]),
   );
 
   const nodeMap = new Map<string, DepartmentTreeNode>();
@@ -82,10 +76,7 @@ export async function getDepartmentTree(
   return roots;
 }
 
-export async function getDepartment(
-  ctx: AuthContext,
-  id: string,
-): Promise<Result<Department>> {
+export async function getDepartment(ctx: AuthContext, id: string): Promise<Result<Department>> {
   authorize(ctx, 'read', 'department');
 
   const [row] = await db
@@ -117,9 +108,7 @@ export async function createDepartment(
     const [parent] = await db
       .select({ id: departments.id })
       .from(departments)
-      .where(
-        and(eq(departments.id, input.parentId), eq(departments.orgId, ctx.orgId)),
-      )
+      .where(and(eq(departments.id, input.parentId), eq(departments.orgId, ctx.orgId)))
       .limit(1);
 
     if (!parent) {
@@ -225,10 +214,7 @@ async function checkIsDescendant(
   return false;
 }
 
-export async function deleteDepartment(
-  ctx: AuthContext,
-  id: string,
-): Promise<Result<void>> {
+export async function deleteDepartment(ctx: AuthContext, id: string): Promise<Result<void>> {
   authorize(ctx, 'delete', 'department', (c) => hasMinRole(c, 'admin'));
 
   const [target] = await db
@@ -259,9 +245,7 @@ export async function deleteDepartment(
     return err('所属する従業員が存在するため削除できません。先に従業員の部署を変更してください');
   }
 
-  await db
-    .delete(departments)
-    .where(and(eq(departments.id, id), eq(departments.orgId, ctx.orgId)));
+  await db.delete(departments).where(and(eq(departments.id, id), eq(departments.orgId, ctx.orgId)));
 
   await writeAuditLog(ctx, 'department.delete', 'department', id, { name: target.name });
 

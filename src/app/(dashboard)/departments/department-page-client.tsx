@@ -24,10 +24,7 @@ import { DepartmentFormDialog } from './department-form-dialog';
 import { DepartmentTreeItem } from './department-tree-item';
 import { DepartmentDropRoot } from './department-drop-root';
 
-function findNodeById(
-  nodes: DepartmentTreeNode[],
-  id: string,
-): DepartmentTreeNode | null {
+function findNodeById(nodes: DepartmentTreeNode[], id: string): DepartmentTreeNode | null {
   for (const node of nodes) {
     if (node.id === id) return node;
     const found = findNodeById(node.children, id);
@@ -36,11 +33,7 @@ function findNodeById(
   return null;
 }
 
-function isDescendant(
-  nodes: DepartmentTreeNode[],
-  parentId: string,
-  childId: string,
-): boolean {
+function isDescendant(nodes: DepartmentTreeNode[], parentId: string, childId: string): boolean {
   const parent = findNodeById(nodes, parentId);
   if (!parent) return false;
   if (parent.children.some((c) => c.id === childId)) return true;
@@ -59,14 +52,10 @@ export function DepartmentPageClient({ initialTree, departments }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [editTarget, setEditTarget] = useState<Department | undefined>(undefined);
-  const [defaultParentId, setDefaultParentId] = useState<string | undefined>(
-    undefined,
-  );
+  const [defaultParentId, setDefaultParentId] = useState<string | undefined>(undefined);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<DepartmentTreeNode | null>(
-    null,
-  );
+  const [deleteTarget, setDeleteTarget] = useState<DepartmentTreeNode | null>(null);
 
   const [activeNode, setActiveNode] = useState<DepartmentTreeNode | null>(null);
 
@@ -157,7 +146,7 @@ export function DepartmentPageClient({ initialTree, departments }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">組織図</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             部署の階層構造を管理します。ドラッグ&ドロップで部署を移動できます。
           </p>
         </div>
@@ -169,20 +158,14 @@ export function DepartmentPageClient({ initialTree, departments }: Props) {
 
       {isEmpty ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Building2 className="size-12 text-muted-foreground/50" />
-          <h3 className="mt-4 text-lg font-semibold">
-            部署がまだ登録されていません
-          </h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <Building2 className="text-muted-foreground/50 size-12" />
+          <h3 className="mt-4 text-lg font-semibold">部署がまだ登録されていません</h3>
+          <p className="text-muted-foreground mt-2 text-sm">
             「部署を追加」ボタンから部署を作成して組織構造を構築しましょう。
           </p>
         </div>
       ) : (
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="rounded-md border">
             <div className="p-2">
               {initialTree.map((node) => (
@@ -201,8 +184,8 @@ export function DepartmentPageClient({ initialTree, departments }: Props) {
 
           <DragOverlay>
             {activeNode ? (
-              <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 shadow-lg">
-                <Building2 className="size-4 text-muted-foreground" />
+              <div className="bg-background flex items-center gap-2 rounded-md border px-3 py-2 shadow-lg">
+                <Building2 className="text-muted-foreground size-4" />
                 <span className="text-sm font-medium">{activeNode.name}</span>
                 <Badge variant="secondary" className="gap-1 text-xs">
                   {activeNode.employeeCount}

@@ -57,7 +57,7 @@ export function EmployeeDetailClient({ employee, departments }: Props) {
               <h2 className="text-xl font-semibold">{employee.fullName}</h2>
               <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
             </div>
-            <p className="text-sm text-muted-foreground">{employee.employeeCode}</p>
+            <p className="text-muted-foreground text-sm">{employee.employeeCode}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

@@ -59,20 +59,14 @@ export function AvatarUpload({ employeeId, fullName, avatarPath }: Props) {
   return (
     <button
       type="button"
-      className="group relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted"
+      className="group bg-muted relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full"
       onClick={() => inputRef.current?.click()}
       disabled={isPending}
     >
       {displaySrc ? (
-        <Image
-          src={displaySrc}
-          alt={fullName}
-          fill
-          className="object-cover"
-          unoptimized
-        />
+        <Image src={displaySrc} alt={fullName} fill className="object-cover" unoptimized />
       ) : (
-        <span className="text-lg font-semibold text-muted-foreground">{initials}</span>
+        <span className="text-muted-foreground text-lg font-semibold">{initials}</span>
       )}
       <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
         {isPending ? (

@@ -11,11 +11,11 @@ export async function createOrganizationWithOwner(
   userId: string,
   orgName: string,
 ): Promise<Result<{ orgId: string }>> {
-  const slug = orgName
-    .toLowerCase()
-    .replace(/[^a-z0-9぀-ゟ゠-ヿ一-龯]+/g, '-')
-    .replace(/^-|-$/g, '')
-    || `org-${Date.now().toString(36)}`;
+  const slug =
+    orgName
+      .toLowerCase()
+      .replace(/[^a-z0-9぀-ゟ゠-ヿ一-龯]+/g, '-')
+      .replace(/^-|-$/g, '') || `org-${Date.now().toString(36)}`;
 
   const uniqueSlug = `${slug}-${Date.now().toString(36)}`;
 

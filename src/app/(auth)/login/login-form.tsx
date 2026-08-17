@@ -40,7 +40,7 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       {registered && (
-        <p className="rounded-md bg-primary/10 p-3 text-center text-sm text-primary">
+        <p className="bg-primary/10 text-primary rounded-md p-3 text-center text-sm">
           アカウントを作成しました。メールを確認してからログインしてください。
         </p>
       )}
@@ -55,9 +55,7 @@ export function LoginForm() {
           disabled={isPending}
           {...register('email')}
         />
-        {errors.email && (
-          <p className="text-xs text-destructive">{errors.email.message}</p>
-        )}
+        {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
       </div>
 
       <div className="space-y-2">
@@ -65,7 +63,7 @@ export function LoginForm() {
           <Label htmlFor="password">パスワード</Label>
           <Link
             href="/reset-password"
-            className="text-xs text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground text-xs"
           >
             パスワードを忘れた方
           </Link>
@@ -77,9 +75,7 @@ export function LoginForm() {
           disabled={isPending}
           {...register('password')}
         />
-        {errors.password && (
-          <p className="text-xs text-destructive">{errors.password.message}</p>
-        )}
+        {errors.password && <p className="text-destructive text-xs">{errors.password.message}</p>}
       </div>
 
       <Button type="submit" className="w-full" disabled={isPending}>
@@ -87,9 +83,9 @@ export function LoginForm() {
         ログイン
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-center text-sm">
         アカウントをお持ちでない方は{' '}
-        <Link href="/signup" className="font-medium text-foreground hover:underline">
+        <Link href="/signup" className="text-foreground font-medium hover:underline">
           サインアップ
         </Link>
       </p>

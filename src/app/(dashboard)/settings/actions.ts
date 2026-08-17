@@ -4,11 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
-import {
-  changeRoleSchema,
-  inviteMemberSchema,
-  updateOrgSchema,
-} from '@/lib/validations/settings';
+import { changeRoleSchema, inviteMemberSchema, updateOrgSchema } from '@/lib/validations/settings';
 import { AuthorizationError } from '@/services/authorize';
 import {
   changeRole as changeRoleSvc,
@@ -81,9 +77,7 @@ export async function changeRoleAction(data: unknown): Promise<Result<void>> {
   }
 }
 
-export async function removeMemberAction(
-  membershipId: string,
-): Promise<Result<void>> {
+export async function removeMemberAction(membershipId: string): Promise<Result<void>> {
   try {
     const ctx = await getAuthContext();
     const result = await removeMemberSvc(ctx, membershipId);
@@ -97,9 +91,7 @@ export async function removeMemberAction(
   }
 }
 
-export async function inviteMemberAction(
-  data: unknown,
-): Promise<Result<{ token: string }>> {
+export async function inviteMemberAction(data: unknown): Promise<Result<{ token: string }>> {
   const parsed = inviteMemberSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -118,9 +110,7 @@ export async function inviteMemberAction(
   }
 }
 
-export async function fetchPendingInvitations(): Promise<
-  Result<PendingInvitation[]>
-> {
+export async function fetchPendingInvitations(): Promise<Result<PendingInvitation[]>> {
   try {
     const ctx = await getAuthContext();
     const invites = await listInvitesSvc(ctx);
@@ -131,9 +121,7 @@ export async function fetchPendingInvitations(): Promise<
   }
 }
 
-export async function revokeInvitationAction(
-  invitationId: string,
-): Promise<Result<void>> {
+export async function revokeInvitationAction(invitationId: string): Promise<Result<void>> {
   try {
     const ctx = await getAuthContext();
     const result = await revokeInviteSvc(ctx, invitationId);

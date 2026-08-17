@@ -204,7 +204,9 @@ describe('deleteOneOnOne', () => {
   it('deletes a record', async () => {
     const { deleteOneOnOne } = await import('@/services/one-on-one');
 
-    selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([{ id: 'oo1' }]).then(cb));
+    selectChain.then = vi
+      .fn()
+      .mockImplementation((cb) => Promise.resolve([{ id: 'oo1' }]).then(cb));
 
     const result = await deleteOneOnOne(adminCtx, 'oo1');
 
@@ -237,9 +239,7 @@ describe('getEmployeesForOrg', () => {
   it('returns active employees', async () => {
     const { getEmployeesForOrg } = await import('@/services/one-on-one');
 
-    const emps = [
-      { id: 'e1', fullName: '田中太郎', employeeCode: 'EMP-001' },
-    ];
+    const emps = [{ id: 'e1', fullName: '田中太郎', employeeCode: 'EMP-001' }];
     selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve(emps).then(cb));
 
     const result = await getEmployeesForOrg(adminCtx);

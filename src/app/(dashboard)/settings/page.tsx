@@ -17,7 +17,5 @@ export default async function SettingsPage() {
     throw new Error(result.error);
   }
 
-  return (
-    <SettingsGeneralClient org={result.data} role={ctx.role} />
-  );
+  return <SettingsGeneralClient org={result.data} role={ctx.role} />;
 }

@@ -16,12 +16,7 @@ interface Props {
   departments: DepartmentOption[];
 }
 
-export function SkillPageClient({
-  initialSkills,
-  initialTotal,
-  categories,
-  departments,
-}: Props) {
+export function SkillPageClient({ initialSkills, initialTotal, categories, departments }: Props) {
   const [activeTab, setActiveTab] = useState('list');
 
   return (
@@ -41,10 +36,7 @@ export function SkillPageClient({
           />
         </TabsContent>
         <TabsContent value="matrix">
-          <SkillMatrixClient
-            categories={categories}
-            departments={departments}
-          />
+          <SkillMatrixClient categories={categories} departments={departments} />
         </TabsContent>
       </Tabs>
     </div>

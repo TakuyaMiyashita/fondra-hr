@@ -26,10 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  createDepartmentSchema,
-  type CreateDepartmentInput,
-} from '@/lib/validations/department';
+import { createDepartmentSchema, type CreateDepartmentInput } from '@/lib/validations/department';
 import type { Department } from '@/types/department';
 
 import { createDepartmentAction, updateDepartmentAction } from './actions';
@@ -103,9 +100,8 @@ export function DepartmentFormDialog({
 
   const parentId = watch('parentId');
 
-  const excludeIds = isEdit && defaultValues
-    ? getDescendantIds(departments, defaultValues.id)
-    : new Set<string>();
+  const excludeIds =
+    isEdit && defaultValues ? getDescendantIds(departments, defaultValues.id) : new Set<string>();
 
   const parentOptions = departments.filter((d) => !excludeIds.has(d.id));
 
@@ -137,15 +133,8 @@ export function DepartmentFormDialog({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="dept-name">部署名 *</Label>
-            <Input
-              id="dept-name"
-              placeholder="営業部"
-              disabled={isPending}
-              {...register('name')}
-            />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
+            <Input id="dept-name" placeholder="営業部" disabled={isPending} {...register('name')} />
+            {errors.name && <p className="text-destructive text-xs">{errors.name.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -168,7 +157,7 @@ export function DepartmentFormDialog({
               </SelectContent>
             </Select>
             {errors.parentId && (
-              <p className="text-xs text-destructive">{errors.parentId.message}</p>
+              <p className="text-destructive text-xs">{errors.parentId.message}</p>
             )}
           </div>
 

@@ -58,14 +58,8 @@ export function OneOnOneDeleteDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" type="button" />}>
-            キャンセル
-          </DialogClose>
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={isPending}
-          >
+          <DialogClose render={<Button variant="outline" type="button" />}>キャンセル</DialogClose>
+          <Button variant="destructive" onClick={handleDelete} disabled={isPending}>
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             削除
           </Button>

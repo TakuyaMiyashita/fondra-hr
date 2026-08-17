@@ -19,7 +19,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ email, currentOrgId, orgs }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background px-4">
+    <header className="bg-background sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-4">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <OrgSwitcher currentOrgId={currentOrgId} orgs={orgs} />

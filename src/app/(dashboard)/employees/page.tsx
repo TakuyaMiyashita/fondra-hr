@@ -34,14 +34,14 @@ export default async function EmployeesPage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">従業員管理</h1>
-          <p className="text-sm text-muted-foreground">従業員の一覧表示・検索・管理</p>
+          <p className="text-muted-foreground text-sm">従業員の一覧表示・検索・管理</p>
         </div>
       </div>
       {result.total === 0 && !parsed.success ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Users className="size-12 text-muted-foreground/50" />
+          <Users className="text-muted-foreground/50 size-12" />
           <h3 className="mt-4 text-lg font-semibold">従業員が登録されていません</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-2 text-sm">
             「新規登録」ボタンから従業員を追加してください
           </p>
         </div>

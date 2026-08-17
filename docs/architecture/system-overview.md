@@ -88,10 +88,10 @@ graph TB
 
 ## レイヤー別の責務
 
-| レイヤー | 責務 | 配置 |
-|----------|------|------|
-| App Router | ルーティング・レイアウト・データ取得の起点 | `src/app/` |
-| Components | UI表示・ユーザーインタラクション | `src/components/` |
-| Service Layer | 認可チェック・ビジネスロジック・監査ログ記録 | `src/services/` |
-| Drizzle ORM | 型安全なDBクエリ・org_id フィルタ付与 | `src/db/` |
-| RLS | テナント分離の安全網（org_id チェックのみ） | `supabase/migrations/` |
+| レイヤー      | 責務                                         | 配置                   |
+| ------------- | -------------------------------------------- | ---------------------- |
+| App Router    | ルーティング・レイアウト・データ取得の起点   | `src/app/`             |
+| Components    | UI表示・ユーザーインタラクション             | `src/components/`      |
+| Service Layer | 認可チェック・ビジネスロジック・監査ログ記録 | `src/services/`        |
+| Drizzle ORM   | 型安全なDBクエリ・org_id フィルタ付与        | `src/db/`              |
+| RLS           | テナント分離の安全網（org_id チェックのみ）  | `supabase/migrations/` |

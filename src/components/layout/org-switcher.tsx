@@ -42,7 +42,7 @@ export function OrgSwitcher({ currentOrgId, orgs }: OrgSwitcherProps) {
       <DropdownMenuTrigger
         render={
           <Button variant="outline" size="sm" className="gap-2" disabled={isPending}>
-            <span className="truncate max-w-[150px]">{currentOrg?.orgName ?? '組織を選択'}</span>
+            <span className="max-w-[150px] truncate">{currentOrg?.orgName ?? '組織を選択'}</span>
             <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
           </Button>
         }

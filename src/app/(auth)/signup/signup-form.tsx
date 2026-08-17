@@ -43,9 +43,7 @@ export function SignupForm() {
           disabled={isPending}
           {...register('orgName')}
         />
-        {errors.orgName && (
-          <p className="text-xs text-destructive">{errors.orgName.message}</p>
-        )}
+        {errors.orgName && <p className="text-destructive text-xs">{errors.orgName.message}</p>}
       </div>
 
       <div className="space-y-2">
@@ -58,9 +56,7 @@ export function SignupForm() {
           disabled={isPending}
           {...register('email')}
         />
-        {errors.email && (
-          <p className="text-xs text-destructive">{errors.email.message}</p>
-        )}
+        {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
       </div>
 
       <div className="space-y-2">
@@ -73,9 +69,9 @@ export function SignupForm() {
           {...register('password')}
         />
         {errors.password ? (
-          <p className="text-xs text-destructive">{errors.password.message}</p>
+          <p className="text-destructive text-xs">{errors.password.message}</p>
         ) : (
-          <p className="text-xs text-muted-foreground">8文字以上で入力してください</p>
+          <p className="text-muted-foreground text-xs">8文字以上で入力してください</p>
         )}
       </div>
 
@@ -84,9 +80,9 @@ export function SignupForm() {
         アカウントを作成
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-center text-sm">
         既にアカウントをお持ちの方は{' '}
-        <Link href="/login" className="font-medium text-foreground hover:underline">
+        <Link href="/login" className="text-foreground font-medium hover:underline">
           ログイン
         </Link>
       </p>

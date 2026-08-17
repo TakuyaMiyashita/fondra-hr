@@ -72,9 +72,7 @@ describe('Auth flow integration', () => {
     expect(org2Err).toBeNull();
     const org2Id = org2.id;
 
-    await admin
-      .from('memberships')
-      .insert({ user_id: userId, org_id: org2Id, role: 'admin' });
+    await admin.from('memberships').insert({ user_id: userId, org_id: org2Id, role: 'admin' });
 
     const client = createClient(SUPABASE_URL, ANON_KEY);
     await client.auth.signInWithPassword({

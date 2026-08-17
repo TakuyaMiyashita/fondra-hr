@@ -43,13 +43,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-export function CycleFormDialog({
-  mode,
-  open,
-  onOpenChange,
-  defaultValues,
-  onSuccess,
-}: Props) {
+export function CycleFormDialog({ mode, open, onOpenChange, defaultValues, onSuccess }: Props) {
   const [isPending, startTransition] = useTransition();
   const isEdit = mode === 'edit';
 
@@ -123,13 +117,9 @@ export function CycleFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {isEdit ? '評価サイクルを編集' : '評価サイクルを作成'}
-          </DialogTitle>
+          <DialogTitle>{isEdit ? '評価サイクルを編集' : '評価サイクルを作成'}</DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? '評価サイクルの情報を変更します'
-              : '新しい評価サイクルを作成します'}
+            {isEdit ? '評価サイクルの情報を変更します' : '新しい評価サイクルを作成します'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -141,9 +131,7 @@ export function CycleFormDialog({
               disabled={isPending}
               {...register('name')}
             />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
+            {errors.name && <p className="text-destructive text-xs">{errors.name.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -156,23 +144,14 @@ export function CycleFormDialog({
                 {...register('periodStart')}
               />
               {errors.periodStart && (
-                <p className="text-xs text-destructive">
-                  {errors.periodStart.message}
-                </p>
+                <p className="text-destructive text-xs">{errors.periodStart.message}</p>
               )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="cycle-end">終了日 *</Label>
-              <Input
-                id="cycle-end"
-                type="date"
-                disabled={isPending}
-                {...register('periodEnd')}
-              />
+              <Input id="cycle-end" type="date" disabled={isPending} {...register('periodEnd')} />
               {errors.periodEnd && (
-                <p className="text-xs text-destructive">
-                  {errors.periodEnd.message}
-                </p>
+                <p className="text-destructive text-xs">{errors.periodEnd.message}</p>
               )}
             </div>
           </div>

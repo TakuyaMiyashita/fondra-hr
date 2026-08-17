@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  ArrowLeft,
-  ClipboardList,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Trash2,
-} from 'lucide-react';
+import { ArrowLeft, ClipboardList, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -43,11 +36,7 @@ function RatingSummary({ ratings }: { ratings: Record<string, number> | null }) 
 
   const values = Object.values(ratings);
   const avg = values.reduce((s, v) => s + v, 0) / values.length;
-  return (
-    <span className="text-sm text-muted-foreground">
-      平均 {avg.toFixed(1)}
-    </span>
-  );
+  return <span className="text-muted-foreground text-sm">平均 {avg.toFixed(1)}</span>;
 }
 
 interface Props {
@@ -57,12 +46,7 @@ interface Props {
   onRefresh: () => void;
 }
 
-export function CycleDetailView({
-  detail,
-  employees,
-  onBack,
-  onRefresh,
-}: Props) {
+export function CycleDetailView({ detail, employees, onBack, onRefresh }: Props) {
   const { cycle, evaluations } = detail;
   const [createOpen, setCreateOpen] = useState(false);
   const [editEval, setEditEval] = useState<Evaluation | null>(null);
@@ -84,7 +68,7 @@ export function CycleDetailView({
         <h1 className="text-2xl font-bold tracking-tight">{cycle.name}</h1>
       </div>
 
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex items-center gap-4 text-sm">
         <span>
           {cycle.periodStart} 〜 {cycle.periodEnd}
         </span>
@@ -97,18 +81,12 @@ export function CycleDetailView({
                 : 'outline'
           }
         >
-          {cycle.status === 'draft'
-            ? '下書き'
-            : cycle.status === 'in_progress'
-              ? '進行中'
-              : '完了'}
+          {cycle.status === 'draft' ? '下書き' : cycle.status === 'in_progress' ? '進行中' : '完了'}
         </Badge>
       </div>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">
-          評価一覧（{evaluations.length} 件）
-        </h2>
+        <h2 className="text-lg font-semibold">評価一覧（{evaluations.length} 件）</h2>
         <Button size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="mr-1.5 h-4 w-4" />
           評価を追加
@@ -117,11 +95,9 @@ export function CycleDetailView({
 
       {evaluations.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <ClipboardList className="h-12 w-12 text-muted-foreground/50" />
-          <h3 className="mt-4 text-lg font-semibold">
-            まだ評価が追加されていません
-          </h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <ClipboardList className="text-muted-foreground/50 h-12 w-12" />
+          <h3 className="mt-4 text-lg font-semibold">まだ評価が追加されていません</h3>
+          <p className="text-muted-foreground mt-2 text-sm">
             従業員と評価者を追加して評価を開始しましょう。
           </p>
           <Button className="mt-6" onClick={() => setCreateOpen(true)}>
@@ -136,28 +112,20 @@ export function CycleDetailView({
               <CardContent className="flex items-start justify-between py-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">
-                      {ev.employeeName}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      ({ev.employeeCode})
-                    </span>
+                    <span className="font-medium">{ev.employeeName}</span>
+                    <span className="text-muted-foreground text-xs">({ev.employeeCode})</span>
                     <EvalStatusBadge status={ev.status} />
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <div className="text-muted-foreground flex items-center gap-3 text-sm">
                     <span>評価者: {ev.evaluatorName}</span>
                     <RatingSummary ratings={ev.ratings as Record<string, number> | null} />
                   </div>
                   {ev.comment && (
-                    <p className="line-clamp-2 text-sm text-muted-foreground">
-                      {ev.comment}
-                    </p>
+                    <p className="text-muted-foreground line-clamp-2 text-sm">{ev.comment}</p>
                   )}
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={<Button variant="ghost" size="icon-sm" />}
-                  >
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
                     <MoreHorizontal className="h-4 w-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

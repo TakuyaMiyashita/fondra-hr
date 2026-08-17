@@ -3,11 +3,7 @@
 import { Eye } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface Props {
   changes: Record<string, unknown>;
@@ -23,7 +19,7 @@ export function AuditLogChangesPopover({ changes }: Props) {
   const entries = Object.entries(changes);
 
   if (entries.length === 0) {
-    return <span className="text-sm text-muted-foreground">—</span>;
+    return <span className="text-muted-foreground text-sm">—</span>;
   }
 
   const isChangeLog = entries.some(
@@ -43,7 +39,7 @@ export function AuditLogChangesPopover({ changes }: Props) {
       <PopoverContent className="w-80" align="start">
         <div className="space-y-2">
           <h4 className="text-sm font-semibold">変更内容</h4>
-          <div className="max-h-60 overflow-y-auto space-y-1.5">
+          <div className="max-h-60 space-y-1.5 overflow-y-auto">
             {entries.map(([key, value]) => {
               if (
                 isChangeLog &&
@@ -55,7 +51,7 @@ export function AuditLogChangesPopover({ changes }: Props) {
                 return (
                   <div key={key} className="text-xs">
                     <span className="font-medium">{key}</span>
-                    <div className="ml-2 text-muted-foreground">
+                    <div className="text-muted-foreground ml-2">
                       <span className="line-through">{formatValue(from)}</span>
                       {' → '}
                       <span>{formatValue(to)}</span>
@@ -67,9 +63,7 @@ export function AuditLogChangesPopover({ changes }: Props) {
                 <div key={key} className="text-xs">
                   <span className="font-medium">{key}</span>
                   {': '}
-                  <span className="text-muted-foreground">
-                    {formatValue(value)}
-                  </span>
+                  <span className="text-muted-foreground">{formatValue(value)}</span>
                 </div>
               );
             })}

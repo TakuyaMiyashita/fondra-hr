@@ -7,16 +7,14 @@ import { type Result, err } from '@/lib/result';
 import { acceptInvitation } from '@/services/auth';
 import { acceptInviteSchema } from '@/lib/validations/auth';
 
-export async function acceptInviteAndSignUp(
-  data: {
-    invitationId: string;
-    orgId: string;
-    role: string;
-    email: string;
-    password: string;
-    token: string;
-  },
-): Promise<Result<void>> {
+export async function acceptInviteAndSignUp(data: {
+  invitationId: string;
+  orgId: string;
+  role: string;
+  email: string;
+  password: string;
+  token: string;
+}): Promise<Result<void>> {
   const parsed = acceptInviteSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);

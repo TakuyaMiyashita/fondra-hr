@@ -13,7 +13,10 @@ interface Props {
   employeeId: string;
 }
 
-const evalStatusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
+const evalStatusConfig: Record<
+  string,
+  { label: string; variant: 'default' | 'secondary' | 'outline' }
+> = {
   draft: { label: '下書き', variant: 'outline' },
   in_progress: { label: '進行中', variant: 'secondary' },
   submitted: { label: '提出済み', variant: 'default' },
@@ -40,9 +43,9 @@ export function EvaluationsTab({ employeeId }: Props) {
   if (!evaluations || evaluations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <ClipboardList className="h-12 w-12 text-muted-foreground/50" />
+        <ClipboardList className="text-muted-foreground/50 h-12 w-12" />
         <h3 className="mt-4 text-lg font-semibold">評価記録がありません</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-2 text-sm">
           この従業員の評価記録はまだ登録されていません。
         </p>
       </div>
@@ -61,19 +64,19 @@ export function EvaluationsTab({ employeeId }: Props) {
             return (
               <div
                 key={evaluation.id}
-                className="border-b border-border pb-3 last:border-0 last:pb-0"
+                className="border-border border-b pb-3 last:border-0 last:pb-0"
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">{evaluation.cycleName}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       評価者: {evaluation.evaluatorName}
                     </p>
                   </div>
                   <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                 </div>
                 {evaluation.comment && (
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                  <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">
                     {evaluation.comment}
                   </p>
                 )}

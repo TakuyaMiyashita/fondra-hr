@@ -38,9 +38,7 @@ export async function fetchOneOnOnes(
   }
 }
 
-export async function createOneOnOneAction(
-  data: unknown,
-): Promise<Result<{ id: string }>> {
+export async function createOneOnOneAction(data: unknown): Promise<Result<{ id: string }>> {
   const parsed = createOneOnOneSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -59,9 +57,7 @@ export async function createOneOnOneAction(
   }
 }
 
-export async function updateOneOnOneAction(
-  data: unknown,
-): Promise<Result<void>> {
+export async function updateOneOnOneAction(data: unknown): Promise<Result<void>> {
   const parsed = updateOneOnOneSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -80,9 +76,7 @@ export async function updateOneOnOneAction(
   }
 }
 
-export async function deleteOneOnOneAction(
-  id: string,
-): Promise<Result<void>> {
+export async function deleteOneOnOneAction(id: string): Promise<Result<void>> {
   try {
     const ctx = await getAuthContext();
     const result = await deleteSvc(ctx, id);

@@ -18,9 +18,7 @@ async function ensureTestUser(): Promise<string> {
     },
   });
   const listData = await listRes.json();
-  const existing = listData.users?.find(
-    (u: { email: string }) => u.email === TEST_EMAIL,
-  );
+  const existing = listData.users?.find((u: { email: string }) => u.email === TEST_EMAIL);
   if (existing) return existing.id;
 
   const createRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {

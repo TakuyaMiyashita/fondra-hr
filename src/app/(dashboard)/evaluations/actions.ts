@@ -36,9 +36,7 @@ export async function fetchCycles(): Promise<Result<EvaluationCycle[]>> {
   }
 }
 
-export async function fetchCycleDetail(
-  id: string,
-): Promise<Result<CycleWithEvaluations>> {
+export async function fetchCycleDetail(id: string): Promise<Result<CycleWithEvaluations>> {
   try {
     const ctx = await getAuthContext();
     return await getCycleSvc(ctx, id);
@@ -48,9 +46,7 @@ export async function fetchCycleDetail(
   }
 }
 
-export async function createCycleAction(
-  data: unknown,
-): Promise<Result<{ id: string }>> {
+export async function createCycleAction(data: unknown): Promise<Result<{ id: string }>> {
   const parsed = createCycleSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -69,9 +65,7 @@ export async function createCycleAction(
   }
 }
 
-export async function updateCycleAction(
-  data: unknown,
-): Promise<Result<void>> {
+export async function updateCycleAction(data: unknown): Promise<Result<void>> {
   const parsed = updateCycleSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -90,9 +84,7 @@ export async function updateCycleAction(
   }
 }
 
-export async function deleteCycleAction(
-  id: string,
-): Promise<Result<void>> {
+export async function deleteCycleAction(id: string): Promise<Result<void>> {
   try {
     const ctx = await getAuthContext();
     const result = await deleteCycleSvc(ctx, id);
@@ -106,9 +98,7 @@ export async function deleteCycleAction(
   }
 }
 
-export async function createEvaluationAction(
-  data: unknown,
-): Promise<Result<{ id: string }>> {
+export async function createEvaluationAction(data: unknown): Promise<Result<{ id: string }>> {
   const parsed = createEvaluationSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -127,9 +117,7 @@ export async function createEvaluationAction(
   }
 }
 
-export async function updateEvaluationAction(
-  data: unknown,
-): Promise<Result<void>> {
+export async function updateEvaluationAction(data: unknown): Promise<Result<void>> {
   const parsed = updateEvaluationSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -148,9 +136,7 @@ export async function updateEvaluationAction(
   }
 }
 
-export async function deleteEvaluationAction(
-  id: string,
-): Promise<Result<void>> {
+export async function deleteEvaluationAction(id: string): Promise<Result<void>> {
   try {
     const ctx = await getAuthContext();
     const result = await deleteEvalSvc(ctx, id);

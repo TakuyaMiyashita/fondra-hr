@@ -20,17 +20,9 @@ const baseFields = {
     .max(100, 'フリガナは100文字以内で入力してください')
     .optional()
     .or(z.literal('')),
-  email: z
-    .string()
-    .email('有効なメールアドレスを入力してください')
-    .optional()
-    .or(z.literal('')),
+  email: z.string().email('有効なメールアドレスを入力してください').optional().or(z.literal('')),
   departmentId: z.string().uuid('無効な部署IDです').optional().or(z.literal('')),
-  position: z
-    .string()
-    .max(100, '役職は100文字以内で入力してください')
-    .optional()
-    .or(z.literal('')),
+  position: z.string().max(100, '役職は100文字以内で入力してください').optional().or(z.literal('')),
   hiredOn: dateString.optional().or(z.literal('')),
   birthDate: dateString.optional().or(z.literal('')),
   status: employeeStatus.default('active'),

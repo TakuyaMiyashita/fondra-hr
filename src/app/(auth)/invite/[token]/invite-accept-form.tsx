@@ -65,7 +65,7 @@ export function InviteAcceptForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="rounded-md bg-muted p-3 text-sm">
+      <div className="bg-muted rounded-md p-3 text-sm">
         <p>
           <strong>{orgName}</strong> に <strong>{role}</strong> として参加します
         </p>
@@ -86,9 +86,9 @@ export function InviteAcceptForm({
           {...register('password')}
         />
         {errors.password ? (
-          <p className="text-xs text-destructive">{errors.password.message}</p>
+          <p className="text-destructive text-xs">{errors.password.message}</p>
         ) : (
-          <p className="text-xs text-muted-foreground">8文字以上で入力してください</p>
+          <p className="text-muted-foreground text-xs">8文字以上で入力してください</p>
         )}
       </div>
 
@@ -97,9 +97,9 @@ export function InviteAcceptForm({
         アカウントを作成して参加
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-center text-sm">
         既にアカウントをお持ちの方は{' '}
-        <Link href="/login" className="font-medium text-foreground hover:underline">
+        <Link href="/login" className="text-foreground font-medium hover:underline">
           ログイン
         </Link>
       </p>

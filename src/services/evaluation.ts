@@ -186,10 +186,7 @@ export async function updateCycle(
   return ok(undefined);
 }
 
-export async function deleteCycle(
-  ctx: AuthContext,
-  id: string,
-): Promise<Result<void>> {
+export async function deleteCycle(ctx: AuthContext, id: string): Promise<Result<void>> {
   authorize(ctx, 'delete', 'evaluation_cycle', (c) => hasMinRole(c, 'admin'));
 
   const [target] = await db
@@ -343,10 +340,7 @@ export async function updateEvaluation(
   return ok(undefined);
 }
 
-export async function deleteEvaluation(
-  ctx: AuthContext,
-  id: string,
-): Promise<Result<void>> {
+export async function deleteEvaluation(ctx: AuthContext, id: string): Promise<Result<void>> {
   authorize(ctx, 'delete', 'evaluation', (c) => hasMinRole(c, 'admin'));
 
   const [target] = await db
@@ -359,9 +353,7 @@ export async function deleteEvaluation(
     return err('評価が見つかりません');
   }
 
-  await db
-    .delete(evaluations)
-    .where(and(eq(evaluations.id, id), eq(evaluations.orgId, ctx.orgId)));
+  await db.delete(evaluations).where(and(eq(evaluations.id, id), eq(evaluations.orgId, ctx.orgId)));
 
   await writeAuditLog(ctx, 'evaluation.delete', 'evaluation', id);
 

@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -87,11 +83,7 @@ interface Props {
   resourceTypes: string[];
 }
 
-export function AuditLogListClient({
-  initialLogs,
-  initialTotal,
-  resourceTypes,
-}: Props) {
+export function AuditLogListClient({ initialLogs, initialTotal, resourceTypes }: Props) {
   const [logs, setLogs] = useState(initialLogs);
   const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(1);
@@ -99,21 +91,18 @@ export function AuditLogListClient({
   const perPage = 20;
   const totalPages = Math.ceil(total / perPage);
 
-  const reload = useCallback(
-    async (p: number, rt?: string) => {
-      const result = await fetchAuditLogs({
-        page: p,
-        perPage,
-        order: 'desc',
-        resourceType: rt || undefined,
-      });
-      if (result.success) {
-        setLogs(result.data.logs);
-        setTotal(result.data.total);
-      }
-    },
-    [],
-  );
+  const reload = useCallback(async (p: number, rt?: string) => {
+    const result = await fetchAuditLogs({
+      page: p,
+      perPage,
+      order: 'desc',
+      resourceType: rt || undefined,
+    });
+    if (result.success) {
+      setLogs(result.data.logs);
+      setTotal(result.data.total);
+    }
+  }, []);
 
   function handleResourceTypeChange(val: string | null) {
     const rt = !val || val === '__all__' ? '' : val;
@@ -133,10 +122,7 @@ export function AuditLogListClient({
 
       <div className="flex items-center gap-2">
         {resourceTypes.length > 0 && (
-          <Select
-            value={resourceTypeFilter || '__all__'}
-            onValueChange={handleResourceTypeChange}
-          >
+          <Select value={resourceTypeFilter || '__all__'} onValueChange={handleResourceTypeChange}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="リソース種別" />
             </SelectTrigger>
@@ -154,9 +140,9 @@ export function AuditLogListClient({
 
       {logs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <FileText className="h-12 w-12 text-muted-foreground/50" />
+          <FileText className="text-muted-foreground/50 h-12 w-12" />
           <h3 className="mt-4 text-lg font-semibold">監査ログがまだありません</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-2 text-sm">
             データの変更が行われると、自動的にここに記録されます。
           </p>
         </div>
@@ -176,27 +162,21 @@ export function AuditLogListClient({
               <TableBody>
                 {logs.map((log) => (
                   <TableRow key={log.id}>
-                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                       {formatDate(log.createdAt)}
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {log.actorEmail ?? '—'}
-                    </TableCell>
+                    <TableCell className="text-sm">{log.actorEmail ?? '—'}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {formatResourceType(log.resourceType)}
-                      </Badge>
+                      <Badge variant="outline">{formatResourceType(log.resourceType)}</Badge>
                     </TableCell>
                     <TableCell>
                       <ActionBadge action={log.action} />
                     </TableCell>
                     <TableCell>
                       {log.changes ? (
-                        <AuditLogChangesPopover
-                          changes={log.changes}
-                        />
+                        <AuditLogChangesPopover changes={log.changes} />
                       ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
+                        <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -206,9 +186,8 @@ export function AuditLogListClient({
           </div>
 
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              全 {total} 件中 {(page - 1) * perPage + 1}–
-              {Math.min(page * perPage, total)} 件
+            <p className="text-muted-foreground text-xs">
+              全 {total} 件中 {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} 件
             </p>
             <div className="flex items-center gap-1">
               <Button

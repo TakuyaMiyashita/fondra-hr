@@ -12,11 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from '@/components/ui/input-group';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import {
   Select,
   SelectContent,
@@ -44,11 +40,7 @@ interface Props {
   categories: string[];
 }
 
-export function SkillListClient({
-  initialSkills,
-  initialTotal,
-  categories,
-}: Props) {
+export function SkillListClient({ initialSkills, initialTotal, categories }: Props) {
   const router = useRouter();
   const [skills, setSkills] = useState(initialSkills);
   const [total, setTotal] = useState(initialTotal);
@@ -131,9 +123,9 @@ export function SkillListClient({
 
       {skills.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Sparkles className="h-12 w-12 text-muted-foreground/50" />
+          <Sparkles className="text-muted-foreground/50 h-12 w-12" />
           <h3 className="mt-4 text-lg font-semibold">スキルが登録されていません</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-2 text-sm">
             組織のスキルを定義して、従業員に割り当てましょう。
           </p>
           <Button className="mt-6" onClick={() => setCreateOpen(true)}>
@@ -144,60 +136,56 @@ export function SkillListClient({
       ) : (
         <>
           <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>スキル名</TableHead>
-                <TableHead>カテゴリ</TableHead>
-                <TableHead className="text-right">割当人数</TableHead>
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {skills.map((skill) => (
-                <TableRow key={skill.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium">{skill.name}</TableCell>
-                  <TableCell>
-                    {skill.category ? (
-                      <Badge variant="secondary">{skill.category}</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {skill.employeeCount > 0 ? (
-                      <Badge variant="outline">{skill.employeeCount}人</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">0人</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button variant="ghost" size="icon-sm" />
-                        }
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setEditSkill(skill)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          編集
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setDeleteSkill(skill)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          削除
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>スキル名</TableHead>
+                  <TableHead>カテゴリ</TableHead>
+                  <TableHead className="text-right">割当人数</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {skills.map((skill) => (
+                  <TableRow key={skill.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">{skill.name}</TableCell>
+                    <TableCell>
+                      {skill.category ? (
+                        <Badge variant="secondary">{skill.category}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {skill.employeeCount > 0 ? (
+                        <Badge variant="outline">{skill.employeeCount}人</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">0人</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditSkill(skill)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            編集
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDeleteSkill(skill)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            削除
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-          <p className="text-xs text-muted-foreground">全 {total} 件</p>
+          <p className="text-muted-foreground text-xs">全 {total} 件</p>
         </>
       )}
 
@@ -212,7 +200,9 @@ export function SkillListClient({
         <SkillFormDialog
           mode="edit"
           open={true}
-          onOpenChange={(open) => { if (!open) setEditSkill(null); }}
+          onOpenChange={(open) => {
+            if (!open) setEditSkill(null);
+          }}
           defaultValues={editSkill}
           onSuccess={handleSuccess}
         />
@@ -221,7 +211,9 @@ export function SkillListClient({
       {deleteSkill && (
         <SkillDeleteDialog
           open={true}
-          onOpenChange={(open) => { if (!open) setDeleteSkill(null); }}
+          onOpenChange={(open) => {
+            if (!open) setDeleteSkill(null);
+          }}
           skillId={deleteSkill.id}
           skillName={deleteSkill.name}
           onSuccess={handleSuccess}

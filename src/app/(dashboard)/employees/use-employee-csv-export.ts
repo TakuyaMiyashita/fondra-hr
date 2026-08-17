@@ -44,7 +44,16 @@ export function useEmployeeCsvExport() {
 
       if (!result.success) return;
 
-      const headers = ['社員番号', '氏名', 'フリガナ', 'メール', '部署', '役職', 'ステータス', '入社日'];
+      const headers = [
+        '社員番号',
+        '氏名',
+        'フリガナ',
+        'メール',
+        '部署',
+        '役職',
+        'ステータス',
+        '入社日',
+      ];
       const rows = result.data.employees.map((emp) => [
         escapeCsv(emp.employeeCode),
         escapeCsv(emp.fullName),

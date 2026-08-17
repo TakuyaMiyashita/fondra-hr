@@ -64,16 +64,16 @@ export function AppSidebar({ role, orgName }: AppSidebarProps) {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border">
+      <SidebarHeader className="border-sidebar-border border-b">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                 <BarChart3 className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">FondraHR</span>
-                <span className="truncate text-xs text-muted-foreground">{orgName}</span>
+                <span className="text-muted-foreground truncate text-xs">{orgName}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -89,7 +89,10 @@ export function AppSidebar({ role, orgName }: AppSidebarProps) {
                 .filter((item) => roleLevel >= ROLE_HIERARCHY[item.minRole])
                 .map((item) => (
                   <SidebarMenuItem key={item.href + item.label}>
-                    <SidebarMenuButton isActive={pathname === item.href} render={<Link href={item.href} />}>
+                    <SidebarMenuButton
+                      isActive={pathname === item.href}
+                      render={<Link href={item.href} />}
+                    >
                       <item.icon />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
@@ -107,7 +110,10 @@ export function AppSidebar({ role, orgName }: AppSidebarProps) {
                 .filter((item) => roleLevel >= ROLE_HIERARCHY[item.minRole])
                 .map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton isActive={pathname === item.href} render={<Link href={item.href} />}>
+                    <SidebarMenuButton
+                      isActive={pathname === item.href}
+                      render={<Link href={item.href} />}
+                    >
                       <item.icon />
                       <span>{item.label}</span>
                     </SidebarMenuButton>

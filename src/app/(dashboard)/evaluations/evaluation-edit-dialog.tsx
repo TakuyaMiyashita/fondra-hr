@@ -48,12 +48,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-export function EvaluationEditDialog({
-  open,
-  onOpenChange,
-  evaluation,
-  onSuccess,
-}: Props) {
+export function EvaluationEditDialog({ open, onOpenChange, evaluation, onSuccess }: Props) {
   const [isPending, startTransition] = useTransition();
   const existingRatings = (evaluation.ratings ?? {}) as Record<string, number>;
 
@@ -126,9 +121,7 @@ export function EvaluationEditDialog({
                     <Button
                       key={score}
                       type="button"
-                      variant={
-                        ratings[cat.key] === score ? 'default' : 'outline'
-                      }
+                      variant={ratings[cat.key] === score ? 'default' : 'outline'}
                       size="sm"
                       className="h-8 w-10"
                       disabled={isPending}
@@ -140,9 +133,7 @@ export function EvaluationEditDialog({
                 </div>
               </div>
             ))}
-            <p className="text-xs text-muted-foreground">
-              1（低い）〜 5（高い）
-            </p>
+            <p className="text-muted-foreground text-xs">1（低い）〜 5（高い）</p>
           </div>
 
           <div className="space-y-2">
@@ -154,11 +145,7 @@ export function EvaluationEditDialog({
               disabled={isPending}
               {...register('comment')}
             />
-            {errors.comment && (
-              <p className="text-xs text-destructive">
-                {errors.comment.message}
-              </p>
-            )}
+            {errors.comment && <p className="text-destructive text-xs">{errors.comment.message}</p>}
           </div>
 
           <div className="space-y-2">

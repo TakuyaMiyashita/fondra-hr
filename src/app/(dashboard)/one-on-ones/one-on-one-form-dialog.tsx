@@ -27,10 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  createOneOnOneSchema,
-  type CreateOneOnOneInput,
-} from '@/lib/validations/one-on-one';
+import { createOneOnOneSchema, type CreateOneOnOneInput } from '@/lib/validations/one-on-one';
 import type { OneOnOne } from '@/types/one-on-one';
 
 import { createOneOnOneAction, updateOneOnOneAction } from './actions';
@@ -159,7 +156,7 @@ export function OneOnOneFormDialog({
               </SelectContent>
             </Select>
             {errors.employeeId && (
-              <p className="text-xs text-destructive">{errors.employeeId.message}</p>
+              <p className="text-destructive text-xs">{errors.employeeId.message}</p>
             )}
           </div>
 
@@ -167,7 +164,9 @@ export function OneOnOneFormDialog({
             <Label>面談者 *</Label>
             <Select
               value={interviewerId || '__none__'}
-              onValueChange={(val) => setValue('interviewerId', !val || val === '__none__' ? '' : val)}
+              onValueChange={(val) =>
+                setValue('interviewerId', !val || val === '__none__' ? '' : val)
+              }
               disabled={isPending}
             >
               <SelectTrigger className="w-full" id="oo-interviewer">
@@ -183,21 +182,14 @@ export function OneOnOneFormDialog({
               </SelectContent>
             </Select>
             {errors.interviewerId && (
-              <p className="text-xs text-destructive">{errors.interviewerId.message}</p>
+              <p className="text-destructive text-xs">{errors.interviewerId.message}</p>
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="oo-held-on">実施日 *</Label>
-            <Input
-              id="oo-held-on"
-              type="date"
-              disabled={isPending}
-              {...register('heldOn')}
-            />
-            {errors.heldOn && (
-              <p className="text-xs text-destructive">{errors.heldOn.message}</p>
-            )}
+            <Input id="oo-held-on" type="date" disabled={isPending} {...register('heldOn')} />
+            {errors.heldOn && <p className="text-destructive text-xs">{errors.heldOn.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -217,7 +209,7 @@ export function OneOnOneFormDialog({
                 </Button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">1（低い）〜 5（高い）</p>
+            <p className="text-muted-foreground text-xs">1（低い）〜 5（高い）</p>
           </div>
 
           <div className="space-y-2">
@@ -229,9 +221,7 @@ export function OneOnOneFormDialog({
               disabled={isPending}
               {...register('notes')}
             />
-            {errors.notes && (
-              <p className="text-xs text-destructive">{errors.notes.message}</p>
-            )}
+            {errors.notes && <p className="text-destructive text-xs">{errors.notes.message}</p>}
           </div>
 
           <DialogFooter>

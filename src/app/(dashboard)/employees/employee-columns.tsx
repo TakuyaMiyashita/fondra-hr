@@ -9,7 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { Employee, EmployeeStatus } from '@/types/employee';
 
-const statusConfig: Record<EmployeeStatus, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
+const statusConfig: Record<
+  EmployeeStatus,
+  { label: string; variant: 'default' | 'secondary' | 'outline' }
+> = {
   active: { label: '在籍', variant: 'default' },
   inactive: { label: '休職', variant: 'secondary' },
   retired: { label: '退職', variant: 'outline' },
@@ -30,20 +33,15 @@ export const employeeColumns: LegacyColumnDef<Employee, unknown>[] = [
       const employee = row.original;
       return (
         <div className="flex items-center gap-3">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+          <div className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium">
             {employee.fullName.charAt(0)}
           </div>
           <div className="min-w-0">
-            <Link
-              href={`/employees/${employee.id}`}
-              className="font-medium hover:underline"
-            >
+            <Link href={`/employees/${employee.id}`} className="font-medium hover:underline">
               {employee.fullName}
             </Link>
             {employee.fullNameKana && (
-              <p className="truncate text-xs text-muted-foreground">
-                {employee.fullNameKana}
-              </p>
+              <p className="text-muted-foreground truncate text-xs">{employee.fullNameKana}</p>
             )}
           </div>
         </div>
@@ -66,9 +64,7 @@ export const employeeColumns: LegacyColumnDef<Employee, unknown>[] = [
   {
     accessorKey: 'position',
     header: ({ column }) => <DataTableColumnHeader column={column} title="役職" />,
-    cell: ({ row }) => (
-      <span>{(row.getValue('position') as string) ?? '—'}</span>
-    ),
+    cell: ({ row }) => <span>{(row.getValue('position') as string) ?? '—'}</span>,
   },
   {
     accessorKey: 'status',
@@ -89,7 +85,12 @@ export const employeeColumns: LegacyColumnDef<Employee, unknown>[] = [
   {
     id: 'actions',
     cell: ({ row }) => (
-      <Button variant="ghost" size="icon" className="size-8" render={<Link href={`/employees/${row.original.id}`} />}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8"
+        render={<Link href={`/employees/${row.original.id}`} />}
+      >
         <Eye className="size-4" />
       </Button>
     ),

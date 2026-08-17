@@ -41,7 +41,11 @@ export type SkillListQuery = z.infer<typeof skillListQuerySchema>;
 export const assignSkillSchema = z.object({
   employeeId: z.string().uuid('無効な従業員IDです'),
   skillId: z.string().uuid('無効なスキルIDです'),
-  level: z.coerce.number().int().min(1, 'レベルは1以上で入力してください').max(5, 'レベルは5以下で入力してください'),
+  level: z.coerce
+    .number()
+    .int()
+    .min(1, 'レベルは1以上で入力してください')
+    .max(5, 'レベルは5以下で入力してください'),
   certifiedAt: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, '日付は YYYY-MM-DD 形式で入力してください')

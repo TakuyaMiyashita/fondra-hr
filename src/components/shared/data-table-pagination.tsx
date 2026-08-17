@@ -30,7 +30,7 @@ export function DataTablePagination({
 
   return (
     <div className="flex items-center justify-between px-2 py-4">
-      <div className="text-sm text-muted-foreground">
+      <div className="text-muted-foreground text-sm">
         全 {total} 件中 {Math.min((page - 1) * perPage + 1, total)}–
         {Math.min(page * perPage, total)} 件
       </div>

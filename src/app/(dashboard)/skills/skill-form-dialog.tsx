@@ -19,10 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  createSkillSchema,
-  type CreateSkillInput,
-} from '@/lib/validations/skill';
+import { createSkillSchema, type CreateSkillInput } from '@/lib/validations/skill';
 import type { SkillWithCount } from '@/types/skill';
 
 import { createSkillAction, updateSkillAction } from './actions';
@@ -35,13 +32,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-export function SkillFormDialog({
-  mode,
-  open,
-  onOpenChange,
-  defaultValues,
-  onSuccess,
-}: Props) {
+export function SkillFormDialog({ mode, open, onOpenChange, defaultValues, onSuccess }: Props) {
   const [isPending, startTransition] = useTransition();
   const isEdit = mode === 'edit';
 
@@ -95,15 +86,8 @@ export function SkillFormDialog({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="skill-name">スキル名 *</Label>
-            <Input
-              id="skill-name"
-              placeholder="React"
-              disabled={isPending}
-              {...register('name')}
-            />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
+            <Input id="skill-name" placeholder="React" disabled={isPending} {...register('name')} />
+            {errors.name && <p className="text-destructive text-xs">{errors.name.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -115,7 +99,7 @@ export function SkillFormDialog({
               {...register('category')}
             />
             {errors.category && (
-              <p className="text-xs text-destructive">{errors.category.message}</p>
+              <p className="text-destructive text-xs">{errors.category.message}</p>
             )}
           </div>
 

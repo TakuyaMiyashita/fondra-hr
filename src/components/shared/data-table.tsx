@@ -1,6 +1,12 @@
 'use client';
 
-import type { ColumnVisibilityState, OnChangeFn, PaginationState, RowData, SortingState } from '@tanstack/react-table';
+import type {
+  ColumnVisibilityState,
+  OnChangeFn,
+  PaginationState,
+  RowData,
+  SortingState,
+} from '@tanstack/react-table';
 import { flexRender } from '@tanstack/react-table';
 import {
   type LegacyColumnDef,

@@ -51,9 +51,7 @@ export async function fetchEmployees(
   }
 }
 
-export async function fetchEmployee(
-  id: string,
-): Promise<Result<EmployeeDetail>> {
+export async function fetchEmployee(id: string): Promise<Result<EmployeeDetail>> {
   try {
     const ctx = await getAuthContext();
     return await getEmployeeSvc(ctx, id);
@@ -63,9 +61,7 @@ export async function fetchEmployee(
   }
 }
 
-export async function createEmployeeAction(
-  data: unknown,
-): Promise<Result<{ id: string }>> {
+export async function createEmployeeAction(data: unknown): Promise<Result<{ id: string }>> {
   const parsed = createEmployeeSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -84,9 +80,7 @@ export async function createEmployeeAction(
   }
 }
 
-export async function updateEmployeeAction(
-  data: unknown,
-): Promise<Result<void>> {
+export async function updateEmployeeAction(data: unknown): Promise<Result<void>> {
   const parsed = updateEmployeeSchema.safeParse(data);
   if (!parsed.success) {
     return err(parsed.error.issues[0].message);
@@ -108,9 +102,7 @@ export async function updateEmployeeAction(
   }
 }
 
-export async function deleteEmployeeAction(
-  id: string,
-): Promise<Result<void>> {
+export async function deleteEmployeeAction(id: string): Promise<Result<void>> {
   try {
     const ctx = await getAuthContext();
     const result = await deleteEmployeeSvc(ctx, id);
@@ -153,9 +145,7 @@ export async function uploadAvatarAction(
 
     if (uploadError) return err(`アップロードに失敗しました: ${uploadError.message}`);
 
-    const { data: urlData } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(storagePath);
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(storagePath);
 
     const result = await updateEmployeeAvatarSvc(ctx, employeeId, urlData.publicUrl);
     if (!result.success) return result;
@@ -178,9 +168,7 @@ export async function fetchDepartments(): Promise<DepartmentOption[]> {
   }
 }
 
-export async function fetchEmployeeSkills(
-  employeeId: string,
-): Promise<EmployeeSkillRow[]> {
+export async function fetchEmployeeSkills(employeeId: string): Promise<EmployeeSkillRow[]> {
   try {
     const ctx = await getAuthContext();
     return await getSkillsSvc(ctx, employeeId);
@@ -190,9 +178,7 @@ export async function fetchEmployeeSkills(
   }
 }
 
-export async function fetchEmployeeOneOnOnes(
-  employeeId: string,
-): Promise<OneOnOneRow[]> {
+export async function fetchEmployeeOneOnOnes(employeeId: string): Promise<OneOnOneRow[]> {
   try {
     const ctx = await getAuthContext();
     return await getOneOnOnesSvc(ctx, employeeId);
@@ -202,9 +188,7 @@ export async function fetchEmployeeOneOnOnes(
   }
 }
 
-export async function fetchEmployeeEvaluations(
-  employeeId: string,
-): Promise<EvaluationRow[]> {
+export async function fetchEmployeeEvaluations(employeeId: string): Promise<EvaluationRow[]> {
   try {
     const ctx = await getAuthContext();
     return await getEvaluationsSvc(ctx, employeeId);

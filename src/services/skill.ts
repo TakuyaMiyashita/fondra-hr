@@ -43,10 +43,7 @@ export async function listSkills(
 
   const where = and(...conditions);
 
-  const [totalRow] = await db
-    .select({ count: count() })
-    .from(skills)
-    .where(where);
+  const [totalRow] = await db.select({ count: count() }).from(skills).where(where);
 
   const offset = (query.page - 1) * query.perPage;
 
@@ -73,10 +70,7 @@ export async function listSkills(
   };
 }
 
-export async function getSkill(
-  ctx: AuthContext,
-  id: string,
-): Promise<Result<Skill>> {
+export async function getSkill(ctx: AuthContext, id: string): Promise<Result<Skill>> {
   authorize(ctx, 'read', 'skill');
 
   const [row] = await db
@@ -183,10 +177,7 @@ export async function updateSkill(
   return ok(undefined);
 }
 
-export async function deleteSkill(
-  ctx: AuthContext,
-  id: string,
-): Promise<Result<void>> {
+export async function deleteSkill(ctx: AuthContext, id: string): Promise<Result<void>> {
   authorize(ctx, 'delete', 'skill', (c) => hasMinRole(c, 'admin'));
 
   const [target] = await db
@@ -208,9 +199,7 @@ export async function deleteSkill(
     return err(`このスキルは ${assigned.count} 人の従業員に割り当てられているため削除できません`);
   }
 
-  await db
-    .delete(skills)
-    .where(and(eq(skills.id, id), eq(skills.orgId, ctx.orgId)));
+  await db.delete(skills).where(and(eq(skills.id, id), eq(skills.orgId, ctx.orgId)));
 
   await writeAuditLog(ctx, 'skill.delete', 'skill', id, { name: target.name });
 
@@ -235,10 +224,7 @@ export async function getSkillMatrix(
 ): Promise<SkillMatrixData> {
   authorize(ctx, 'read', 'skill');
 
-  const empConditions = [
-    eq(employees.orgId, ctx.orgId),
-    eq(employees.status, 'active'),
-  ];
+  const empConditions = [eq(employees.orgId, ctx.orgId), eq(employees.status, 'active')];
   if (query.departmentId) {
     empConditions.push(eq(employees.departmentId, query.departmentId));
   }
@@ -295,9 +281,7 @@ export async function getSkillMatrix(
       );
   }
 
-  const categories = [
-    ...new Set(matrixSkills.map((s) => s.category).filter(Boolean) as string[]),
-  ];
+  const categories = [...new Set(matrixSkills.map((s) => s.category).filter(Boolean) as string[])];
 
   return {
     employees: matrixEmployees as SkillMatrixEmployee[],
@@ -407,9 +391,7 @@ export async function removeSkillAssignment(
     return err('スキル割り当てが見つかりません');
   }
 
-  await db
-    .delete(employeeSkills)
-    .where(eq(employeeSkills.id, existing.id));
+  await db.delete(employeeSkills).where(eq(employeeSkills.id, existing.id));
 
   await writeAuditLog(ctx, 'employee_skill.delete', 'employee_skill', existing.id, {
     employeeId,

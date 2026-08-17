@@ -92,7 +92,10 @@ describe('getDepartmentTree', () => {
       { id: 'd1', name: '営業部', parentId: null, createdAt: new Date(), updatedAt: new Date() },
       { id: 'd2', name: '営業1課', parentId: 'd1', createdAt: new Date(), updatedAt: new Date() },
     ];
-    const empCounts = [{ departmentId: 'd1', count: 3 }, { departmentId: 'd2', count: 5 }];
+    const empCounts = [
+      { departmentId: 'd1', count: 3 },
+      { departmentId: 'd2', count: 5 },
+    ];
 
     const db = await getDb();
     let callCount = 0;
@@ -116,7 +119,13 @@ describe('getDepartment', () => {
   it('returns a single department', async () => {
     const { getDepartment } = await import('@/services/department');
 
-    const dept = { id: 'd1', name: '営業部', parentId: null, createdAt: new Date(), updatedAt: new Date() };
+    const dept = {
+      id: 'd1',
+      name: '営業部',
+      parentId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([dept]).then(cb));
 
     const result = await getDepartment(viewerCtx, 'd1');
@@ -152,12 +161,16 @@ describe('createDepartment', () => {
 
   it('rejects member role', async () => {
     const { createDepartment } = await import('@/services/department');
-    await expect(createDepartment(memberCtx, { name: '新部署' })).rejects.toThrow(AuthorizationError);
+    await expect(createDepartment(memberCtx, { name: '新部署' })).rejects.toThrow(
+      AuthorizationError,
+    );
   });
 
   it('rejects viewer role', async () => {
     const { createDepartment } = await import('@/services/department');
-    await expect(createDepartment(viewerCtx, { name: '新部署' })).rejects.toThrow(AuthorizationError);
+    await expect(createDepartment(viewerCtx, { name: '新部署' })).rejects.toThrow(
+      AuthorizationError,
+    );
   });
 
   it('validates parent department exists', async () => {
@@ -181,8 +194,12 @@ describe('updateDepartment', () => {
     const { updateDepartment } = await import('@/services/department');
 
     const existing = {
-      id: 'd1', name: '旧名', parentId: null, orgId: 'org-1',
-      createdAt: new Date(), updatedAt: new Date(),
+      id: 'd1',
+      name: '旧名',
+      parentId: null,
+      orgId: 'org-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
     selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([existing]).then(cb));
 
@@ -194,8 +211,12 @@ describe('updateDepartment', () => {
     const { updateDepartment } = await import('@/services/department');
 
     const existing = {
-      id: 'd1', name: '部署', parentId: null, orgId: 'org-1',
-      createdAt: new Date(), updatedAt: new Date(),
+      id: 'd1',
+      name: '部署',
+      parentId: null,
+      orgId: 'org-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
     selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([existing]).then(cb));
 
@@ -210,8 +231,12 @@ describe('updateDepartment', () => {
     const { updateDepartment } = await import('@/services/department');
 
     const existing = {
-      id: 'd1', name: '部署', parentId: null, orgId: 'org-1',
-      createdAt: new Date(), updatedAt: new Date(),
+      id: 'd1',
+      name: '部署',
+      parentId: null,
+      orgId: 'org-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
     selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([existing]).then(cb));
 

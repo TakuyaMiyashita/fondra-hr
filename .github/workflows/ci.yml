@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # ローカル Supabase の既定値。supabase/config.toml と対になっている公開既知の
+  # デモ用キーであり、秘密情報ではない。
+  NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+  DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+jobs:
+  # DB を必要としない検査。速いのでこちらを先に回して早期に落とす。
+  quality:
+    name: Lint / Typecheck / Unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # NOTE: pnpm format:check は既存コードの大半が未フォーマットのため未導入。
+      # リポジトリ全体に `pnpm format` をかける別コミットを入れてから追加する。
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test:unit
+
+      - name: Build
+        run: pnpm build
+
+  # 実 DB / 実ブラウザを要する検査。Supabase を起動してから回す。
+  integration:
+    name: RLS / E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # マイグレーション適用と supabase/seed.sql の投入もここで行われる
+      - name: Start Supabase
+        run: supabase start
+
+      - name: RLS tests
+        run: pnpm test:rls
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7

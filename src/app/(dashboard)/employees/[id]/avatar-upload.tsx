@@ -1,9 +1,11 @@
 'use client';
 
-import { Camera } from 'lucide-react';
+import { Camera, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { useRef, useState } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
+
+import { uploadAvatarAction } from '../actions';
 
 interface Props {
   employeeId: string;
@@ -19,9 +21,10 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-export function AvatarUpload({ fullName, avatarPath }: Props) {
+export function AvatarUpload({ employeeId, fullName, avatarPath }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const initials = getInitials(fullName);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -36,8 +39,19 @@ export function AvatarUpload({ fullName, avatarPath }: Props) {
     const url = URL.createObjectURL(file);
     setPreview(url);
 
-    // TODO: アバターアップロード Server Action 実装後に接続
-    toast.success('アバターを選択しました（アップロードは未実装）');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    startTransition(async () => {
+      const result = await uploadAvatarAction(employeeId, formData);
+      if (result.success) {
+        setPreview(result.data.path);
+        toast.success('アバターを更新しました');
+      } else {
+        setPreview(null);
+        toast.error(result.error);
+      }
+    });
   }
 
   const displaySrc = preview ?? avatarPath;
@@ -47,6 +61,7 @@ export function AvatarUpload({ fullName, avatarPath }: Props) {
       type="button"
       className="group relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted"
       onClick={() => inputRef.current?.click()}
+      disabled={isPending}
     >
       {displaySrc ? (
         <Image
@@ -60,7 +75,11 @@ export function AvatarUpload({ fullName, avatarPath }: Props) {
         <span className="text-lg font-semibold text-muted-foreground">{initials}</span>
       )}
       <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-        <Camera className="h-5 w-5 text-white" />
+        {isPending ? (
+          <Loader2 className="h-5 w-5 animate-spin text-white" />
+        ) : (
+          <Camera className="h-5 w-5 text-white" />
+        )}
       </div>
       <input
         ref={inputRef}

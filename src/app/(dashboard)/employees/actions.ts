@@ -2,8 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { eq } from 'drizzle-orm';
+
+import { db } from '@/db';
+import { employees } from '@/db/schema/employees';
 import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
+import { createClient } from '@/lib/supabase/server';
 import {
   createEmployeeSchema,
   employeeListQuerySchema,
@@ -116,6 +121,42 @@ export async function deleteEmployeeAction(
       revalidatePath('/employees');
     }
     return result;
+  } catch (e) {
+    if (e instanceof AuthorizationError) return err('権限がありません');
+    throw e;
+  }
+}
+
+export async function uploadAvatarAction(
+  employeeId: string,
+  formData: FormData,
+): Promise<Result<{ path: string }>> {
+  try {
+    const ctx = await getAuthContext();
+    const file = formData.get('file') as File | null;
+    if (!file) return err('ファイルが選択されていません');
+
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    const storagePath = `${ctx.orgId}/${employeeId}/avatar.${ext}`;
+
+    const supabase = await createClient();
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(storagePath, file, { upsert: true });
+
+    if (uploadError) return err(`アップロードに失敗しました: ${uploadError.message}`);
+
+    const { data: urlData } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(storagePath);
+
+    await db
+      .update(employees)
+      .set({ avatarPath: urlData.publicUrl, updatedAt: new Date() })
+      .where(eq(employees.id, employeeId));
+
+    revalidatePath(`/employees/${employeeId}`);
+    return ok({ path: urlData.publicUrl });
   } catch (e) {
     if (e instanceof AuthorizationError) return err('権限がありません');
     throw e;

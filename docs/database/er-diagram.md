@@ -1,6 +1,6 @@
 # ER図
 
-## 全体図（Phase 1A + 1B）
+## 全体図
 
 ```mermaid
 erDiagram

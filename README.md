@@ -117,8 +117,9 @@ pnpm dev
 | `pnpm build` | プロダクションビルド |
 | `pnpm lint` | ESLint 実行 |
 | `pnpm typecheck` | TypeScript 型チェック |
-| `pnpm test` | 全テスト実行 (unit + rls) |
-| `pnpm test:unit` | ユニット・統合テスト実行 (DB不要) |
+| `pnpm test` | 全テスト実行 (unit + integration + rls) |
+| `pnpm test:unit` | ユニットテスト実行 (DB不要) |
+| `pnpm test:integration` | 統合テスト実行 (ローカル Supabase 起動が必要) |
 | `pnpm test:rls` | RLSテスト実行 (ローカル Supabase 起動が必要) |
 | `pnpm test:e2e` | E2Eテスト実行 (Playwright。ローカル Supabase 起動が必要) |
 | `pnpm format` | Prettier フォーマット |

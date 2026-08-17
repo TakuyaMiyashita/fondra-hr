@@ -218,7 +218,7 @@ export async function deleteSkill(
   const [assigned] = await db
     .select({ count: count() })
     .from(employeeSkills)
-    .where(eq(employeeSkills.skillId, id));
+    .where(and(eq(employeeSkills.skillId, id), eq(employeeSkills.orgId, ctx.orgId)));
 
   if (assigned.count > 0) {
     return err(`このスキルは ${assigned.count} 人の従業員に割り当てられているため削除できません`);
@@ -354,6 +354,7 @@ export async function assignSkill(
     .from(employeeSkills)
     .where(
       and(
+        eq(employeeSkills.orgId, ctx.orgId),
         eq(employeeSkills.employeeId, input.employeeId),
         eq(employeeSkills.skillId, input.skillId),
       ),

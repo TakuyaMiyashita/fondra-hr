@@ -371,6 +371,33 @@ export async function getEmployeeEvaluations(
     .orderBy(desc(evaluations.createdAt));
 }
 
+export async function updateEmployeeAvatar(
+  ctx: AuthContext,
+  employeeId: string,
+  avatarPath: string,
+): Promise<Result<void>> {
+  authorize(ctx, 'update', 'employee');
+
+  const [target] = await db
+    .select({ id: employees.id })
+    .from(employees)
+    .where(and(eq(employees.id, employeeId), eq(employees.orgId, ctx.orgId)))
+    .limit(1);
+
+  if (!target) {
+    return err('従業員が見つかりません');
+  }
+
+  await db
+    .update(employees)
+    .set({ avatarPath, updatedAt: new Date() })
+    .where(and(eq(employees.id, employeeId), eq(employees.orgId, ctx.orgId)));
+
+  await writeAuditLog(ctx, 'employee.avatar_update', employeeId, { avatarPath });
+
+  return ok(undefined);
+}
+
 export async function getDepartmentsForOrg(
   ctx: AuthContext,
 ): Promise<DepartmentOption[]> {

@@ -222,7 +222,7 @@ export async function deleteCycle(
   const [evalCount] = await db
     .select({ count: count() })
     .from(evaluations)
-    .where(eq(evaluations.cycleId, id));
+    .where(and(eq(evaluations.cycleId, id), eq(evaluations.orgId, ctx.orgId)));
 
   if (evalCount.count > 0) {
     return err(`この評価サイクルには ${evalCount.count} 件の評価が紐づいているため削除できません`);
@@ -280,6 +280,7 @@ export async function createEvaluation(
     .from(evaluations)
     .where(
       and(
+        eq(evaluations.orgId, ctx.orgId),
         eq(evaluations.cycleId, input.cycleId),
         eq(evaluations.employeeId, input.employeeId),
         eq(evaluations.evaluatorId, input.evaluatorId),

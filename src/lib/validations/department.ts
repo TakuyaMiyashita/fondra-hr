@@ -21,3 +21,10 @@ export const updateDepartmentSchema = z.object({
 });
 
 export type UpdateDepartmentInput = z.infer<typeof updateDepartmentSchema>;
+
+export const moveDepartmentSchema = z.object({
+  id: z.string().uuid(),
+  newParentId: z.string().uuid().nullable(),
+});
+
+export type MoveDepartmentInput = z.infer<typeof moveDepartmentSchema>;

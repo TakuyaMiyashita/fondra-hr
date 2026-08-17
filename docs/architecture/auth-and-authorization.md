@@ -79,7 +79,7 @@ sequenceDiagram
 
 ### 認可マトリクス
 
-> Phase 1B で `docs/database/authorization-matrix.md` に詳細を記載する。
+詳細は [`docs/database/authorization-matrix.md`](../database/authorization-matrix.md) を参照。
 
 ## セッション管理
 

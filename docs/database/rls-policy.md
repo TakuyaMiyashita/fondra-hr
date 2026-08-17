@@ -97,8 +97,8 @@ Custom Access Token Hook が `memberships` テーブルを参照し、ユーザ�
 
 ## テスト
 
-- `tests/rls/tenant-isolation.test.ts` — テナント基盤テーブル（Phase 1A）
-- `tests/rls/domain-tables.test.ts` — 業務ドメインテーブル（Phase 1B）
+- `tests/rls/tenant-isolation.test.ts` — テナント基盤テーブル
+- `tests/rls/domain-tables.test.ts` — 業務ドメインテーブル
 
 検証内容:
 - 2つの異なるテナントのユーザーが、相互のデータにアクセスできないこと

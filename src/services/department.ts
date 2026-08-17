@@ -1,30 +1,14 @@
 import { and, asc, count, eq } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { auditLogs } from '@/db/schema/audit-logs';
 import { departments } from '@/db/schema/departments';
 import { employees } from '@/db/schema/employees';
 import { type Result, err, ok } from '@/lib/result';
 import type { CreateDepartmentInput } from '@/lib/validations/department';
+import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
 import type { Department, DepartmentTreeNode } from '@/types/department';
-
-async function writeAuditLog(
-  ctx: AuthContext,
-  action: string,
-  resourceId: string | null,
-  changes?: Record<string, unknown>,
-) {
-  await db.insert(auditLogs).values({
-    orgId: ctx.orgId,
-    actorUserId: ctx.userId,
-    action,
-    resourceType: 'department',
-    resourceId,
-    changes: changes ?? null,
-  });
-}
 
 export async function listDepartments(
   ctx: AuthContext,
@@ -152,7 +136,7 @@ export async function createDepartment(
     })
     .returning({ id: departments.id });
 
-  await writeAuditLog(ctx, 'department.create', created.id, {
+  await writeAuditLog(ctx, 'department.create', 'department', created.id, {
     name: input.name,
     parentId: input.parentId || null,
   });
@@ -211,7 +195,7 @@ export async function updateDepartment(
     .set(updateData)
     .where(and(eq(departments.id, id), eq(departments.orgId, ctx.orgId)));
 
-  await writeAuditLog(ctx, 'department.update', id, changes);
+  await writeAuditLog(ctx, 'department.update', 'department', id, changes);
 
   return ok(undefined);
 }
@@ -279,7 +263,7 @@ export async function deleteDepartment(
     .delete(departments)
     .where(and(eq(departments.id, id), eq(departments.orgId, ctx.orgId)));
 
-  await writeAuditLog(ctx, 'department.delete', id, { name: target.name });
+  await writeAuditLog(ctx, 'department.delete', 'department', id, { name: target.name });
 
   return ok(undefined);
 }

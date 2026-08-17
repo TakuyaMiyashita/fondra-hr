@@ -6,6 +6,7 @@ import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
 import {
   createDepartmentSchema,
+  moveDepartmentSchema,
   updateDepartmentSchema,
 } from '@/lib/validations/department';
 import {
@@ -90,10 +91,15 @@ export async function moveDepartmentAction(
   id: string,
   newParentId: string | null,
 ): Promise<Result<void>> {
+  const parsed = moveDepartmentSchema.safeParse({ id, newParentId });
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    const result = await updateDepartmentSvc(ctx, id, {
-      parentId: newParentId ?? '',
+    const result = await updateDepartmentSvc(ctx, parsed.data.id, {
+      parentId: parsed.data.newParentId ?? '',
     });
     if (result.success) {
       revalidatePath('/departments');

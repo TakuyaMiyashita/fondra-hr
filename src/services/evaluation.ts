@@ -1,7 +1,6 @@
 import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { auditLogs } from '@/db/schema/audit-logs';
 import { employees } from '@/db/schema/employees';
 import { evaluationCycles } from '@/db/schema/evaluation-cycles';
 import { evaluations } from '@/db/schema/evaluations';
@@ -12,6 +11,7 @@ import type {
   UpdateCycleInput,
   UpdateEvaluationInput,
 } from '@/lib/validations/evaluation';
+import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
 import type {
@@ -20,23 +20,6 @@ import type {
   EvaluationCycle,
   EvaluationCycleDetail,
 } from '@/types/evaluation';
-
-async function writeAuditLog(
-  ctx: AuthContext,
-  action: string,
-  resourceType: 'evaluation_cycle' | 'evaluation',
-  resourceId: string | null,
-  changes?: Record<string, unknown>,
-) {
-  await db.insert(auditLogs).values({
-    orgId: ctx.orgId,
-    actorUserId: ctx.userId,
-    action,
-    resourceType,
-    resourceId,
-    changes: changes ?? null,
-  });
-}
 
 export async function listCycles(ctx: AuthContext): Promise<EvaluationCycle[]> {
   authorize(ctx, 'read', 'evaluation_cycle');
@@ -222,7 +205,7 @@ export async function deleteCycle(
   const [evalCount] = await db
     .select({ count: count() })
     .from(evaluations)
-    .where(eq(evaluations.cycleId, id));
+    .where(and(eq(evaluations.cycleId, id), eq(evaluations.orgId, ctx.orgId)));
 
   if (evalCount.count > 0) {
     return err(`この評価サイクルには ${evalCount.count} 件の評価が紐づいているため削除できません`);
@@ -280,6 +263,7 @@ export async function createEvaluation(
     .from(evaluations)
     .where(
       and(
+        eq(evaluations.orgId, ctx.orgId),
         eq(evaluations.cycleId, input.cycleId),
         eq(evaluations.employeeId, input.employeeId),
         eq(evaluations.evaluatorId, input.evaluatorId),

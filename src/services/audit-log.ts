@@ -8,6 +8,23 @@ import type { AuthContext } from '@/services/auth-context';
 import { authorize } from '@/services/authorize';
 import type { AuditLog, AuditLogListResult } from '@/types/audit-log';
 
+export async function writeAuditLog(
+  ctx: AuthContext,
+  action: string,
+  resourceType: string,
+  resourceId: string | null,
+  changes?: Record<string, unknown>,
+) {
+  await db.insert(auditLogs).values({
+    orgId: ctx.orgId,
+    actorUserId: ctx.userId,
+    action,
+    resourceType,
+    resourceId,
+    changes: changes ?? null,
+  });
+}
+
 export async function listAuditLogs(
   ctx: AuthContext,
   query: AuditLogListQuery,

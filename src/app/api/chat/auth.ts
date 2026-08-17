@@ -1,3 +1,4 @@
+import { parseJwtClaims } from '@/lib/auth';
 import type { AuthContext } from '@/services/auth-context';
 import { createClient } from '@/lib/supabase/server';
 
@@ -15,13 +16,8 @@ export async function getAuthContextForApi(): Promise<AuthContext | null> {
 
   if (!session) return null;
 
-  const payload = JSON.parse(
-    Buffer.from(session.access_token.split('.')[1], 'base64url').toString(),
-  );
-  const orgId = payload.app_metadata?.org_id;
-  const role = payload.app_metadata?.role;
+  const claims = parseJwtClaims(session.access_token);
+  if (!claims) return null;
 
-  if (!orgId || !role) return null;
-
-  return { userId: user.id, orgId, role };
+  return { userId: user.id, orgId: claims.orgId, role: claims.role };
 }

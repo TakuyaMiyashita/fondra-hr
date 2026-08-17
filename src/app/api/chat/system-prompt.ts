@@ -10,59 +10,52 @@ import { skills } from '@/db/schema/skills';
 import type { AuthContext } from '@/services/auth-context';
 
 export async function buildSystemPrompt(ctx: AuthContext): Promise<string> {
-  const [orgRow] = await db
-    .select({ name: organizations.name })
-    .from(organizations)
-    .where(eq(organizations.id, ctx.orgId))
-    .limit(1);
-
-  const [stats] = await db
-    .select({
-      employeeCount: count(employees.id),
-    })
-    .from(employees)
-    .where(eq(employees.orgId, ctx.orgId));
-
-  const [deptStats] = await db
-    .select({
-      departmentCount: count(departments.id),
-    })
-    .from(departments)
-    .where(eq(departments.orgId, ctx.orgId));
-
-  const [skillStats] = await db
-    .select({
-      skillCount: count(skills.id),
-    })
-    .from(skills)
-    .where(eq(skills.orgId, ctx.orgId));
-
-  const [cycleStats] = await db
-    .select({
-      cycleCount: count(evaluationCycles.id),
-    })
-    .from(evaluationCycles)
-    .where(eq(evaluationCycles.orgId, ctx.orgId));
-
-  const [oneOnOneStats] = await db
-    .select({
-      oneOnOneCount: count(oneOnOnes.id),
-    })
-    .from(oneOnOnes)
-    .where(eq(oneOnOnes.orgId, ctx.orgId));
-
-  const deptList = await db
-    .select({
-      name: departments.name,
-      memberCount: sql<number>`(
-        SELECT count(*) FROM employees
-        WHERE employees.department_id = ${departments.id}
-          AND employees.org_id = ${ctx.orgId}
-      )`,
-    })
-    .from(departments)
-    .where(eq(departments.orgId, ctx.orgId))
-    .limit(20);
+  const [orgRow, stats, deptStats, skillStats, cycleStats, oneOnOneStats, deptList] =
+    await Promise.all([
+      db
+        .select({ name: organizations.name })
+        .from(organizations)
+        .where(eq(organizations.id, ctx.orgId))
+        .limit(1)
+        .then((r) => r[0]),
+      db
+        .select({ employeeCount: count(employees.id) })
+        .from(employees)
+        .where(eq(employees.orgId, ctx.orgId))
+        .then((r) => r[0]),
+      db
+        .select({ departmentCount: count(departments.id) })
+        .from(departments)
+        .where(eq(departments.orgId, ctx.orgId))
+        .then((r) => r[0]),
+      db
+        .select({ skillCount: count(skills.id) })
+        .from(skills)
+        .where(eq(skills.orgId, ctx.orgId))
+        .then((r) => r[0]),
+      db
+        .select({ cycleCount: count(evaluationCycles.id) })
+        .from(evaluationCycles)
+        .where(eq(evaluationCycles.orgId, ctx.orgId))
+        .then((r) => r[0]),
+      db
+        .select({ oneOnOneCount: count(oneOnOnes.id) })
+        .from(oneOnOnes)
+        .where(eq(oneOnOnes.orgId, ctx.orgId))
+        .then((r) => r[0]),
+      db
+        .select({
+          name: departments.name,
+          memberCount: sql<number>`(
+            SELECT count(*) FROM employees
+            WHERE employees.department_id = ${departments.id}
+              AND employees.org_id = ${ctx.orgId}
+          )`,
+        })
+        .from(departments)
+        .where(eq(departments.orgId, ctx.orgId))
+        .limit(20),
+    ]);
 
   const orgName = orgRow?.name ?? '不明';
   const deptSummary = deptList.length > 0

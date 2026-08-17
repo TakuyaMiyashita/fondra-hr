@@ -1,7 +1,6 @@
 import { and, asc, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { auditLogs } from '@/db/schema/audit-logs';
 import { employees } from '@/db/schema/employees';
 import { oneOnOnes } from '@/db/schema/one-on-ones';
 import { type Result, err, ok } from '@/lib/result';
@@ -10,6 +9,7 @@ import type {
   OneOnOneListQuery,
   UpdateOneOnOneInput,
 } from '@/lib/validations/one-on-one';
+import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize } from '@/services/authorize';
 import type {
@@ -18,22 +18,6 @@ import type {
   OneOnOneDetail,
   OneOnOneListResult,
 } from '@/types/one-on-one';
-
-async function writeAuditLog(
-  ctx: AuthContext,
-  action: string,
-  resourceId: string | null,
-  changes?: Record<string, unknown>,
-) {
-  await db.insert(auditLogs).values({
-    orgId: ctx.orgId,
-    actorUserId: ctx.userId,
-    action,
-    resourceType: 'one_on_one',
-    resourceId,
-    changes: changes ?? null,
-  });
-}
 
 const employee = (alias: string) =>
   db
@@ -183,7 +167,7 @@ export async function createOneOnOne(
     })
     .returning({ id: oneOnOnes.id });
 
-  await writeAuditLog(ctx, 'one_on_one.create', created.id, {
+  await writeAuditLog(ctx, 'one_on_one.create', 'one_on_one', created.id, {
     employeeId: input.employeeId,
     interviewerId: input.interviewerId,
     heldOn: input.heldOn,
@@ -235,7 +219,7 @@ export async function updateOneOnOne(
     .set(updateData)
     .where(and(eq(oneOnOnes.id, input.id), eq(oneOnOnes.orgId, ctx.orgId)));
 
-  await writeAuditLog(ctx, 'one_on_one.update', input.id, changes);
+  await writeAuditLog(ctx, 'one_on_one.update', 'one_on_one', input.id, changes);
 
   return ok(undefined);
 }
@@ -260,7 +244,7 @@ export async function deleteOneOnOne(
     .delete(oneOnOnes)
     .where(and(eq(oneOnOnes.id, id), eq(oneOnOnes.orgId, ctx.orgId)));
 
-  await writeAuditLog(ctx, 'one_on_one.delete', id);
+  await writeAuditLog(ctx, 'one_on_one.delete', 'one_on_one', id);
 
   return ok(undefined);
 }

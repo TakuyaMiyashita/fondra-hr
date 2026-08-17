@@ -168,7 +168,8 @@ export async function fetchEmployeeOptions(): Promise<EmployeeOption[]> {
   try {
     const ctx = await getAuthContext();
     return await getEmployeesForOrg(ctx);
-  } catch {
-    return [];
+  } catch (e) {
+    if (e instanceof AuthorizationError) return [];
+    throw e;
   }
 }

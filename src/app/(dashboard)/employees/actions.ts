@@ -2,10 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { eq } from 'drizzle-orm';
-
-import { db } from '@/db';
-import { employees } from '@/db/schema/employees';
 import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
 import { createClient } from '@/lib/supabase/server';
@@ -25,6 +21,7 @@ import {
   getEmployeeSkills as getSkillsSvc,
   listEmployees as listEmployeesSvc,
   updateEmployee as updateEmployeeSvc,
+  updateEmployeeAvatar as updateEmployeeAvatarSvc,
 } from '@/services/employee';
 import { AuthorizationError } from '@/services/authorize';
 import type {
@@ -127,6 +124,9 @@ export async function deleteEmployeeAction(
   }
 }
 
+const ALLOWED_AVATAR_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
+
 export async function uploadAvatarAction(
   employeeId: string,
   formData: FormData,
@@ -136,7 +136,14 @@ export async function uploadAvatarAction(
     const file = formData.get('file') as File | null;
     if (!file) return err('ファイルが選択されていません');
 
-    const ext = file.name.split('.').pop() ?? 'jpg';
+    const ext = (file.name.split('.').pop() ?? '').toLowerCase();
+    if (!ALLOWED_AVATAR_EXTENSIONS.includes(ext)) {
+      return err('許可されていないファイル形式です（jpg, png, webp のみ）');
+    }
+    if (file.size > MAX_AVATAR_SIZE) {
+      return err('ファイルサイズが大きすぎます（最大5MB）');
+    }
+
     const storagePath = `${ctx.orgId}/${employeeId}/avatar.${ext}`;
 
     const supabase = await createClient();
@@ -150,10 +157,8 @@ export async function uploadAvatarAction(
       .from('avatars')
       .getPublicUrl(storagePath);
 
-    await db
-      .update(employees)
-      .set({ avatarPath: urlData.publicUrl, updatedAt: new Date() })
-      .where(eq(employees.id, employeeId));
+    const result = await updateEmployeeAvatarSvc(ctx, employeeId, urlData.publicUrl);
+    if (!result.success) return result;
 
     revalidatePath(`/employees/${employeeId}`);
     return ok({ path: urlData.publicUrl });
@@ -167,8 +172,9 @@ export async function fetchDepartments(): Promise<DepartmentOption[]> {
   try {
     const ctx = await getAuthContext();
     return await getDepartmentsSvc(ctx);
-  } catch {
-    return [];
+  } catch (e) {
+    if (e instanceof AuthorizationError) return [];
+    throw e;
   }
 }
 
@@ -178,8 +184,9 @@ export async function fetchEmployeeSkills(
   try {
     const ctx = await getAuthContext();
     return await getSkillsSvc(ctx, employeeId);
-  } catch {
-    return [];
+  } catch (e) {
+    if (e instanceof AuthorizationError) return [];
+    throw e;
   }
 }
 
@@ -189,8 +196,9 @@ export async function fetchEmployeeOneOnOnes(
   try {
     const ctx = await getAuthContext();
     return await getOneOnOnesSvc(ctx, employeeId);
-  } catch {
-    return [];
+  } catch (e) {
+    if (e instanceof AuthorizationError) return [];
+    throw e;
   }
 }
 
@@ -200,7 +208,8 @@ export async function fetchEmployeeEvaluations(
   try {
     const ctx = await getAuthContext();
     return await getEvaluationsSvc(ctx, employeeId);
-  } catch {
-    return [];
+  } catch (e) {
+    if (e instanceof AuthorizationError) return [];
+    throw e;
   }
 }

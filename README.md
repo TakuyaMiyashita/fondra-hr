@@ -55,7 +55,7 @@ graph TB
 
 | カテゴリ | 技術 |
 |----------|------|
-| フレームワーク | Next.js 15 (App Router, RSC) |
+| フレームワーク | Next.js 16 (App Router, RSC) |
 | 言語 | TypeScript (strict) |
 | DB / BaaS | Supabase (Postgres + Auth + Storage + RLS) |
 | ORM | Drizzle ORM |
@@ -65,7 +65,7 @@ graph TB
 | 可視化 | Recharts |
 | フォーム | React Hook Form + Zod |
 | AI | Vercel AI SDK |
-| テスト | Vitest + Testing Library |
+| テスト | Vitest + Testing Library + Playwright (e2e) |
 
 ## セットアップ
 
@@ -102,7 +102,8 @@ pnpm dev
 | `pnpm build` | プロダクションビルド |
 | `pnpm lint` | ESLint 実行 |
 | `pnpm typecheck` | TypeScript 型チェック |
-| `pnpm test` | テスト実行 |
+| `pnpm test` | ユニットテスト実行 |
+| `pnpm test:e2e` | E2Eテスト実行 (Playwright) |
 | `pnpm test:rls` | RLSテスト実行 |
 | `pnpm format` | Prettier フォーマット |
 

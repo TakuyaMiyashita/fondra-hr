@@ -9,7 +9,7 @@ graph TB
     end
 
     subgraph "Vercel"
-        NEXT[Next.js 15 App Router]
+        NEXT[Next.js 16 App Router]
         RSC[React Server Components]
         SA[Server Actions]
         MW[Middleware]
@@ -54,7 +54,7 @@ graph TB
 
 ## 技術選定の根拠
 
-### Next.js 15 App Router + RSC
+### Next.js 16 App Router + RSC
 
 - Server Components による初回レンダリングの高速化とバンドルサイズ削減
 - Server Actions によるサーバーサイドミューテーションの型安全な実装

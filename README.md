@@ -117,14 +117,24 @@ pnpm dev
 | `pnpm build` | プロダクションビルド |
 | `pnpm lint` | ESLint 実行 |
 | `pnpm typecheck` | TypeScript 型チェック |
-| `pnpm test` | ユニットテスト実行 |
-| `pnpm test:e2e` | E2Eテスト実行 (Playwright) |
-| `pnpm test:rls` | RLSテスト実行 |
+| `pnpm test` | 全テスト実行 (unit + rls) |
+| `pnpm test:unit` | ユニット・統合テスト実行 (DB不要) |
+| `pnpm test:rls` | RLSテスト実行 (ローカル Supabase 起動が必要) |
+| `pnpm test:e2e` | E2Eテスト実行 (Playwright。ローカル Supabase 起動が必要) |
 | `pnpm format` | Prettier フォーマット |
 | `pnpm format:check` | フォーマットチェック |
 | `pnpm db:generate` | Drizzle マイグレーション生成 |
 | `pnpm db:migrate` | マイグレーション適用 |
 | `pnpm db:studio` | Drizzle Studio 起動 |
+
+## CI
+
+`.github/workflows/ci.yml` が PR と `main` への push で以下を実行する。
+
+| ジョブ | 内容 | DB |
+|--------|------|-----|
+| `quality` | Lint / Typecheck / ユニットテスト / ビルド | 不要 |
+| `integration` | RLSテスト / E2Eテスト | Supabase を起動して実行 |
 
 ## 設計ドキュメント
 

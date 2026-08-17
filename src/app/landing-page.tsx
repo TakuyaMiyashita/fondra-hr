@@ -53,7 +53,7 @@ export function LandingPage() {
             <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <BarChart3 className="size-4" />
             </div>
-            <span className="text-lg font-bold tracking-tight">TalentPulse</span>
+            <span className="text-lg font-bold tracking-tight">FondraHR</span>
           </Link>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" render={<Link href="/login" />}>
@@ -131,7 +131,7 @@ export function LandingPage() {
       </main>
 
       <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} TalentPulse. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} FondraHR. All rights reserved.</p>
       </footer>
     </div>
   );

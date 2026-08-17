@@ -5,7 +5,7 @@ test.describe('ランディングページ', () => {
 
   test('shows landing page for unauthenticated users', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('TalentPulse').first()).toBeVisible();
+    await expect(page.getByText('FondraHR').first()).toBeVisible();
     await expect(page.getByRole('heading', { name: /人材マネジメント/ })).toBeVisible();
   });
 

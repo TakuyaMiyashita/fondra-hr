@@ -72,7 +72,7 @@ export function AppSidebar({ role, orgName }: AppSidebarProps) {
                 <BarChart3 className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">TalentPulse</span>
+                <span className="truncate font-semibold">FondraHR</span>
                 <span className="truncate text-xs text-muted-foreground">{orgName}</span>
               </div>
             </SidebarMenuButton>

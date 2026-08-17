@@ -13,7 +13,7 @@ export default function LoginPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold tracking-tight">TalentPulse</CardTitle>
+        <CardTitle className="text-2xl font-bold tracking-tight">FondraHR</CardTitle>
         <CardDescription>アカウントにログイン</CardDescription>
       </CardHeader>
       <CardContent>

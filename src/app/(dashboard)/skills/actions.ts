@@ -106,8 +106,9 @@ export async function fetchCategories(): Promise<string[]> {
   try {
     const ctx = await getAuthContext();
     return await getCategoriesSvc(ctx);
-  } catch {
-    return [];
+  } catch (e) {
+    if (e instanceof AuthorizationError) return [];
+    throw e;
   }
 }
 

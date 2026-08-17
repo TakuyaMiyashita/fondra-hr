@@ -172,8 +172,9 @@ export async function fetchDepartments(): Promise<DepartmentOption[]> {
   try {
     const ctx = await getAuthContext();
     return await getDepartmentsSvc(ctx);
-  } catch {
-    return [];
+  } catch (e) {
+    if (e instanceof AuthorizationError) return [];
+    throw e;
   }
 }
 
@@ -183,8 +184,9 @@ export async function fetchEmployeeSkills(
   try {
     const ctx = await getAuthContext();
     return await getSkillsSvc(ctx, employeeId);
-  } catch {
-    return [];
+  } catch (e) {
+    if (e instanceof AuthorizationError) return [];
+    throw e;
   }
 }
 
@@ -194,8 +196,9 @@ export async function fetchEmployeeOneOnOnes(
   try {
     const ctx = await getAuthContext();
     return await getOneOnOnesSvc(ctx, employeeId);
-  } catch {
-    return [];
+  } catch (e) {
+    if (e instanceof AuthorizationError) return [];
+    throw e;
   }
 }
 
@@ -205,7 +208,8 @@ export async function fetchEmployeeEvaluations(
   try {
     const ctx = await getAuthContext();
     return await getEvaluationsSvc(ctx, employeeId);
-  } catch {
-    return [];
+  } catch (e) {
+    if (e instanceof AuthorizationError) return [];
+    throw e;
   }
 }

@@ -122,7 +122,14 @@ export function AuditLogListClient({ initialLogs, initialTotal, resourceTypes }:
 
       <div className="flex items-center gap-2">
         {resourceTypes.length > 0 && (
-          <Select value={resourceTypeFilter || '__all__'} onValueChange={handleResourceTypeChange}>
+          <Select
+            items={{
+              __all__: 'すべて',
+              ...Object.fromEntries(resourceTypes.map((rt) => [rt, formatResourceType(rt)])),
+            }}
+            value={resourceTypeFilter || '__all__'}
+            onValueChange={handleResourceTypeChange}
+          >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="リソース種別" />
             </SelectTrigger>

@@ -110,6 +110,15 @@ export function OneOnOneFormDialog({
   const interviewerId = watch('interviewerId');
   const moodScore = watch('moodScore');
 
+  // Base UI の Select は items を渡さないと、選択中の値をラベルではなく
+  // 生の値（UUID や __none__）のまま表示する。
+  const employeeItems: Record<string, string> = {
+    __none__: '選択してください',
+    ...Object.fromEntries(
+      employees.map((emp) => [emp.id, `${emp.fullName}（${emp.employeeCode}）`]),
+    ),
+  };
+
   function onSubmit(data: CreateOneOnOneInput) {
     startTransition(async () => {
       const result = isEdit
@@ -139,6 +148,7 @@ export function OneOnOneFormDialog({
           <div className="space-y-2">
             <Label>対象従業員 *</Label>
             <Select
+              items={employeeItems}
               value={employeeId || '__none__'}
               onValueChange={(val) => setValue('employeeId', !val || val === '__none__' ? '' : val)}
               disabled={isPending}
@@ -163,6 +173,7 @@ export function OneOnOneFormDialog({
           <div className="space-y-2">
             <Label>面談者 *</Label>
             <Select
+              items={employeeItems}
               value={interviewerId || '__none__'}
               onValueChange={(val) =>
                 setValue('interviewerId', !val || val === '__none__' ? '' : val)

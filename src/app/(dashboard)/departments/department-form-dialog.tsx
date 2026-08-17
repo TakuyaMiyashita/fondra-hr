@@ -140,6 +140,10 @@ export function DepartmentFormDialog({
           <div className="space-y-2">
             <Label>親部署</Label>
             <Select
+              items={{
+                __none__: 'なし（トップレベル）',
+                ...Object.fromEntries(parentOptions.map((d) => [d.id, d.name])),
+              }}
               value={parentId || '__none__'}
               onValueChange={(val) => setValue('parentId', !val || val === '__none__' ? '' : val)}
               disabled={isPending}

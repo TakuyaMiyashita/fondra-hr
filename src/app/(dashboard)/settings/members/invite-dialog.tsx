@@ -29,6 +29,14 @@ import { inviteMemberSchema, type InviteMemberInput } from '@/lib/validations/se
 
 import { inviteMemberAction } from '../actions';
 
+// Base UI の Select は items を渡さないと、選択中の値をラベルではなく
+// 生の値（admin / member など）のまま表示する。
+const ROLE_ITEMS: Record<string, string> = {
+  admin: '管理者',
+  member: 'メンバー',
+  viewer: '閲覧者',
+};
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -93,6 +101,7 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: Props) {
           <div className="space-y-2">
             <Label>ロール</Label>
             <Select
+              items={ROLE_ITEMS}
               value={selectedRole}
               onValueChange={(val) => {
                 if (val) setValue('role', val as InviteMemberInput['role']);
@@ -103,9 +112,11 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: Props) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">管理者</SelectItem>
-                <SelectItem value="member">メンバー</SelectItem>
-                <SelectItem value="viewer">閲覧者</SelectItem>
+                {Object.entries(ROLE_ITEMS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             {errors.role && <p className="text-destructive text-xs">{errors.role.message}</p>}

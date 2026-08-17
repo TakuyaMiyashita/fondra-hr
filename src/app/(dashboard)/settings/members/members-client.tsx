@@ -46,6 +46,15 @@ const ROLE_LABELS: Record<Role, string> = {
   viewer: '閲覧者',
 };
 
+// Base UI の Select は items を渡さないと、選択中の値をラベルではなく
+// 生の値（admin / member など）のまま表示する。
+// owner はロール変更の選択肢に出さないため除外している。
+const ASSIGNABLE_ROLE_ITEMS: Record<string, string> = {
+  admin: ROLE_LABELS.admin,
+  member: ROLE_LABELS.member,
+  viewer: ROLE_LABELS.viewer,
+};
+
 const ROLE_VARIANT: Record<Role, 'default' | 'secondary' | 'outline'> = {
   owner: 'default',
   admin: 'secondary',
@@ -162,6 +171,7 @@ export function MembersClient({ members, invitations, role, currentUserId }: Pro
                     <TableCell>
                       {isAdmin && m.role !== 'owner' && m.userId !== currentUserId ? (
                         <Select
+                          items={ASSIGNABLE_ROLE_ITEMS}
                           value={m.role}
                           onValueChange={(val) => {
                             if (val) handleRoleChange(m.id, val);
@@ -172,9 +182,11 @@ export function MembersClient({ members, invitations, role, currentUserId }: Pro
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="admin">管理者</SelectItem>
-                            <SelectItem value="member">メンバー</SelectItem>
-                            <SelectItem value="viewer">閲覧者</SelectItem>
+                            {Object.entries(ASSIGNABLE_ROLE_ITEMS).map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       ) : (

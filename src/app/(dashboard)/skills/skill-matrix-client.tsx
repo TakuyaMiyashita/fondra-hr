@@ -98,6 +98,10 @@ export function SkillMatrixClient({ categories, departments }: Props) {
         </InputGroup>
         {departments.length > 0 && (
           <Select
+            items={{
+              __all__: 'すべての部署',
+              ...Object.fromEntries(departments.map((d) => [d.id, d.name])),
+            }}
             value={departmentId || '__all__'}
             onValueChange={(val) => setDepartmentId(!val || val === '__all__' ? '' : val)}
           >
@@ -116,6 +120,7 @@ export function SkillMatrixClient({ categories, departments }: Props) {
         )}
         {categories.length > 0 && (
           <Select
+            items={{ __all__: 'すべて', ...Object.fromEntries(categories.map((c) => [c, c])) }}
             value={category || '__all__'}
             onValueChange={(val) => setCategory(!val || val === '__all__' ? '' : val)}
           >

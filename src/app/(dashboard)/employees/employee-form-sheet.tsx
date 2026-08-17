@@ -42,6 +42,14 @@ interface Props {
   onSuccess: () => void;
 }
 
+// Base UI の Select は items を渡さないと、選択中の値をラベルではなく
+// 生の値（active / UUID など）のまま表示する。
+const STATUS_ITEMS: Record<string, string> = {
+  active: '在籍',
+  inactive: '休職',
+  retired: '退職',
+};
+
 export function EmployeeFormSheet({
   mode,
   open,
@@ -171,6 +179,7 @@ export function EmployeeFormSheet({
             <div className="space-y-2">
               <Label>部署</Label>
               <Select
+                items={Object.fromEntries(departments.map((d) => [d.id, d.name]))}
                 value={departmentId || undefined}
                 onValueChange={(val) => setValue('departmentId', val as string)}
                 disabled={isPending}
@@ -223,6 +232,7 @@ export function EmployeeFormSheet({
             <div className="space-y-2">
               <Label>ステータス</Label>
               <Select
+                items={STATUS_ITEMS}
                 value={status}
                 onValueChange={(val) => setValue('status', val as CreateEmployeeInput['status'])}
                 disabled={isPending}
@@ -231,9 +241,11 @@ export function EmployeeFormSheet({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">在籍</SelectItem>
-                  <SelectItem value="inactive">休職</SelectItem>
-                  <SelectItem value="retired">退職</SelectItem>
+                  {Object.entries(STATUS_ITEMS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

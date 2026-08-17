@@ -41,6 +41,16 @@ const RATING_CATEGORIES = [
   { key: 'attitude', label: '態度' },
 ];
 
+// Base UI の Select は items を渡さないと、選択中の値をラベルではなく
+// 生の値（draft / submitted など）のまま表示する。
+const STATUS_ITEMS: Record<string, string> = {
+  draft: '下書き',
+  in_progress: '入力中',
+  submitted: '提出',
+  confirmed: '確定',
+  returned: '差戻し',
+};
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -151,6 +161,7 @@ export function EvaluationEditDialog({ open, onOpenChange, evaluation, onSuccess
           <div className="space-y-2">
             <Label>ステータス</Label>
             <Select
+              items={STATUS_ITEMS}
               value={status || evaluation.status}
               onValueChange={(val) => {
                 if (val) setValue('status', val as EvaluationStatus);
@@ -161,11 +172,11 @@ export function EvaluationEditDialog({ open, onOpenChange, evaluation, onSuccess
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="draft">下書き</SelectItem>
-                <SelectItem value="in_progress">入力中</SelectItem>
-                <SelectItem value="submitted">提出</SelectItem>
-                <SelectItem value="confirmed">確定</SelectItem>
-                <SelectItem value="returned">差戻し</SelectItem>
+                {Object.entries(STATUS_ITEMS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

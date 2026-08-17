@@ -6,10 +6,11 @@
 2. ログイン → ダッシュボード
 3. 招待承認 → 組織参加
 4. 組織切替
-5. 従業員管理（CRUD）
-6. 1on1 記録
-7. 評価ワークフロー
-8. AI機能（要約・分析・検索）
+5. 未認証リダイレクト
+6. 従業員管理（CRUD）
+7. 1on1 記録
+8. 評価ワークフロー
+9. AI チャット
 
 ---
 
@@ -120,4 +121,118 @@ sequenceDiagram
     MW->>Auth: getUser()
     Auth-->>MW: null (未認証)
     MW-->>User: redirect /login
+```
+
+## 6. 従業員管理（CRUD）
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as 従業員一覧画面
+    participant SA as Server Action
+    participant SVC as Service Layer
+    participant DB as PostgreSQL
+
+    Note over User,DB: 一覧表示
+    User->>UI: /employees にアクセス
+    UI->>SVC: listEmployees(ctx, params)
+    SVC->>SVC: authorize(ctx, 'read', 'employee')
+    SVC->>DB: SELECT employees WHERE org_id = ctx.orgId
+    DB-->>UI: 従業員リスト
+
+    Note over User,DB: 新規作成
+    User->>UI: Sheet でフォーム入力
+    UI->>SA: createEmployeeAction(data)
+    SA->>SA: Zod バリデーション
+    SA->>SVC: createEmployee(ctx, input)
+    SVC->>SVC: authorize(ctx, 'create', 'employee')
+    SVC->>DB: INSERT employees
+    SVC->>DB: INSERT audit_logs
+    SVC-->>SA: ok
+    SA-->>UI: toast.success + revalidatePath
+```
+
+## 7. 1on1 記録
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as 1on1一覧画面
+    participant SA as Server Action
+    participant SVC as Service Layer
+    participant DB as PostgreSQL
+
+    Note over User,DB: 一覧表示
+    User->>UI: /one-on-ones にアクセス
+    UI->>SVC: listOneOnOnes(ctx, params)
+    SVC->>SVC: authorize(ctx, 'read', 'one_on_one')
+    SVC->>DB: SELECT one_on_ones WHERE org_id = ctx.orgId
+    DB-->>UI: 1on1リスト
+
+    Note over User,DB: 記録作成（member の場合）
+    User->>UI: Dialog でフォーム入力
+    UI->>SA: createOneOnOneAction(data)
+    SA->>SVC: createOneOnOne(ctx, input)
+    SVC->>SVC: authorize(ctx, 'create', 'one_on_one', memberCheck)
+    Note over SVC: member は自分が employee_id または interviewer_id の場合のみ
+    SVC->>DB: INSERT one_on_ones
+    SVC->>DB: INSERT audit_logs
+    SVC-->>SA: ok
+    SA-->>UI: toast.success + revalidatePath
+```
+
+## 8. 評価ワークフロー
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    actor Evaluator
+    participant UI as 評価画面
+    participant SA as Server Action
+    participant SVC as Service Layer
+    participant DB as PostgreSQL
+
+    Note over Admin,DB: サイクル作成（admin）
+    Admin->>UI: 評価サイクル作成 Dialog
+    UI->>SA: createCycleAction(data)
+    SA->>SVC: createCycle(ctx, input)
+    SVC->>DB: INSERT evaluation_cycles (status=draft)
+    SVC-->>UI: ok
+
+    Note over Admin,DB: 評価者アサイン
+    Admin->>UI: 評価追加 Dialog（従業員 + 評価者選択）
+    UI->>SA: createEvaluationAction(data)
+    SA->>SVC: createEvaluation(ctx, input)
+    SVC->>DB: INSERT evaluations (status=draft)
+    SVC-->>UI: ok
+
+    Note over Evaluator,DB: 評価入力（evaluator）
+    Evaluator->>UI: 評価入力 Dialog（ratings + comment）
+    UI->>SA: updateEvaluationAction(data)
+    SA->>SVC: updateEvaluation(ctx, input)
+    SVC->>SVC: authorize + evaluator 本人チェック
+    SVC->>DB: UPDATE evaluations SET ratings, comment, status
+    SVC-->>UI: ok
+```
+
+## 9. AI チャット
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as AI アシスタント画面
+    participant API as Route Handler
+    participant SVC as Service Layer
+    participant DB as PostgreSQL
+    participant LLM as Anthropic Claude
+
+    User->>UI: メッセージ入力
+    UI->>API: POST /api/chat (messages)
+    API->>API: JWT 認証（parseJwtClaims）
+    API->>SVC: テナントデータ取得（org_id 限定）
+    SVC->>DB: SELECT（従業員・スキル等）
+    DB-->>API: コンテキストデータ
+    API->>LLM: システムプロンプト + ユーザーメッセージ
+    LLM-->>UI: ストリーミングレスポンス
+    Note over UI: テキストがリアルタイムで表示
 ```

@@ -36,7 +36,7 @@ export async function createEmployee(ctx: AuthContext, input: CreateEmployeeInpu
     .returning();
 
   // 4. 監査ログ
-  await auditLog(ctx, 'employee.created', employee);
+  await writeAuditLog(ctx, 'create', 'employee', employee.id);
 
   return employee;
 }

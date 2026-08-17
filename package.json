@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
     "test:rls": "vitest run --project rls",
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",

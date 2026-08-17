@@ -74,6 +74,9 @@ jobs:
       - name: Start Supabase
         run: supabase start
 
+      - name: Integration tests
+        run: pnpm test:integration
+
       - name: RLS tests
         run: pnpm test:rls
 

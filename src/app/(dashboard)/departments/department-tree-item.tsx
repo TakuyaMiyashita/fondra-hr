@@ -1,8 +1,10 @@
 'use client';
 
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import {
   Building2,
   ChevronRight,
+  GripVertical,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -41,14 +43,41 @@ export function DepartmentTreeItem({
   const [expanded, setExpanded] = useState(depth < 2);
   const hasChildren = node.children.length > 0;
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({
+    id: node.id,
+    data: { node },
+  });
+
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `drop-${node.id}`,
+    data: { node },
+  });
+
   return (
-    <div>
+    <div ref={setDropRef}>
       <div
+        ref={setDragRef}
         className={cn(
           'group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent',
+          isDragging && 'opacity-50',
+          isOver && 'bg-primary/10 ring-2 ring-primary/30',
         )}
         style={{ paddingLeft: `${depth * 24 + 8}px` }}
       >
+        <button
+          type="button"
+          className="flex size-5 shrink-0 cursor-grab items-center justify-center rounded-sm text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}

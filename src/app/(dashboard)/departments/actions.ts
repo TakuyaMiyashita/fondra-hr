@@ -86,6 +86,25 @@ export async function updateDepartmentAction(
   }
 }
 
+export async function moveDepartmentAction(
+  id: string,
+  newParentId: string | null,
+): Promise<Result<void>> {
+  try {
+    const ctx = await getAuthContext();
+    const result = await updateDepartmentSvc(ctx, id, {
+      parentId: newParentId ?? '',
+    });
+    if (result.success) {
+      revalidatePath('/departments');
+    }
+    return result;
+  } catch (e) {
+    if (e instanceof AuthorizationError) return err('権限がありません');
+    throw e;
+  }
+}
+
 export async function deleteDepartmentAction(
   id: string,
 ): Promise<Result<void>> {

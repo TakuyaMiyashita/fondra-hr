@@ -61,8 +61,10 @@ RSC / Server Actions
 ```
 src/
 ├── app/                    # Next.js App Router（ページ・レイアウト）
-│   ├── (auth)/             # 認証グループ（ログイン・サインアップ）
+│   ├── (auth)/             # 認証グループ（ログイン・サインアップ・招待承認）
 │   ├── (dashboard)/        # 認証済みグループ（アプリ本体）
+│   ├── api/                # Route Handlers（AI チャット等）
+│   ├── auth/               # Supabase Auth コールバック
 │   └── layout.tsx          # ルートレイアウト（Provider群）
 ├── components/
 │   ├── ui/                 # shadcn/ui コンポーネント（自動生成、手動編集しない）
@@ -74,6 +76,7 @@ src/
 ├── services/               # Service Layer（認可 + ビジネスロジック + 監査）
 ├── lib/
 │   ├── supabase/           # Supabase Client 初期化（client / server / middleware）
+│   ├── validations/        # Zod バリデーションスキーマ（ドメインごとにファイル分割）
 │   ├── utils.ts            # cn() 等
 │   └── result.ts           # Result<T, E> 型
 ├── hooks/                  # カスタムフック

@@ -23,7 +23,7 @@
 
 以下は必要になった時点で追加可。それ以外のライブラリ追加時は理由を明示しこのファイルを更新すること。
 
-- `@dnd-kit/core` + `@dnd-kit/sortable` — 組織図 D&D
+- `@dnd-kit/core` + `@dnd-kit/sortable` — 組織図 D&D（追加済み）
 - `next-themes` — ダークモード（追加済み）
 - `date-fns` — 日付操作
 

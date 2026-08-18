@@ -148,6 +148,10 @@ pnpm dev
 - [UIデザインガイドライン](./docs/design/ui-guidelines.md)
 - [テスト戦略](./docs/testing.md)
 
+## デプロイ
+
+Vercel + Supabase Cloud への手順は [`docs/deployment.md`](./docs/deployment.md) を参照。
+
 ## ライセンス
 
 MIT

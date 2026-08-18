@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
+import { uuidField } from '@/lib/validations/common';
 import {
   createCycleSchema,
   createEvaluationSchema,
@@ -36,10 +37,18 @@ export async function fetchCycles(): Promise<Result<EvaluationCycle[]>> {
   }
 }
 
+const cycleId = uuidField('評価サイクル');
+const evaluationId = uuidField('評価');
+
 export async function fetchCycleDetail(id: string): Promise<Result<CycleWithEvaluations>> {
+  const parsed = cycleId.safeParse(id);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    return await getCycleSvc(ctx, id);
+    return await getCycleSvc(ctx, parsed.data);
   } catch (e) {
     if (e instanceof AuthorizationError) return err('権限がありません');
     throw e;
@@ -85,9 +94,14 @@ export async function updateCycleAction(data: unknown): Promise<Result<void>> {
 }
 
 export async function deleteCycleAction(id: string): Promise<Result<void>> {
+  const parsed = cycleId.safeParse(id);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    const result = await deleteCycleSvc(ctx, id);
+    const result = await deleteCycleSvc(ctx, parsed.data);
     if (result.success) {
       revalidatePath('/evaluations');
     }
@@ -137,9 +151,14 @@ export async function updateEvaluationAction(data: unknown): Promise<Result<void
 }
 
 export async function deleteEvaluationAction(id: string): Promise<Result<void>> {
+  const parsed = evaluationId.safeParse(id);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    const result = await deleteEvalSvc(ctx, id);
+    const result = await deleteEvalSvc(ctx, parsed.data);
     if (result.success) {
       revalidatePath('/evaluations');
     }

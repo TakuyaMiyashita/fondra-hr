@@ -136,17 +136,14 @@ describe('fetchCycleDetail', () => {
     expect(await fetchCycleDetail(CYCLE_ID)).toEqual(err('評価サイクルが見つかりません'));
   });
 
-  it('forwards a non-UUID id to the service unvalidated', async () => {
-    // このアクションには Zod 検証が無く、id は素通しで Service に渡る。
-    // 存在チェックは Service 側の org_id スコープ付きクエリが担う設計。
-    // 現状の契約を固定しておき、将来検証を足したときに気づけるようにする。
+  it('rejects a non-UUID id before reaching the service', async () => {
+    // 非 UUID が Postgres の uuid 比較に渡ると型エラーで 500 になる。
+    // org_id スコープがあるので漏洩はしないが、UI には日本語のエラーを返す。
     const { fetchCycleDetail } = await import(ACTIONS);
     const s = await svc();
-    s.getCycle.mockResolvedValue(err('評価サイクルが見つかりません') as never);
 
-    await fetchCycleDetail('not-a-uuid');
-
-    expect(s.getCycle).toHaveBeenCalledWith(ctxAdmin, 'not-a-uuid');
+    expect(await fetchCycleDetail('not-a-uuid')).toEqual(err('無効な評価サイクルIDです'));
+    expect(s.getCycle).not.toHaveBeenCalled();
   });
 
   it('converts AuthorizationError into a permission error', async () => {
@@ -332,6 +329,15 @@ describe('updateCycleAction', () => {
 });
 
 describe('deleteCycleAction', () => {
+  it('rejects a non-UUID id before reaching the service', async () => {
+    const { deleteCycleAction } = await import(ACTIONS);
+    const s = await svc();
+
+    expect(await deleteCycleAction('not-a-uuid')).toEqual(err('無効な評価サイクルIDです'));
+    expect(s.deleteCycle).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it('revalidates on success', async () => {
     const { deleteCycleAction } = await import(ACTIONS);
     const s = await svc();
@@ -623,6 +629,15 @@ describe('updateEvaluationAction', () => {
 });
 
 describe('deleteEvaluationAction', () => {
+  it('rejects a non-UUID id before reaching the service', async () => {
+    const { deleteEvaluationAction } = await import(ACTIONS);
+    const s = await svc();
+
+    expect(await deleteEvaluationAction('not-a-uuid')).toEqual(err('無効な評価IDです'));
+    expect(s.deleteEvaluation).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it('revalidates on success', async () => {
     const { deleteEvaluationAction } = await import(ACTIONS);
     const s = await svc();

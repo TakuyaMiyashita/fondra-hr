@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
+import { uuidField } from '@/lib/validations/common';
 import { createClient } from '@/lib/supabase/server';
 import {
   createEmployeeSchema,
@@ -51,10 +52,17 @@ export async function fetchEmployees(
   }
 }
 
+const employeeId = uuidField('従業員');
+
 export async function fetchEmployee(id: string): Promise<Result<EmployeeDetail>> {
+  const parsed = employeeId.safeParse(id);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    return await getEmployeeSvc(ctx, id);
+    return await getEmployeeSvc(ctx, parsed.data);
   } catch (e) {
     if (e instanceof AuthorizationError) return err('権限がありません');
     throw e;
@@ -103,9 +111,14 @@ export async function updateEmployeeAction(data: unknown): Promise<Result<void>>
 }
 
 export async function deleteEmployeeAction(id: string): Promise<Result<void>> {
+  const parsed = employeeId.safeParse(id);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    const result = await deleteEmployeeSvc(ctx, id);
+    const result = await deleteEmployeeSvc(ctx, parsed.data);
     if (result.success) {
       revalidatePath('/employees');
     }
@@ -168,30 +181,45 @@ export async function fetchDepartments(): Promise<DepartmentOption[]> {
   }
 }
 
-export async function fetchEmployeeSkills(employeeId: string): Promise<EmployeeSkillRow[]> {
+export async function fetchEmployeeSkills(id: string): Promise<EmployeeSkillRow[]> {
+  const parsed = employeeId.safeParse(id);
+  if (!parsed.success) {
+    return [];
+  }
+
   try {
     const ctx = await getAuthContext();
-    return await getSkillsSvc(ctx, employeeId);
+    return await getSkillsSvc(ctx, parsed.data);
   } catch (e) {
     if (e instanceof AuthorizationError) return [];
     throw e;
   }
 }
 
-export async function fetchEmployeeOneOnOnes(employeeId: string): Promise<OneOnOneRow[]> {
+export async function fetchEmployeeOneOnOnes(id: string): Promise<OneOnOneRow[]> {
+  const parsed = employeeId.safeParse(id);
+  if (!parsed.success) {
+    return [];
+  }
+
   try {
     const ctx = await getAuthContext();
-    return await getOneOnOnesSvc(ctx, employeeId);
+    return await getOneOnOnesSvc(ctx, parsed.data);
   } catch (e) {
     if (e instanceof AuthorizationError) return [];
     throw e;
   }
 }
 
-export async function fetchEmployeeEvaluations(employeeId: string): Promise<EvaluationRow[]> {
+export async function fetchEmployeeEvaluations(id: string): Promise<EvaluationRow[]> {
+  const parsed = employeeId.safeParse(id);
+  if (!parsed.success) {
+    return [];
+  }
+
   try {
     const ctx = await getAuthContext();
-    return await getEvaluationsSvc(ctx, employeeId);
+    return await getEvaluationsSvc(ctx, parsed.data);
   } catch (e) {
     if (e instanceof AuthorizationError) return [];
     throw e;

@@ -268,6 +268,15 @@ describe('changeRoleAction', () => {
 });
 
 describe('removeMemberAction', () => {
+  it('rejects a non-UUID membership id before reaching the service', async () => {
+    const { removeMemberAction } = await actions();
+    const s = await svc();
+
+    expect(await removeMemberAction('not-a-uuid')).toEqual(err('無効なメンバーIDです'));
+    expect(s.removeMember).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it('revalidates the members page on success', async () => {
     const { removeMemberAction } = await actions();
     const s = await svc();
@@ -410,6 +419,15 @@ describe('fetchPendingInvitations', () => {
 });
 
 describe('revokeInvitationAction', () => {
+  it('rejects a non-UUID invitation id before reaching the service', async () => {
+    const { revokeInvitationAction } = await actions();
+    const s = await svc();
+
+    expect(await revokeInvitationAction('not-a-uuid')).toEqual(err('無効な招待IDです'));
+    expect(s.revokeInvitation).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it('revalidates the members page on success', async () => {
     const { revokeInvitationAction } = await actions();
     const s = await svc();

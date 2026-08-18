@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
+import { uuidField } from '@/lib/validations/common';
 import {
   createOneOnOneSchema,
   oneOnOneListQuerySchema,
@@ -76,10 +77,17 @@ export async function updateOneOnOneAction(data: unknown): Promise<Result<void>>
   }
 }
 
+const recordId = uuidField('1on1記録');
+
 export async function deleteOneOnOneAction(id: string): Promise<Result<void>> {
+  const parsed = recordId.safeParse(id);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    const result = await deleteSvc(ctx, id);
+    const result = await deleteSvc(ctx, parsed.data);
     if (result.success) {
       revalidatePath('/one-on-ones');
     }

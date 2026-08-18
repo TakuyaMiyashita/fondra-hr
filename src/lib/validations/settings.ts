@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { uuidField } from './common';
+
 export const updateOrgSchema = z.object({
   name: z
     .string()
@@ -19,8 +21,8 @@ export const inviteMemberSchema = z.object({
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 
 export const changeRoleSchema = z.object({
-  membershipId: z.string().uuid(),
-  role: z.enum(['admin', 'member', 'viewer']),
+  membershipId: uuidField('メンバー'),
+  role: z.enum(['admin', 'member', 'viewer'], { message: 'ロールを選択してください' }),
 });
 
 export type ChangeRoleInput = z.infer<typeof changeRoleSchema>;

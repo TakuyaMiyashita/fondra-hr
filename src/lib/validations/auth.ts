@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { uuidField } from './common';
+
 export const signUpSchema = z.object({
   orgName: z
     .string()
@@ -25,18 +27,18 @@ export const resetPasswordSchema = z.object({
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
 export const acceptInviteSchema = z.object({
-  invitationId: z.string().uuid(),
-  orgId: z.string().uuid(),
-  role: z.enum(['owner', 'admin', 'member', 'viewer']),
-  email: z.string().email(),
+  invitationId: uuidField('招待'),
+  orgId: uuidField('組織'),
+  role: z.enum(['owner', 'admin', 'member', 'viewer'], { message: '無効なロールです' }),
+  email: z.string().email('有効なメールアドレスを入力してください'),
   password: z.string().min(8, 'パスワードは8文字以上で入力してください'),
-  token: z.string().uuid(),
+  token: z.string().uuid('招待リンクが正しくありません'),
 });
 
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
 
 export const switchOrgSchema = z.object({
-  orgId: z.string().uuid('無効な組織IDです'),
+  orgId: uuidField('組織'),
 });
 
 export type SwitchOrgInput = z.infer<typeof switchOrgSchema>;

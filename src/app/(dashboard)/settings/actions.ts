@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
+import { uuidField } from '@/lib/validations/common';
 import { changeRoleSchema, inviteMemberSchema, updateOrgSchema } from '@/lib/validations/settings';
 import { AuthorizationError } from '@/services/authorize';
 import {
@@ -77,10 +78,18 @@ export async function changeRoleAction(data: unknown): Promise<Result<void>> {
   }
 }
 
+const membershipIdSchema = uuidField('メンバー');
+const invitationIdSchema = uuidField('招待');
+
 export async function removeMemberAction(membershipId: string): Promise<Result<void>> {
+  const parsed = membershipIdSchema.safeParse(membershipId);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    const result = await removeMemberSvc(ctx, membershipId);
+    const result = await removeMemberSvc(ctx, parsed.data);
     if (result.success) {
       revalidatePath('/settings/members');
     }
@@ -122,9 +131,14 @@ export async function fetchPendingInvitations(): Promise<Result<PendingInvitatio
 }
 
 export async function revokeInvitationAction(invitationId: string): Promise<Result<void>> {
+  const parsed = invitationIdSchema.safeParse(invitationId);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    const result = await revokeInviteSvc(ctx, invitationId);
+    const result = await revokeInviteSvc(ctx, parsed.data);
     if (result.success) {
       revalidatePath('/settings/members');
     }

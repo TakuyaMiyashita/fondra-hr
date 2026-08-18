@@ -69,7 +69,25 @@ export async function switchOrganization(
   return ok({ orgId: membership.orgId, role: membership.role });
 }
 
-export async function getInvitationByToken(token: string) {
+type InvitationByToken = {
+  id: string;
+  orgId: string;
+  email: string;
+  role: Role;
+  expiresAt: Date;
+  acceptedAt: Date | null;
+  orgName: string;
+};
+
+/**
+ * 招待をトークンで引く。未受諾かつ未失効のものだけを返す。
+ *
+ * 戻り値の型に null を明示しているのは、配列の分割代入では TypeScript が
+ * 要素を常に存在するものとして推論してしまい、呼び出し側の
+ * 「見つからなければ拒否する」ガードが到達不能コードに見えてしまうため。
+ * このガードは招待受諾のセキュリティ境界そのものなので、型の上でも必須にする。
+ */
+export async function getInvitationByToken(token: string): Promise<InvitationByToken | null> {
   const [invitation] = await db
     .select({
       id: invitations.id,

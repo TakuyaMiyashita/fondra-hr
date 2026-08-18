@@ -155,6 +155,22 @@ export async function updateDepartment(
   }
 
   if (input.parentId) {
+    // 親が自組織に実在することの確認。createDepartment と同じ検証。
+    // これが無いと他テナントの部署 ID を親に指定でき、テナントを跨いだ
+    // parent_id が保存される。checkIsDescendant は自組織の部署しか
+    // 読まないため、他テナントの ID は「祖先ではない」と判定されて素通りする。
+    // FK は departments.id 参照なので他テナントの行でも成立し、
+    // RLS も更新対象の行は自組織なので通ってしまう。
+    const [parent] = await db
+      .select({ id: departments.id })
+      .from(departments)
+      .where(and(eq(departments.id, input.parentId), eq(departments.orgId, ctx.orgId)))
+      .limit(1);
+
+    if (!parent) {
+      return err('親部署が見つかりません');
+    }
+
     const isDescendant = await checkIsDescendant(ctx.orgId, input.parentId, id);
     if (isDescendant) {
       return err('子孫部署を親部署にすることはできません');

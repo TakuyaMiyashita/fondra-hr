@@ -37,6 +37,13 @@ export const updateEmployeeSchema = z.object({
   ...Object.fromEntries(
     Object.entries(baseFields).map(([key, schema]) => [key, schema.optional()]),
   ),
+  // status だけは spread 後に明示的に上書きする。
+  // baseFields の status は .default('active') を持つため、単に .optional() を
+  // 被せると ZodOptional(ZodDefault) となり default が優先され、入力に status が
+  // 無くても 'active' が出力される。updateEmployee は undefined のみスキップする
+  // 実装なので、氏名だけの部分更新でも status が更新対象に入り、
+  // retired / inactive の従業員が在籍に戻ってしまう。
+  status: employeeStatus.optional(),
 }) as z.ZodType<{ id: string } & Partial<CreateEmployeeInput>>;
 
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;

@@ -96,6 +96,80 @@ describe('Auth flow integration', () => {
     await admin.from('organizations').delete().eq('id', org2Id);
   });
 
+  /**
+   * 回帰テスト。組織切替は当初 updateUser({ data }) で実装されていたが、
+   * これが書くのは user_metadata で、JWT フック
+   * (custom_access_token_hook) が読むのは app_metadata。
+   * そのため「切り替えたのに切り替わらない」不具合になっていた。
+   *
+   * 実装が user_metadata 側へ戻ったらここが落ちる。
+   */
+  it('writing org_id into user_metadata does NOT switch the JWT org', async () => {
+    const { data: org3 } = await admin
+      .from('organizations')
+      .insert({ name: `Auth Test Org3 ${testId}`, slug: `auth-test3-${testId}` })
+      .select()
+      .single();
+    const org3Id = org3.id;
+
+    await admin.from('memberships').insert({ user_id: userId, org_id: org3Id, role: 'member' });
+
+    // app_metadata を既知の状態（org1）に戻してからログインする
+    await admin.auth.admin.updateUserById(userId, { app_metadata: { org_id: orgId } });
+
+    const client = createClient(SUPABASE_URL, ANON_KEY);
+    await client.auth.signInWithPassword({
+      email: `authtest-${testId}@test.example.com`,
+      password: 'test-password-123',
+    });
+
+    // 旧実装と同じ経路：user_metadata に org_id を書く
+    const { error: updateErr } = await client.auth.updateUser({ data: { org_id: org3Id } });
+    expect(updateErr).toBeNull();
+
+    const { data: refreshed } = await client.auth.refreshSession();
+    const jwt = JSON.parse(atob(refreshed.session!.access_token.split('.')[1]));
+
+    // user_metadata には入るが、クレームの org_id は元のまま＝切り替わっていない
+    expect(jwt.user_metadata.org_id).toBe(org3Id);
+    expect(jwt.app_metadata.org_id).toBe(orgId);
+    expect(jwt.app_metadata.org_id).not.toBe(org3Id);
+
+    await admin.from('memberships').delete().eq('org_id', org3Id);
+    await admin.from('organizations').delete().eq('id', org3Id);
+  });
+
+  /**
+   * JWT フックはクレームの org_id が「今も有効なメンバーシップか」を
+   * 検証し、無効なら先頭のメンバーシップへフォールバックする。
+   * app_metadata を直接書ける service_role 経路の最後の安全網なので、
+   * ここが外れると退会済みテナントの JWT が生き続ける。
+   */
+  it('falls back to a valid membership when app_metadata points at a foreign org', async () => {
+    const { data: foreignOrg } = await admin
+      .from('organizations')
+      .insert({ name: `Auth Foreign Org ${testId}`, slug: `auth-foreign-${testId}` })
+      .select()
+      .single();
+
+    await admin.auth.admin.updateUserById(userId, {
+      app_metadata: { org_id: foreignOrg.id },
+    });
+
+    const client = createClient(SUPABASE_URL, ANON_KEY);
+    const { data } = await client.auth.signInWithPassword({
+      email: `authtest-${testId}@test.example.com`,
+      password: 'test-password-123',
+    });
+
+    const jwt = JSON.parse(atob(data.session!.access_token.split('.')[1]));
+    expect(jwt.app_metadata.org_id).not.toBe(foreignOrg.id);
+    expect(jwt.app_metadata.org_id).toBe(orgId);
+    expect(jwt.app_metadata.role).toBe('owner');
+
+    await admin.from('organizations').delete().eq('id', foreignOrg.id);
+  });
+
   it('invitation can be created and queried', async () => {
     const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: inv, error: invErr } = await admin

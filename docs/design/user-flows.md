@@ -95,19 +95,34 @@ sequenceDiagram
     actor User
     participant UI as 組織スイッチャー
     participant SA as Server Action
+    participant SVC as Service Layer
+    participant Admin as Supabase Auth Admin API
     participant Auth as Supabase Auth
     participant Hook as Custom Access Token Hook
 
     User->>UI: ドロップダウンから別組織を選択
     UI->>SA: switchOrg(orgId)
-    SA->>Auth: updateUser({ data: { org_id } })
-    SA->>Auth: refreshSession()
-    Auth->>Hook: JWT再発行時にフック実行
-    Hook->>Hook: 新しい org_id で role 取得
-    Hook-->>Auth: 新しい app_metadata
-    Auth-->>SA: 新しいセッション
-    SA-->>UI: redirect /employees
+    SA->>SVC: switchOrganization(userId, orgId)
+    alt メンバーシップ無し
+        SVC-->>SA: err(この組織へのアクセス権がありません)
+        SA-->>UI: Result（toast 表示・遷移しない）
+    else メンバーシップ有り
+        SVC-->>SA: ok({ orgId, role })
+        SA->>Admin: updateUserById(userId, { app_metadata: { org_id } })
+        SA->>Auth: refreshSession()
+        Auth->>Hook: JWT再発行時にフック実行
+        Hook->>Hook: 新しい org_id で role 取得
+        Hook-->>Auth: 新しい app_metadata
+        Auth-->>SA: 新しいセッション
+        SA-->>UI: redirect /employees
+    end
 ```
+
+`app_metadata` はクライアントから書き換えられない領域であり、更新には
+service_role の Auth Admin API が要る。`updateUser({ data })` が書くのは
+`user_metadata` で、Hook が読むのは `app_metadata` なので組織は切り替わらない。
+service_role は RLS をバイパスするため、**書き込みの手前で必ず
+`switchOrganization()` によるメンバーシップ検証を通す**。
 
 ## 5. 未認証リダイレクト
 

@@ -40,14 +40,32 @@ sequenceDiagram
     participant Auth as Supabase Auth
 
     User->>App: 組織スイッチャーで組織Bを選択
-    App->>Service: switchOrganization(orgBId)
-    Service->>Auth: updateUser({ app_metadata: { org_id: orgBId } })
-    Auth-->>Service: OK
-    Service->>Auth: refreshSession()
+    App->>Service: switchOrganization(userId, orgBId)
+    Note over Service: memberships を引いて所属を検証。<br/>無ければここで打ち切り（app_metadata は書かない）
+    Service-->>App: ok({ orgId, role })
+    App->>Auth: admin.updateUserById(userId, { app_metadata: { org_id: orgBId } })
+    Auth-->>App: OK
+    App->>Auth: refreshSession()
     Note over Auth: Hook が再実行され JWT に org B の情報が入る
     Auth-->>App: 新しい JWT (org_id = orgB)
     App-->>User: 画面が組織Bのデータに切り替わる
 ```
+
+#### app_metadata の書き込みに service_role が要る理由
+
+Hook が読むのは `app_metadata` だが、この領域はクライアント（anon キー）からは
+書き換えられない。ユーザーが自分で `org_id` を書けたら、所属していない組織の
+JWT を自分で発行できてしまうためで、これは意図的な設計。したがって組織切替は
+service_role の Auth Admin API（`auth.admin.updateUserById`）を通す。
+
+`supabase.auth.updateUser({ data })` が書くのは `user_metadata` であり、
+Hook はこれを読まない。ここに `org_id` を書いても組織は切り替わらない。
+
+service_role は RLS を丸ごとバイパスするため、**Server Action 側で
+`switchOrganization()` によるメンバーシップ検証を通してから**呼ぶ。
+検証を挟まないとクライアント指定の `orgId` がそのままクレームになり、
+権限昇格になる。JWT Hook 側の再検証（上記ロジックの 2〜3）は最後の安全網であって、
+アプリ側の検証を省略してよい理由にはならない。
 
 ## 認可（Authorization）
 

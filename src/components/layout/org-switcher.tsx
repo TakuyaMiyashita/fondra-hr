@@ -2,6 +2,7 @@
 
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { useTransition } from 'react';
+import { toast } from 'sonner';
 
 import { switchOrg } from '@/app/(auth)/actions';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +34,11 @@ export function OrgSwitcher({ currentOrgId, orgs }: OrgSwitcherProps) {
   function handleSwitch(orgId: string) {
     if (orgId === currentOrgId) return;
     startTransition(async () => {
-      await switchOrg({ orgId });
+      // 成功時はサーバー側で redirect するため、戻り値が返るのは失敗時だけ。
+      const result = await switchOrg({ orgId });
+      if (!result.success) {
+        toast.error(result.error);
+      }
     });
   }
 

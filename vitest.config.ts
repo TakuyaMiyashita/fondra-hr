@@ -17,6 +17,28 @@ export default defineConfig({
     },
   },
   test: {
+    // カバレッジ計測の対象は「自分たちで書いたロジック」に限定する。
+    // UI コンポーネントや自動生成物まで含めると、数値が薄まって
+    // 本当に検証すべき箇所（Service Layer の認可・分岐）が見えなくなる。
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary', 'html'],
+      reportsDirectory: './coverage',
+      include: ['src/services/**/*.ts', 'src/lib/**/*.ts', 'src/app/**/actions.ts'],
+      exclude: ['src/lib/supabase/**', 'src/**/*.d.ts'],
+      // 到達した水準は下げない。回帰防止のための下限。
+      //
+      // branches だけ 99 なのは、employees/actions.ts の
+      // `(file.name.split('.').pop() ?? '')` の `?? ''` 側が実行時には
+      // 到達不能なため（String.prototype.split は必ず長さ1以上の配列を返す）。
+      // TypeScript は pop() を string | undefined と推論するので式自体は消せない。
+      thresholds: {
+        statements: 100,
+        branches: 99,
+        functions: 100,
+        lines: 100,
+      },
+    },
     projects: [
       {
         extends: true,

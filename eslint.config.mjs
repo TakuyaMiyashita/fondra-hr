@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     'next-env.d.ts',
     // Supabase local dev temp files
     'supabase/.temp/**',
+    // Vitest のカバレッジ HTML レポート（生成物）
+    'coverage/**',
   ]),
 ]);
 

@@ -146,6 +146,7 @@ pnpm dev
 - [認証・認可モデル](./docs/architecture/auth-and-authorization.md)
 - [ER図](./docs/database/er-diagram.md)
 - [UIデザインガイドライン](./docs/design/ui-guidelines.md)
+- [テスト戦略](./docs/testing.md)
 
 ## ライセンス
 

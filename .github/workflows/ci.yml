@@ -44,8 +44,10 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Unit tests
-        run: pnpm test:unit
+      # カバレッジ閾値は vitest.config.ts の coverage.thresholds で定義している。
+      # 下回ると vitest が非ゼロ終了するため、ここが回帰の防波堤になる。
+      - name: Unit tests with coverage
+        run: pnpm test:coverage
 
       - name: Build
         run: pnpm build

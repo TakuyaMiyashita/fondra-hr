@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { pageField, perPageField, uuidField } from './common';
+
 export const createSkillSchema = z.object({
   name: z
     .string()
@@ -15,7 +17,7 @@ export const createSkillSchema = z.object({
 export type CreateSkillInput = z.infer<typeof createSkillSchema>;
 
 export const updateSkillSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidField('スキル'),
   name: z
     .string()
     .min(1, 'スキル名を入力してください')
@@ -30,8 +32,8 @@ export const updateSkillSchema = z.object({
 export type UpdateSkillInput = z.infer<typeof updateSkillSchema>;
 
 export const skillListQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  perPage: z.coerce.number().int().min(1).max(100).default(50),
+  page: pageField,
+  perPage: perPageField(50),
   search: z.string().optional(),
   category: z.string().optional(),
 });
@@ -39,11 +41,11 @@ export const skillListQuerySchema = z.object({
 export type SkillListQuery = z.infer<typeof skillListQuerySchema>;
 
 export const assignSkillSchema = z.object({
-  employeeId: z.string().uuid('無効な従業員IDです'),
-  skillId: z.string().uuid('無効なスキルIDです'),
+  employeeId: uuidField('従業員'),
+  skillId: uuidField('スキル'),
   level: z.coerce
     .number()
-    .int()
+    .int('レベルは整数で入力してください')
     .min(1, 'レベルは1以上で入力してください')
     .max(5, 'レベルは5以下で入力してください'),
   certifiedAt: z
@@ -56,7 +58,7 @@ export const assignSkillSchema = z.object({
 export type AssignSkillInput = z.infer<typeof assignSkillSchema>;
 
 export const skillMatrixQuerySchema = z.object({
-  departmentId: z.string().uuid().optional(),
+  departmentId: uuidField('部署').optional(),
   category: z.string().optional(),
   search: z.string().optional(),
 });

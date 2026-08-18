@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { orderField, pageField, perPageField, sortField, uuidField } from './common';
+
 const dateString = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, '日付は YYYY-MM-DD 形式で入力してください');
@@ -37,7 +39,7 @@ export const createOneOnOneSchema = z.object({
 export type CreateOneOnOneInput = z.infer<typeof createOneOnOneSchema>;
 
 export const updateOneOnOneSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidField('1on1記録'),
   employeeId: z.string().uuid('対象従業員を選択してください'),
   interviewerId: z.string().uuid('面談者を選択してください'),
   heldOn: dateString,
@@ -48,13 +50,13 @@ export const updateOneOnOneSchema = z.object({
 export type UpdateOneOnOneInput = z.infer<typeof updateOneOnOneSchema>;
 
 export const oneOnOneListQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  perPage: z.coerce.number().int().min(1).max(100).default(20),
+  page: pageField,
+  perPage: perPageField(20),
   search: z.string().optional(),
-  employeeId: z.string().uuid().optional(),
-  interviewerId: z.string().uuid().optional(),
-  sort: z.enum(['heldOn', 'createdAt']).default('heldOn'),
-  order: z.enum(['asc', 'desc']).default('desc'),
+  employeeId: uuidField('従業員').optional(),
+  interviewerId: uuidField('面談者').optional(),
+  sort: sortField(['heldOn', 'createdAt'], 'heldOn'),
+  order: orderField,
 });
 
 export type OneOnOneListQuery = z.infer<typeof oneOnOneListQuerySchema>;

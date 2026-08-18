@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
+import { uuidField } from '@/lib/validations/common';
 import {
   assignSkillSchema,
   createSkillSchema,
@@ -80,10 +81,18 @@ export async function updateSkillAction(data: unknown): Promise<Result<void>> {
   }
 }
 
+const skillId = uuidField('スキル');
+const employeeId = uuidField('従業員');
+
 export async function deleteSkillAction(id: string): Promise<Result<void>> {
+  const parsed = skillId.safeParse(id);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    const result = await deleteSkillSvc(ctx, id);
+    const result = await deleteSkillSvc(ctx, parsed.data);
     if (result.success) {
       revalidatePath('/skills');
     }
@@ -140,12 +149,22 @@ export async function assignSkillAction(data: unknown): Promise<Result<void>> {
 }
 
 export async function removeSkillAssignmentAction(
-  employeeId: string,
-  skillId: string,
+  employee: string,
+  skill: string,
 ): Promise<Result<void>> {
+  const parsedEmployee = employeeId.safeParse(employee);
+  if (!parsedEmployee.success) {
+    return err(parsedEmployee.error.issues[0].message);
+  }
+
+  const parsedSkill = skillId.safeParse(skill);
+  if (!parsedSkill.success) {
+    return err(parsedSkill.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    const result = await removeSkillAssignmentSvc(ctx, employeeId, skillId);
+    const result = await removeSkillAssignmentSvc(ctx, parsedEmployee.data, parsedSkill.data);
     if (result.success) {
       revalidatePath('/skills');
     }

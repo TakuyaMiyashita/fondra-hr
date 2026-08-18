@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
+import { uuidField } from '@/lib/validations/common';
 import {
   createDepartmentSchema,
   moveDepartmentSchema,
@@ -107,10 +108,17 @@ export async function moveDepartmentAction(
   }
 }
 
+const departmentId = uuidField('部署');
+
 export async function deleteDepartmentAction(id: string): Promise<Result<void>> {
+  const parsed = departmentId.safeParse(id);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
   try {
     const ctx = await getAuthContext();
-    const result = await deleteDepartmentSvc(ctx, id);
+    const result = await deleteDepartmentSvc(ctx, parsed.data);
     if (result.success) {
       revalidatePath('/departments');
       revalidatePath('/employees');

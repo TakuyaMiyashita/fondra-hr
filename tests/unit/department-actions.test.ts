@@ -319,6 +319,16 @@ describe('moveDepartmentAction', () => {
 });
 
 describe('deleteDepartmentAction', () => {
+  it('rejects a non-UUID id before reaching the service', async () => {
+    // 非 UUID が Postgres の uuid 比較に渡ると 500 になる。DB の手前で弾く。
+    const { deleteDepartmentAction } = await actions();
+    const s = await svc();
+
+    expect(await deleteDepartmentAction('not-a-uuid')).toEqual(err('無効な部署IDです'));
+    expect(s.deleteDepartment).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it('deletes and revalidates both pages on success', async () => {
     // 部署削除は従業員の所属表示にも影響するため /employees も飛ばす。
     const { deleteDepartmentAction } = await actions();

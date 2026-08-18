@@ -556,16 +556,13 @@ describe('deleteOneOnOneAction', () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
-  it('forwards a non-UUID id to the service unvalidated', async () => {
-    // 削除アクションには Zod 検証が無い。存在チェックは Service の
-    // org_id スコープ付きクエリが担う設計であることを固定する。
+  it('rejects a non-UUID id before reaching the service', async () => {
+    // 非 UUID が Postgres の uuid 比較に渡ると型エラーで 500 になる。
     const { deleteOneOnOneAction } = await import(ACTIONS);
     const s = await svc();
-    s.deleteOneOnOne.mockResolvedValue(err('1on1記録が見つかりません') as never);
 
-    await deleteOneOnOneAction('not-a-uuid');
-
-    expect(s.deleteOneOnOne).toHaveBeenCalledWith(ctxAdmin, 'not-a-uuid');
+    expect(await deleteOneOnOneAction('not-a-uuid')).toEqual(err('無効な1on1記録IDです'));
+    expect(s.deleteOneOnOne).not.toHaveBeenCalled();
   });
 
   it('converts AuthorizationError into a permission error', async () => {

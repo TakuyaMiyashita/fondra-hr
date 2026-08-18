@@ -192,6 +192,15 @@ describe('updateSkillAction', () => {
 });
 
 describe('deleteSkillAction', () => {
+  it('rejects a non-UUID id before reaching the service', async () => {
+    const { deleteSkillAction } = await import('@/app/(dashboard)/skills/actions');
+    const s = await svc();
+
+    expect(await deleteSkillAction('not-a-uuid')).toEqual(err('無効なスキルIDです'));
+    expect(s.deleteSkill).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it('revalidates on success', async () => {
     const { deleteSkillAction } = await import('@/app/(dashboard)/skills/actions');
     const s = await svc();
@@ -354,6 +363,30 @@ describe('assignSkillAction', () => {
 });
 
 describe('removeSkillAssignmentAction', () => {
+  // 引数が2つあるので、片方だけ不正なケースを個別に立てる
+  // （両方まとめて検証すると、後段のチェック漏れに気づけない）。
+  it('rejects a non-UUID employee id', async () => {
+    const { removeSkillAssignmentAction } = await import('@/app/(dashboard)/skills/actions');
+    const s = await svc();
+
+    expect(await removeSkillAssignmentAction('not-a-uuid', OTHER_UUID)).toEqual(
+      err('無効な従業員IDです'),
+    );
+    expect(s.removeSkillAssignment).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-UUID skill id', async () => {
+    const { removeSkillAssignmentAction } = await import('@/app/(dashboard)/skills/actions');
+    const s = await svc();
+
+    expect(await removeSkillAssignmentAction(VALID_UUID, 'not-a-uuid')).toEqual(
+      err('無効なスキルIDです'),
+    );
+    expect(s.removeSkillAssignment).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it('revalidates on success', async () => {
     const { removeSkillAssignmentAction } = await import('@/app/(dashboard)/skills/actions');
     const s = await svc();

@@ -1,19 +1,20 @@
 import { z } from 'zod';
 
+import { uuidField } from './common';
+
 const dateString = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, '日付は YYYY-MM-DD 形式で入力してください');
 
-export const cycleStatus = z.enum(['draft', 'in_progress', 'completed']);
+export const cycleStatus = z.enum(['draft', 'in_progress', 'completed'], {
+  message: '無効なステータスです',
+});
 export type CycleStatus = z.infer<typeof cycleStatus>;
 
-export const evaluationStatus = z.enum([
-  'draft',
-  'in_progress',
-  'submitted',
-  'confirmed',
-  'returned',
-]);
+export const evaluationStatus = z.enum(
+  ['draft', 'in_progress', 'submitted', 'confirmed', 'returned'],
+  { message: '無効なステータスです' },
+);
 export type EvaluationStatus = z.infer<typeof evaluationStatus>;
 
 /**
@@ -46,7 +47,7 @@ export type CreateCycleInput = z.infer<typeof createCycleSchema>;
 
 export const updateCycleSchema = z
   .object({
-    id: z.string().uuid(),
+    id: uuidField('評価サイクル'),
     name: z
       .string()
       .min(1, '評価サイクル名を入力してください')
@@ -68,7 +69,7 @@ export const createEvaluationSchema = z.object({
 export type CreateEvaluationInput = z.infer<typeof createEvaluationSchema>;
 
 export const updateEvaluationSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidField('評価'),
   // 評価点は 1〜5 の離散値。.int() が無いと 3.5 のような小数が通り、
   // 平均や分布の集計・表示が前提と食い違う。
   ratings: z

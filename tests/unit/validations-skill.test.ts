@@ -220,7 +220,7 @@ describe('skill validations', () => {
       const result = assignSkillSchema.safeParse({ ...base, level: 3.5 });
 
       expect(result.success).toBe(false);
-      expect(issuesByPath(result.error!)['level'].message).toContain('int');
+      expect(issuesByPath(result.error!)['level'].message).toBe('レベルは整数で入力してください');
     });
 
     it('数値化できない文字列を弾く', () => {
@@ -354,7 +354,7 @@ describe('audit log validations', () => {
       const result = auditLogListQuerySchema.safeParse({ page: '1.5' });
 
       expect(result.success).toBe(false);
-      expect(issuesByPath(result.error!)['page'].message).toContain('int');
+      expect(issuesByPath(result.error!)['page'].message).toBe('ページ番号が不正です');
     });
 
     it('数値化できない文字列を NaN として弾く', () => {

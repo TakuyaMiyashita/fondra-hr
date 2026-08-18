@@ -567,4 +567,55 @@ describe.each([
 
     await expect(call()).rejects.toThrow('boom');
   });
+
+  if (takesEmployeeId) {
+    it('degrades to an empty list when the id is not a UUID', async () => {
+      // 非 UUID は Postgres の uuid 比較で型エラー（500）になる。
+      // この系統は Result を返さないので、権限不足と同じく空配列に降格する。
+      const mod = (await actions()) as unknown as Record<
+        string,
+        (...args: unknown[]) => Promise<unknown>
+      >;
+      const mock = await serviceMock();
+
+      expect(await mod[actionName]('not-a-uuid')).toEqual([]);
+      expect(mock).not.toHaveBeenCalled();
+    });
+  }
+});
+
+/**
+ * id を単体で受け取るアクションの入力検証。
+ *
+ * これらは Zod スキーマを持つオブジェクト入力と違い、素の string を受け取る。
+ * org_id スコープがあるので他テナントのデータは読めないが、非 UUID が
+ * Postgres の uuid 比較に届くと型エラーになり 500 で落ちる。
+ * DB に触る前に日本語のエラーで弾く。
+ */
+describe('id を単体で受け取るアクションの UUID 検証', () => {
+  it('fetchEmployee rejects a non-UUID id', async () => {
+    const { fetchEmployee } = await actions();
+    const s = await svc();
+
+    expect(await fetchEmployee('not-a-uuid')).toEqual(err('無効な従業員IDです'));
+    expect(s.getEmployee).not.toHaveBeenCalled();
+  });
+
+  it('deleteEmployeeAction rejects a non-UUID id', async () => {
+    const { deleteEmployeeAction } = await actions();
+    const s = await svc();
+
+    expect(await deleteEmployeeAction('not-a-uuid')).toEqual(err('無効な従業員IDです'));
+    expect(s.deleteEmployee).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('空文字も UUID として弾く', async () => {
+    // 未選択のセレクトから '' が飛んでくる経路が実在する。
+    const { fetchEmployee } = await actions();
+    const s = await svc();
+
+    expect(await fetchEmployee('')).toEqual(err('無効な従業員IDです'));
+    expect(s.getEmployee).not.toHaveBeenCalled();
+  });
 });

@@ -379,7 +379,7 @@ describe('employee validations', () => {
       const result = employeeListQuerySchema.safeParse({ page: '1.5' });
 
       expect(result.success).toBe(false);
-      expect(issuesByPath(result.error!)['page'].message).toContain('int');
+      expect(issuesByPath(result.error!)['page'].message).toBe('ページ番号が不正です');
     });
 
     it.each([

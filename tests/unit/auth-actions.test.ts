@@ -32,10 +32,15 @@ const { redirect } = vi.hoisted(() => ({
 }));
 
 const { createClient } = vi.hoisted(() => ({ createClient: vi.fn() }));
+const { createAdminClient } = vi.hoisted(() => ({ createAdminClient: vi.fn() }));
 
 vi.mock('next/navigation', () => ({ redirect }));
 vi.mock('@/lib/supabase/server', () => ({ createClient }));
-vi.mock('@/services/auth', () => ({ createOrganizationWithOwner: vi.fn() }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient }));
+vi.mock('@/services/auth', () => ({
+  createOrganizationWithOwner: vi.fn(),
+  switchOrganization: vi.fn(),
+}));
 
 async function svc() {
   return vi.mocked(await import('@/services/auth'));
@@ -54,9 +59,22 @@ function mockSupabase() {
     resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
     updateUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
     refreshSession: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    getUser: vi.fn().mockResolvedValue({ data: { user: { id: USER_ID } }, error: null }),
   };
   createClient.mockResolvedValue({ auth });
   return auth;
+}
+
+/**
+ * service_role の Auth Admin API のモック。
+ *
+ * 組織切替は app_metadata を書き換えるためにこれを通る。JWT フックが読むのは
+ * app_metadata なので、ここが呼ばれない = 切り替わらない、が回帰の形になる。
+ */
+function mockAdmin() {
+  const updateUserById = vi.fn().mockResolvedValue({ data: {}, error: null });
+  createAdminClient.mockReturnValue({ auth: { admin: { updateUserById } } });
+  return updateUserById;
 }
 
 /** redirect が投げる例外を捕まえて遷移先を返す。遷移しなかった場合は失敗させる。 */
@@ -72,8 +90,11 @@ async function captureRedirect(run: () => Promise<unknown>): Promise<string> {
 
 const VALID_SIGNUP = { email: 'user@example.com', password: 'password123', orgName: 'Acme' };
 const ORG_UUID = '11111111-1111-4111-8111-111111111111';
+const OTHER_ORG_UUID = '22222222-2222-4222-8222-222222222222';
+const USER_ID = '33333333-3333-4333-8333-333333333333';
 
 let auth: ReturnType<typeof mockSupabase>;
+let updateUserById: ReturnType<typeof mockAdmin>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -81,6 +102,7 @@ beforeEach(() => {
     throw new RedirectError(to);
   });
   auth = mockSupabase();
+  updateUserById = mockAdmin();
 });
 
 describe('signUp', () => {
@@ -333,39 +355,105 @@ describe('resetPassword', () => {
 });
 
 describe('switchOrg', () => {
-  it('silently ignores a non-UUID organization id', async () => {
-    // 戻り値の無いアクションなので、不正入力は「何もしない」で終わる設計。
-    // ここで updateUser が走ると、存在しない org_id をクレームに書き込んでしまう。
+  /**
+   * 組織切替は「所属していない組織の JWT を発行させない」ことが本体。
+   * app_metadata はクライアントから書けない領域なので、更新は RLS を
+   * バイパスする service_role 経由になる。だからこそ、書き込む手前で
+   * メンバーシップ検証が必ず走ることを分岐ごとに検証する。
+   */
+  beforeEach(async () => {
+    (await svc()).switchOrganization.mockResolvedValue(ok({ orgId: ORG_UUID, role: 'admin' }));
+  });
+
+  it('rejects a non-UUID organization id before touching Supabase', async () => {
     const { switchOrg } = await actions();
 
-    await switchOrg({ orgId: 'not-a-uuid' });
-
-    expect(auth.updateUser).not.toHaveBeenCalled();
-    expect(auth.refreshSession).not.toHaveBeenCalled();
+    expect(await switchOrg({ orgId: 'not-a-uuid' })).toEqual(err('無効な組織IDです'));
+    expect((await svc()).switchOrganization).not.toHaveBeenCalled();
+    expect(updateUserById).not.toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
     expect(createClient).not.toHaveBeenCalled();
   });
 
-  it('writes the org id into user metadata, refreshes the session, then redirects', async () => {
-    // リフレッシュを挟まないと、直後の RSC が古い org_id の JWT を読んでしまい
-    // 切替前テナントのデータが表示されうる。順序まで検証する。
+  it('rejects when there is no signed-in user', async () => {
+    const { switchOrg } = await actions();
+    auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+
+    expect(await switchOrg({ orgId: ORG_UUID })).toEqual(err('ログインが必要です'));
+    expect((await svc()).switchOrganization).not.toHaveBeenCalled();
+    expect(updateUserById).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('refuses to switch into an organization the user does not belong to', async () => {
+    // 権限昇格の本丸。ここで app_metadata を書くと、所属していないテナントの
+    // JWT が発行され、Service Layer も RLS も「正規の org_id」として信じてしまう。
+    const { switchOrg } = await actions();
+    (await svc()).switchOrganization.mockResolvedValue(err('この組織へのアクセス権がありません'));
+
+    expect(await switchOrg({ orgId: OTHER_ORG_UUID })).toEqual(
+      err('この組織へのアクセス権がありません'),
+    );
+    expect(updateUserById).not.toHaveBeenCalled();
+    expect(auth.refreshSession).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('verifies the membership with the signed-in user id, not a client-supplied one', async () => {
+    const { switchOrg } = await actions();
+
+    await captureRedirect(() => switchOrg({ orgId: ORG_UUID }));
+
+    expect((await svc()).switchOrganization).toHaveBeenCalledWith(USER_ID, ORG_UUID);
+  });
+
+  it('writes org_id into app_metadata, refreshes the session, then redirects', async () => {
+    // user_metadata ではなく app_metadata であることが要。JWT フック
+    // (custom_access_token_hook) が読むのは app_metadata 側だけで、
+    // user_metadata に書いても組織は切り替わらない（実機で確認済みの回帰）。
     const { switchOrg } = await actions();
 
     const to = await captureRedirect(() => switchOrg({ orgId: ORG_UUID }));
 
-    expect(auth.updateUser).toHaveBeenCalledWith({ data: { org_id: ORG_UUID } });
-    expect(auth.refreshSession).toHaveBeenCalledTimes(1);
-    expect(auth.updateUser.mock.invocationCallOrder[0]).toBeLessThan(
-      auth.refreshSession.mock.invocationCallOrder[0],
-    );
+    expect(updateUserById).toHaveBeenCalledWith(USER_ID, {
+      app_metadata: { org_id: ORG_UUID, role: 'admin' },
+    });
+    expect(auth.updateUser).not.toHaveBeenCalled();
     expect(to).toBe('/employees');
   });
 
-  it('does not redirect when updating the user metadata throws', async () => {
+  it('writes the org id returned by the membership check, not the raw input', async () => {
+    // 検証済みの値だけを信頼する。入力をそのまま書き戻す実装だと、
+    // 検証を通した意味が無くなる。
     const { switchOrg } = await actions();
-    auth.updateUser.mockRejectedValue(new Error('jwt expired'));
+    (await svc()).switchOrganization.mockResolvedValue(ok({ orgId: ORG_UUID, role: 'viewer' }));
 
-    await expect(switchOrg({ orgId: ORG_UUID })).rejects.toThrow('jwt expired');
+    await captureRedirect(() => switchOrg({ orgId: ORG_UUID }));
+
+    expect(updateUserById).toHaveBeenCalledWith(USER_ID, {
+      app_metadata: { org_id: ORG_UUID, role: 'viewer' },
+    });
+  });
+
+  it('refreshes the session after the metadata write and before redirecting', async () => {
+    // リフレッシュを挟まないと、直後の RSC が古い org_id の JWT を読んでしまい
+    // 切替前テナントのデータが表示されうる。順序まで検証する。
+    const { switchOrg } = await actions();
+
+    await captureRedirect(() => switchOrg({ orgId: ORG_UUID }));
+
+    expect(auth.refreshSession).toHaveBeenCalledTimes(1);
+    expect(updateUserById.mock.invocationCallOrder[0]).toBeLessThan(
+      auth.refreshSession.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('does not redirect when the admin metadata update fails', async () => {
+    const { switchOrg } = await actions();
+    updateUserById.mockResolvedValue({ data: null, error: { message: 'not allowed' } });
+
+    expect(await switchOrg({ orgId: ORG_UUID })).toEqual(err('組織の切り替えに失敗しました'));
+    expect(auth.refreshSession).not.toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
   });
 });

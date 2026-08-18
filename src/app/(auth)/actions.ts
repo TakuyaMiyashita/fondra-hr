@@ -4,7 +4,8 @@ import { redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
 import { type Result, err, ok } from '@/lib/result';
-import { createOrganizationWithOwner } from '@/services/auth';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { createOrganizationWithOwner, switchOrganization } from '@/services/auth';
 import {
   signUpSchema,
   signInSchema,
@@ -93,18 +94,51 @@ export async function resetPassword(data: { email: string }): Promise<Result<voi
   return ok(undefined);
 }
 
-export async function switchOrg(data: { orgId: string }): Promise<void> {
+/**
+ * 組織を切り替える。
+ *
+ * JWT フック（custom_access_token_hook）が読むのは **app_metadata** なので、
+ * updateUser() が書く user_metadata に org_id を入れても切り替わらない。
+ * app_metadata はクライアントから書き換えられない領域であり、更新には
+ * service_role の Auth Admin API が要る。
+ *
+ * service_role は RLS を丸ごとバイパスするため、書き込む前に必ず
+ * switchOrganization() でメンバーシップを検証する。クライアントから渡された
+ * orgId を無検証で app_metadata に書くと、所属していない組織の JWT を
+ * 発行できてしまい権限昇格になる。
+ */
+export async function switchOrg(data: { orgId: string }): Promise<Result<void>> {
   const parsed = switchOrgSchema.safeParse(data);
   if (!parsed.success) {
-    return;
+    return err(parsed.error.issues[0].message);
   }
 
   const supabase = await createClient();
 
-  await supabase.auth.updateUser({
-    data: { org_id: parsed.data.orgId },
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return err('ログインが必要です');
+  }
+
+  const membership = await switchOrganization(user.id, parsed.data.orgId);
+  if (!membership.success) {
+    return err(membership.error);
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(user.id, {
+    app_metadata: { org_id: membership.data.orgId, role: membership.data.role },
   });
 
+  if (error) {
+    return err('組織の切り替えに失敗しました');
+  }
+
+  // リフレッシュを挟まないと直後の RSC が切替前の JWT を読み、
+  // 旧テナントのデータが表示される。
   await supabase.auth.refreshSession();
   redirect('/employees');
 }

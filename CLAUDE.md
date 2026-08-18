@@ -55,6 +55,12 @@ RSC / Server Actions
 | Auth（認証・セッション） | Supabase JS Client |
 | Storage（ファイル） | Supabase JS Client |
 | DB アクセス（CRUD・集計） | **Drizzle ORM のみ** |
+| app_metadata の更新（組織切替） | Auth Admin API（`src/lib/supabase/admin.ts`） |
+
+`src/lib/supabase/admin.ts` は service_role キーを使い RLS を丸ごとバイパスする。
+用途は Auth Admin API（JWT フックが読む `app_metadata` の更新）に限定し、
+このクライアントでテーブルを読み書きしてはならない。呼ぶ前に必ずサーバー側で
+メンバーシップを検証すること。
 
 ## ディレクトリ構成
 

@@ -179,21 +179,91 @@ describe('signUp', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('creates the organization for the new user and redirects to login', async () => {
+  it('creates the organization for the new user, then refreshes and enters the app', async () => {
+    // メール確認が無効な場合、signUp はセッションを返す。
     const { signUp } = await actions();
     const s = await svc();
-    auth.signUp.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
+    auth.signUp.mockResolvedValue({
+      data: { user: { id: 'user-1' }, session: { access_token: 'stale' } },
+      error: null,
+    });
     s.createOrganizationWithOwner.mockResolvedValue(ok({ orgId: ORG_UUID }));
 
     const to = await captureRedirect(() => signUp(VALID_SIGNUP));
 
-    expect(to).toBe('/login?registered=true');
+    expect(to).toBe('/dashboard');
     // 組織のオーナーは「今サインアップした本人」でなければならない。
     expect(s.createOrganizationWithOwner).toHaveBeenCalledWith('user-1', 'Acme');
     expect(auth.signUp).toHaveBeenCalledWith({
       email: 'user@example.com',
       password: 'password123',
     });
+  });
+
+  /**
+   * リダイレクトループの回帰テスト。
+   *
+   * signUp() が返すセッションは「組織を作る前」に発行されており、その時点では
+   * メンバーシップが無いので JWT フックが app_metadata.org_id / role に null を
+   * 書き込む。このトークンのまま画面に入ると、
+   *
+   *   /dashboard → getAuthContext() が claim を読めず /login へ
+   *   /login     → ミドルウェアが認証済みとみなし /dashboard へ
+   *
+   * を延々と往復し、トークンが失効する1時間まで画面が真っ暗になる。
+   * 実際に検証環境で発生した不具合。
+   *
+   * 防ぐ条件は「組織を作った後にリフレッシュすること」の一点なので、
+   * 呼び出し順序まで検証する。
+   */
+  it('refreshes the session only after the organization exists', async () => {
+    const { signUp } = await actions();
+    const s = await svc();
+    auth.signUp.mockResolvedValue({
+      data: { user: { id: 'user-1' }, session: { access_token: 'stale' } },
+      error: null,
+    });
+    s.createOrganizationWithOwner.mockResolvedValue(ok({ orgId: ORG_UUID }));
+
+    await captureRedirect(() => signUp(VALID_SIGNUP));
+
+    expect(auth.refreshSession).toHaveBeenCalledTimes(1);
+    expect(s.createOrganizationWithOwner.mock.invocationCallOrder[0]).toBeLessThan(
+      auth.refreshSession.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('does not refresh when the organization could not be created', async () => {
+    // 組織が無いままリフレッシュしても claim は入らない。失敗時は画面に入れない。
+    const { signUp } = await actions();
+    const s = await svc();
+    auth.signUp.mockResolvedValue({
+      data: { user: { id: 'user-1' }, session: { access_token: 'stale' } },
+      error: null,
+    });
+    s.createOrganizationWithOwner.mockResolvedValue(err('組織の作成に失敗しました'));
+
+    await signUp(VALID_SIGNUP);
+
+    expect(auth.refreshSession).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('sends the user to login without refreshing when email confirmation is required', async () => {
+    // メール確認が有効だと signUp はセッションを返さない。
+    // リフレッシュ対象が無いので確認を促すためログイン画面へ送る。
+    const { signUp } = await actions();
+    const s = await svc();
+    auth.signUp.mockResolvedValue({
+      data: { user: { id: 'user-1' }, session: null },
+      error: null,
+    });
+    s.createOrganizationWithOwner.mockResolvedValue(ok({ orgId: ORG_UUID }));
+
+    const to = await captureRedirect(() => signUp(VALID_SIGNUP));
+
+    expect(to).toBe('/login?registered=true');
+    expect(auth.refreshSession).not.toHaveBeenCalled();
   });
 
   it('does not forward the organization name to Supabase Auth', async () => {

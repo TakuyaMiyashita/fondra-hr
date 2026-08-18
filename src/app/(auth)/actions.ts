@@ -43,6 +43,20 @@ export async function signUp(data: {
     return err(orgResult.error);
   }
 
+  // signUp() が返すセッションは「組織を作る前」に発行されている。その時点では
+  // メンバーシップが無いため、JWT フックは app_metadata.org_id / role に null を
+  // 書き込む。このトークンのまま画面に入ると getAuthContext() が claim を読めず
+  // /login へリダイレクトし、ミドルウェアは認証済みとみなして /dashboard へ戻すため、
+  // トークンが失効する1時間まで無限リダイレクトになる。
+  // 組織を作った「後」にリフレッシュして、claim の入ったトークンを発行し直す。
+  //
+  // メール確認が有効な場合、signUp() はセッションを返さない（未確認のため）。
+  // その場合はリフレッシュせず、確認を促すためログイン画面へ送る。
+  if (authData.session) {
+    await supabase.auth.refreshSession();
+    redirect('/dashboard');
+  }
+
   redirect('/login?registered=true');
 }
 

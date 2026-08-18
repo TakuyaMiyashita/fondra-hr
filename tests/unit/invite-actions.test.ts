@@ -48,7 +48,11 @@ async function actions() {
 
 function mockSupabase() {
   const auth = {
-    signUp: vi.fn().mockResolvedValue({ data: { user: { id: 'user-new' } }, error: null }),
+    signUp: vi.fn().mockResolvedValue({
+      data: { user: { id: 'user-new' }, session: { access_token: 'stale' } },
+      error: null,
+    }),
+    refreshSession: vi.fn().mockResolvedValue({ data: {}, error: null }),
   };
   createClient.mockResolvedValue({ auth });
   return auth;
@@ -98,6 +102,57 @@ beforeEach(async () => {
   auth = mockSupabase();
   const s = await svc();
   s.getInvitationByToken.mockResolvedValue({ ...INVITATION_ROW });
+});
+
+/**
+ * リダイレクトループの回帰テスト。
+ *
+ * signUp() が返すセッションはメンバーシップ登録より前に発行されており、
+ * JWT の app_metadata.org_id が null のままになる。このトークンで画面に入ると
+ * getAuthContext() が /login へ飛ばし、ミドルウェアが認証済みとみなして
+ * 戻すため、無限リダイレクトになる（検証環境で実際に発生）。
+ *
+ * 招待経路も自己サインアップと同じ構造なので同じ防御が要る。
+ */
+describe('acceptInviteAndSignUp — セッションの claim', () => {
+  it('refreshes the session only after the membership exists', async () => {
+    const { acceptInviteAndSignUp } = await actions();
+    const s = await svc();
+    s.acceptInvitation.mockResolvedValue(ok(undefined));
+
+    await captureRedirect(() => acceptInviteAndSignUp(VALID));
+
+    expect(auth.refreshSession).toHaveBeenCalledTimes(1);
+    expect(s.acceptInvitation.mock.invocationCallOrder[0]).toBeLessThan(
+      auth.refreshSession.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('does not refresh when accepting the invitation fails', async () => {
+    const { acceptInviteAndSignUp } = await actions();
+    const s = await svc();
+    s.acceptInvitation.mockResolvedValue(err('招待の承認に失敗しました'));
+
+    await acceptInviteAndSignUp(VALID);
+
+    expect(auth.refreshSession).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('sends the user to login without refreshing when email confirmation is required', async () => {
+    const { acceptInviteAndSignUp } = await actions();
+    const s = await svc();
+    auth.signUp.mockResolvedValue({
+      data: { user: { id: 'user-new' }, session: null },
+      error: null,
+    });
+    s.acceptInvitation.mockResolvedValue(ok(undefined));
+
+    const to = await captureRedirect(() => acceptInviteAndSignUp(VALID));
+
+    expect(to).toBe('/login?registered=true');
+    expect(auth.refreshSession).not.toHaveBeenCalled();
+  });
 });
 
 describe('acceptInviteAndSignUp — input validation', () => {
@@ -216,7 +271,7 @@ describe('acceptInviteAndSignUp — invitation acceptance', () => {
     const to = await captureRedirect(() => acceptInviteAndSignUp(VALID));
 
     expect(s.acceptInvitation).toHaveBeenCalledWith(INVITATION_ID, 'user-new', ORG_ID, 'member');
-    expect(to).toBe('/login?registered=true');
+    expect(to).toBe('/dashboard');
   });
 
   it('signs the user up with the invited address and the submitted password', async () => {

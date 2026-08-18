@@ -66,5 +66,14 @@ export async function acceptInviteAndSignUp(data: {
     return err(result.error);
   }
 
+  // signUp() のセッションはメンバーシップ登録前に発行されており、
+  // JWT の app_metadata.org_id が null のままになる。これを持ったまま
+  // 画面に入るとリダイレクトループになるため、登録後にリフレッシュする。
+  // 詳細は src/app/(auth)/actions.ts の signUp を参照。
+  if (authData.session) {
+    await supabase.auth.refreshSession();
+    redirect('/dashboard');
+  }
+
   redirect('/login?registered=true');
 }

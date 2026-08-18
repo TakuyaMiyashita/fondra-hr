@@ -64,3 +64,29 @@ graph LR
 - BEFORE UPDATE / BEFORE DELETE トリガーで例外を発生
 - `authenticated` ロールには SELECT + INSERT のみ GRANT
 - service_role でも UPDATE/DELETE はトリガーでブロックされる
+
+### 例外: 組織のパージ
+
+`audit_logs.org_id` は `organizations` を `ON DELETE CASCADE` で参照している。
+不変性を無条件に適用すると、監査ログを1件でも持つ組織はカスケード削除が
+トリガーに拒否され、**永久に削除できなくなる**（解約顧客のデータ削除が不可能になる）。
+
+そのため、明示的なパージ操作のときだけ削除を通す経路を用意している。
+
+| 操作                             | 通常時   | パージ中                                 |
+| -------------------------------- | -------- | ---------------------------------------- |
+| `audit_logs` の UPDATE           | 拒否     | **拒否**（書き換えは常に認めない）       |
+| `audit_logs` の DELETE           | 拒否     | 許可                                     |
+| ドメインテーブル変更時の監査記録 | 記録する | 記録しない（記録先の組織ごと消えるため） |
+
+```sql
+-- 組織とその全関連データ（監査ログ含む）を削除する唯一の経路
+select public.purge_organization('<org_id>');
+```
+
+- パージ中かどうかは `app.audit_log_purge` というトランザクションローカルな設定で判定する。
+  `purge_organization()` の実行トランザクションを抜けた時点で自動的に元へ戻るため、
+  フラグが立ちっぱなしになることはない
+- `purge_organization()` は `service_role` にのみ EXECUTE を GRANT している。
+  そもそも `authenticated` には `organizations` / `audit_logs` の DELETE 権限も
+  削除を許す RLS ポリシーも無いため、アプリのエンドユーザーからは到達できない

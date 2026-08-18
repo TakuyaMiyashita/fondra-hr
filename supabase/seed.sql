@@ -27,7 +27,9 @@ begin;
 -- ドメインテーブルには audit_log_trigger が張られており、シード投入だけで
 -- 数百件の監査ログが「すべて同一タイムスタンプ・actor 不明」で生成されてしまう。
 -- デモとして意味のある監査ログは最後に手で投入するため、ここでは停止する。
--- audit_logs の UPDATE/DELETE 禁止トリガも、再実行時のクリーンアップのために停止する。
+--
+-- audit_logs の変更禁止トリガは停止しない。再実行時のクリーンアップには
+-- 正規のパージ経路（purge_organization）を使う。
 --------------------------------------------------------------------------------
 
 alter table public.departments        disable trigger audit_departments;
@@ -37,7 +39,6 @@ alter table public.employee_skills    disable trigger audit_employee_skills;
 alter table public.one_on_ones        disable trigger audit_one_on_ones;
 alter table public.evaluation_cycles  disable trigger audit_evaluation_cycles;
 alter table public.evaluations        disable trigger audit_evaluations;
-alter table public.audit_logs         disable trigger prevent_audit_log_delete;
 
 --------------------------------------------------------------------------------
 -- 決定的な擬似乱数ヘルパー
@@ -58,7 +59,9 @@ $$;
 -- 再実行時のクリーンアップ
 --------------------------------------------------------------------------------
 
-delete from public.organizations where slug = 'fondra-demo';
+-- 組織の削除は監査ログへカスケードするため、purge_organization を経由する。
+-- 直接 delete すると audit_logs の変更禁止トリガに拒否される。
+select public.purge_organization(id) from public.organizations where slug = 'fondra-demo';
 delete from auth.users where email like '%@fondra.example.com';
 
 --------------------------------------------------------------------------------
@@ -615,6 +618,5 @@ alter table public.employee_skills    enable trigger audit_employee_skills;
 alter table public.one_on_ones        enable trigger audit_one_on_ones;
 alter table public.evaluation_cycles  enable trigger audit_evaluation_cycles;
 alter table public.evaluations        enable trigger audit_evaluations;
-alter table public.audit_logs         enable trigger prevent_audit_log_delete;
 
 commit;

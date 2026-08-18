@@ -161,20 +161,15 @@ describe('RLS: domain tables tenant isolation', () => {
   }, 30_000);
 
   afterAll(async () => {
-    // Delete in reverse dependency order (audit_logs has prevent trigger, use service_role bypass)
-    await admin.rpc('delete_audit_logs_for_test', {
-      org_ids: [orgAId, orgBId],
-    });
-    await admin.from('evaluations').delete().in('org_id', [orgAId, orgBId]);
-    await admin.from('evaluation_cycles').delete().in('org_id', [orgAId, orgBId]);
-    await admin.from('one_on_ones').delete().in('org_id', [orgAId, orgBId]);
-    await admin.from('employee_skills').delete().in('org_id', [orgAId, orgBId]);
-    await admin.from('skills').delete().in('org_id', [orgAId, orgBId]);
-    await admin.from('employees').delete().in('org_id', [orgAId, orgBId]);
-    await admin.from('departments').delete().in('org_id', [orgAId, orgBId]);
-    await admin.from('invitations').delete().in('org_id', [orgAId, orgBId]);
-    await admin.from('memberships').delete().in('org_id', [orgAId, orgBId]);
-    await admin.from('organizations').delete().in('id', [orgAId, orgBId]);
+    // purge_organization は監査ログを含む全関連データをカスケード削除する。
+    // 以前はここで存在しない RPC (delete_audit_logs_for_test) を呼んでおり、
+    // エラーが無視された結果 organizations の削除が毎回失敗し、
+    // テスト用の組織がローカル DB に残り続けていた。
+    for (const orgId of [orgAId, orgBId]) {
+      if (!orgId) continue;
+      const { error } = await admin.rpc('purge_organization', { p_org_id: orgId });
+      expect(error).toBeNull();
+    }
     if (userAId) await admin.auth.admin.deleteUser(userAId);
     if (userBId) await admin.auth.admin.deleteUser(userBId);
   });
@@ -344,6 +339,83 @@ describe('RLS: domain tables tenant isolation', () => {
         expect(error).not.toBeNull();
         expect(error!.message).toContain('cannot be modified');
       }
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // organization purge
+  //
+  // audit_logs は変更禁止トリガで守られている一方、organizations からは
+  // ON DELETE CASCADE で参照されている。そのままでは監査ログを持つ組織を
+  // 一切削除できないため、明示的なパージ経路を用意している。
+  // ---------------------------------------------------------------------------
+  describe('organization purge', () => {
+    let throwawayOrgId: string;
+
+    beforeAll(async () => {
+      const { data: org } = await admin
+        .from('organizations')
+        .insert({ name: `Purge ${testId}`, slug: `purge-${testId}` })
+        .select()
+        .single();
+      throwawayOrgId = org!.id;
+
+      // 監査ログを持つ状態にする（employees の INSERT でトリガが発火する）
+      await admin
+        .from('employees')
+        .insert({ org_id: throwawayOrgId, employee_code: 'PURGE-001', full_name: 'パージ対象' });
+    });
+
+    it('has audit logs before purge', async () => {
+      const { data } = await admin.from('audit_logs').select('id').eq('org_id', throwawayOrgId);
+      expect(data!.length).toBeGreaterThan(0);
+    });
+
+    it('rejects deleting the organization directly', async () => {
+      const { error } = await admin.from('organizations').delete().eq('id', throwawayOrgId);
+      expect(error).not.toBeNull();
+      expect(error!.message).toContain('cannot be modified');
+    });
+
+    it('is not callable by an authenticated user', async () => {
+      const { error } = await clientA.rpc('purge_organization', { p_org_id: throwawayOrgId });
+      expect(error).not.toBeNull();
+    });
+
+    it('purges the organization and its audit logs via service_role', async () => {
+      const { error } = await admin.rpc('purge_organization', { p_org_id: throwawayOrgId });
+      expect(error).toBeNull();
+
+      const { data: orgs } = await admin
+        .from('organizations')
+        .select('id')
+        .eq('id', throwawayOrgId);
+      expect(orgs).toHaveLength(0);
+
+      const { data: logs } = await admin
+        .from('audit_logs')
+        .select('id')
+        .eq('org_id', throwawayOrgId);
+      expect(logs).toHaveLength(0);
+
+      const { data: emps } = await admin
+        .from('employees')
+        .select('id')
+        .eq('org_id', throwawayOrgId);
+      expect(emps).toHaveLength(0);
+    });
+
+    it('does not leak the purge flag to later statements', async () => {
+      const { data: logs } = await admin
+        .from('audit_logs')
+        .select('id')
+        .eq('org_id', orgAId)
+        .limit(1);
+      expect(logs!.length).toBeGreaterThan(0);
+
+      const { error } = await admin.from('audit_logs').delete().eq('id', logs![0].id);
+      expect(error).not.toBeNull();
+      expect(error!.message).toContain('cannot be modified');
     });
   });
 

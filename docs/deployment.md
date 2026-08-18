@@ -73,12 +73,24 @@ Vercel で GitHub リポジトリをインポートし、以下の環境変数�
 | ------------------------------- | -------------------------------------------- | ---- |
 | `NEXT_PUBLIC_SUPABASE_URL`      | Supabase の Project URL                      | 必須 |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon key                                     | 必須 |
+| `SUPABASE_SERVICE_ROLE_KEY`     | service_role key                             | 必須 |
 | `DATABASE_URL`                  | 下記参照                                     | 必須 |
 | `NEXT_PUBLIC_APP_URL`           | 本番URL（例 `https://fondra-hr.vercel.app`） | 必須 |
 | `ANTHROPIC_API_KEY`             | Anthropic の API キー                        | 任意 |
 
 `ANTHROPIC_API_KEY` を設定しない場合、AI アシスタントはデモモードの固定応答を返す
 （`src/app/api/chat/route.ts`）。機能自体は壊れない。
+
+### SUPABASE_SERVICE_ROLE_KEY に NEXT_PUBLIC_ を付けない
+
+組織切替は JWT フックが読む `app_metadata` を書き換える必要があり、これは
+service_role の Auth Admin API でしか行えない（`src/lib/supabase/admin.ts`）。
+未設定だと組織スイッチャーがエラーになる。
+
+**このキーは RLS を丸ごとバイパスする。** `NEXT_PUBLIC_` を付けるとクライアント
+バンドルに埋め込まれ、全テナントのデータが誰からでも読み書きできる状態になる。
+Vercel の環境変数では Production / Preview の両方に設定し、変数名は必ず
+`SUPABASE_SERVICE_ROLE_KEY`（プレフィックス無し）にすること。
 
 ### DATABASE_URL はトランザクションプーラーを使う
 

@@ -166,6 +166,7 @@ export async function createOneOnOne(
       interviewerId: input.interviewerId,
       heldOn: input.heldOn,
       notes: input.notes || null,
+      // 0 は UI の「未評価」センチネル。DB の CHECK 制約は 1〜5 なので null に落とす。
       moodScore: input.moodScore || null,
     })
     .returning({ id: oneOnOnes.id });
@@ -203,7 +204,9 @@ export async function updateOneOnOne(
     ['interviewerId', current.interviewerId, input.interviewerId],
     ['heldOn', current.heldOn, input.heldOn],
     ['notes', current.notes, input.notes || null],
-    ['moodScore', current.moodScore, input.moodScore ?? null],
+    // create と同じく 0 は未評価。?? だと 0 がそのまま渡り
+    // DB の CHECK 制約（1〜5）に違反する。
+    ['moodScore', current.moodScore, input.moodScore || null],
   ];
 
   for (const [key, from, to] of fields) {

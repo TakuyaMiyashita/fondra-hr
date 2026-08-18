@@ -103,9 +103,13 @@ describe('RLS: tenant isolation', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await admin.from('invitations').delete().in('org_id', [orgAId, orgBId]);
-    await admin.from('memberships').delete().in('org_id', [orgAId, orgBId]);
-    await admin.from('organizations').delete().in('id', [orgAId, orgBId]);
+    // 監査ログを含めてカスケード削除するには purge_organization を経由する必要がある。
+    // 直接 organizations を delete すると audit_logs の変更禁止トリガに拒否される。
+    for (const orgId of [orgAId, orgBId]) {
+      if (!orgId) continue;
+      const { error } = await admin.rpc('purge_organization', { p_org_id: orgId });
+      expect(error).toBeNull();
+    }
     if (userAId) await admin.auth.admin.deleteUser(userAId);
     if (userBId) await admin.auth.admin.deleteUser(userBId);
   });

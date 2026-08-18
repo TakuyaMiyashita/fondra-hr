@@ -81,7 +81,7 @@ src/
 │   └── schema/             # Drizzle スキーマ定義（テーブルごとにファイル分割）
 ├── services/               # Service Layer（認可 + ビジネスロジック + 監査）
 ├── lib/
-│   ├── supabase/           # Supabase Client 初期化（client / server / middleware）
+│   ├── supabase/           # Supabase Client 初期化（client / server / middleware / admin）
 │   ├── validations/        # Zod バリデーションスキーマ（ドメインごとにファイル分割）
 │   ├── utils.ts            # cn() 等
 │   └── result.ts           # Result<T, E> 型

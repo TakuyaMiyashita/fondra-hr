@@ -89,13 +89,16 @@ src/
 └── types/                  # 共有型定義
 docs/                       # 設計ドキュメント（→ docs/ の構成は下記参照）
 tests/
-├── unit/                   # ユニットテスト
-├── integration/            # 統合テスト
+├── unit/                   # ユニットテスト（DB不要）
+├── integration/            # 統合テスト（ローカル Supabase 必要）
 ├── e2e/                    # Playwright e2eテスト
-└── rls/                    # RLSテスト
+├── rls/                    # RLSテスト（ローカル Supabase 必要）
+└── helpers/                # 共通ハーネス（Drizzle モック・ロール別 AuthContext）
 supabase/
 ├── config.toml             # Supabase ローカル設定
 └── migrations/             # SQLマイグレーション
+.claude/
+└── hooks/                  # テスト更新を促す/強制するフック（→ テスト の節参照）
 ```
 
 ## 開発ルール
@@ -153,6 +156,32 @@ supabase/
 - コミットメッセージは日本語で書く（prefix は英語のまま）
   - 例: `feat: 従業員一覧画面の実装`, `fix: RLSポリシーの修正`
 
+### テスト
+
+テストは3つの project に分かれている。詳細な方針は `docs/testing.md` を参照。
+
+| コマンド                | 対象                                                    | ローカル Supabase |
+| ----------------------- | ------------------------------------------------------- | ----------------- |
+| `pnpm test:unit`        | Service Layer / Server Actions / Zod / ユーティリティ    | 不要              |
+| `pnpm test:coverage`    | 上記 + カバレッジ計測（閾値チェック付き）                | 不要              |
+| `pnpm test:integration` | Supabase Auth の認証フロー                              | 必要              |
+| `pnpm test:rls`         | RLS ポリシーによるテナント分離                          | 必要              |
+| `pnpm test:e2e`         | 画面操作（Playwright）                                  | 必要              |
+| `pnpm test`             | unit + integration + rls                                | 必要              |
+
+カバレッジ閾値は `vitest.config.ts` の `coverage.thresholds` で定義しており、
+下回ると CI が落ちる。**達成した水準は下げない**（現状: statements / functions /
+lines 100%、branches 99）。計測対象は `src/services/` `src/lib/`
+`src/app/**/actions.ts` に限定している。
+
+`src/` のプロダクトコードを変更したら、対応するテストも同じ変更に含める。
+`.claude/hooks/` の2つのフックがこれを補助する。
+
+- **PostToolUse**（`test-reminder.sh`）— `src/` を編集すると、対応するテスト
+  ファイルを名指しで提示する。判定のみでテストは実行しない
+- **Stop**（`verify-tests.sh`）— ターン終了前に `pnpm test:coverage` を実行し、
+  失敗していればブロックする。`src/` と `tests/` に変更が無ければ即終了する
+
 ### 品質チェック
 
 作業完了時は必ず以下を通してから報告する：
@@ -160,6 +189,10 @@ supabase/
 ```bash
 pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e
 ```
+
+`pnpm test` は integration / rls を含むため、ローカル Supabase の起動
+（`npx supabase start`）が前提。起動していない場合は `pnpm test:coverage` で
+unit のみ回し、残りは CI に任せる。
 
 ### フェーズ完了チェックリスト
 
@@ -170,6 +203,8 @@ pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e
 - [ ] データ取得を行う新規ページに `loading.tsx` / `error.tsx` が配置されているか
 - [ ] 新規テーブルに RLS ポリシーが定義されているか
 - [ ] 設計ドキュメント（`docs/`）が更新されているか
+- [ ] 変更した `src/` のコードに対応するテストが更新されているか
+- [ ] カバレッジ閾値を下回っていないか（`pnpm test:coverage`）
 - [ ] 機密情報（`.env`、APIキー、社名等）がコミットに含まれていないか
 
 <!-- BEGIN:nextjs-agent-rules -->

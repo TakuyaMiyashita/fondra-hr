@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthContext } from '@/services/auth-context';
 import { AuthorizationError } from '@/services/authorize';
 
+import { CTX_BY_ROLE, ctxOtherOrg, rolesAtLeast, rolesBelow } from '../helpers/auth-fixtures';
+import { type ChainMock, createSequentialSelect } from '../helpers/db-mock';
+
 const adminCtx: AuthContext = { userId: 'user-1', orgId: 'org-1', role: 'admin' };
 const memberCtx: AuthContext = { userId: 'user-2', orgId: 'org-1', role: 'member' };
 const viewerCtx: AuthContext = { userId: 'user-3', orgId: 'org-1', role: 'viewer' };
@@ -56,6 +59,54 @@ async function getDb() {
     update: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
   };
+}
+
+/** drizzle の SQL 式から「カラム名 = 束縛値」の組を再帰的に取り出す。 */
+function collectParams(
+  node: unknown,
+  acc: { column: string; value: unknown }[] = [],
+): { column: string; value: unknown }[] {
+  if (!node || typeof node !== 'object') return acc;
+  const n = node as Record<string, unknown>;
+  const encoder = n.encoder as Record<string, unknown> | undefined;
+  if (encoder && typeof encoder.name === 'string') {
+    acc.push({ column: encoder.name, value: n.value });
+  }
+  if (Array.isArray(n.queryChunks)) {
+    for (const chunk of n.queryChunks) collectParams(chunk, acc);
+  }
+  return acc;
+}
+
+/** drizzle の SQL 式に束縛された値を全て取り出す（カラム名を持たない値も含む）。 */
+function collectValues(node: unknown, acc: unknown[] = []): unknown[] {
+  // 生の文字列は Param に包まれず queryChunks に直接入る（ilike のパターン等）。
+  if (typeof node === 'string') {
+    acc.push(node);
+    return acc;
+  }
+  if (!node || typeof node !== 'object') return acc;
+  const n = node as Record<string, unknown>;
+  if (n.encoder) acc.push(n.value);
+  if (Array.isArray(n.queryChunks)) {
+    for (const chunk of n.queryChunks) collectValues(chunk, acc);
+  }
+  return acc;
+}
+
+/** drizzle の SQL 式を、演算子や並び順が読める程度のテキストに落とす。 */
+function sqlText(node: unknown): string {
+  if (!node || typeof node !== 'object') return '';
+  const n = node as Record<string, unknown>;
+  if (Array.isArray(n.queryChunks)) return n.queryChunks.map(sqlText).join('');
+  if (n.encoder) return '?';
+  if (typeof n.name === 'string' && 'table' in n) return String(n.name);
+  if (Array.isArray(n.value)) return (n.value as string[]).join('');
+  return '';
+}
+
+function selectCallAt(db: { select: ReturnType<typeof vi.fn> }, index: number) {
+  return db.select.mock.results[index].value as ChainMock;
 }
 
 beforeEach(async () => {
@@ -518,6 +569,639 @@ describe('deleteEmployee', () => {
     if (!result.success) {
       expect(result.error).toBe('従業員が見つかりません');
     }
+  });
+});
+
+const listQuery = {
+  page: 1,
+  perPage: 20,
+  sort: 'createdAt' as const,
+  order: 'desc' as const,
+};
+
+describe('listEmployees — 絞り込みと並び順', () => {
+  it('status フィルタを条件に追加する', async () => {
+    // 退職者を除外できないと、在籍者一覧として使えない。
+    const { listEmployees } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [{ total: 0 }]]));
+
+    await listEmployees(adminCtx, { ...listQuery, status: 'inactive' });
+
+    const params = collectParams(selectCallAt(db, 0).where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'status', value: 'inactive' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
+  it('departmentId フィルタを条件に追加する', async () => {
+    const { listEmployees } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [{ total: 0 }]]));
+
+    await listEmployees(adminCtx, { ...listQuery, departmentId: 'dept-1' });
+
+    const params = collectParams(selectCallAt(db, 0).where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'department_id', value: 'dept-1' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
+  it('search は氏名・カナ・社員番号・メールの OR 部分一致になる', async () => {
+    // どれか1つでも欠けると、利用者は「検索しても出てこない」と感じる。
+    const { listEmployees } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [{ total: 0 }]]));
+
+    await listEmployees(adminCtx, { ...listQuery, search: '山田' });
+
+    const where = selectCallAt(db, 0).where.mock.calls[0][0];
+    const text = sqlText(where);
+    expect(text).toContain(' or ');
+    expect(text).toContain('full_name');
+    expect(text).toContain('full_name_kana');
+    expect(text).toContain('employee_code');
+    expect(text).toContain('email');
+    // 前後方一致のワイルドカードが付いていること。
+    expect(collectValues(where)).toContain('%山田%');
+  });
+
+  it('全フィルタを同時に指定しても org_id が消えない', async () => {
+    const { listEmployees } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [{ total: 0 }]]));
+
+    await listEmployees(adminCtx, {
+      ...listQuery,
+      status: 'active',
+      departmentId: 'dept-1',
+      search: '山田',
+    });
+
+    const params = collectParams(selectCallAt(db, 0).where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+    expect(params).toContainEqual({ column: 'status', value: 'active' });
+    expect(params).toContainEqual({ column: 'department_id', value: 'dept-1' });
+  });
+
+  it('order=asc のときは指定列の昇順で並べる', async () => {
+    const { listEmployees } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [{ total: 0 }]]));
+
+    await listEmployees(adminCtx, { ...listQuery, sort: 'fullName', order: 'asc' });
+
+    const orderArgs = selectCallAt(db, 0).orderBy.mock.calls[0];
+    expect(sqlText(orderArgs[0])).toContain('full_name asc');
+    expect(sqlText(orderArgs[1])).toContain('id asc');
+  });
+
+  it('ページングは (page-1)*perPage を offset に変換する', async () => {
+    const { listEmployees } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [{ total: 0 }]]));
+
+    await listEmployees(adminCtx, { ...listQuery, page: 3, perPage: 50 });
+
+    const rowsChain = selectCallAt(db, 0);
+    expect(rowsChain.limit).toHaveBeenCalledWith(50);
+    expect(rowsChain.offset).toHaveBeenCalledWith(100);
+  });
+
+  it('総件数クエリと明細クエリは同じ where を共有する', async () => {
+    const { listEmployees } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [{ total: 0 }]]));
+
+    await listEmployees(adminCtx, { ...listQuery, search: '山田' });
+
+    expect(selectCallAt(db, 1).where.mock.calls[0][0]).toBe(
+      selectCallAt(db, 0).where.mock.calls[0][0],
+    );
+  });
+
+  it('別テナントのコンテキストでは、その org_id だけで絞られる', async () => {
+    const { listEmployees } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [{ total: 0 }]]));
+
+    await listEmployees(ctxOtherOrg, listQuery);
+
+    const params = collectParams(selectCallAt(db, 0).where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-2' });
+    expect(params).not.toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+});
+
+describe('updateEmployee — 差分更新の詳細', () => {
+  const current = {
+    id: 'emp-1',
+    orgId: 'org-1',
+    employeeCode: 'EMP001',
+    fullName: '山田太郎',
+    fullNameKana: 'ヤマダタロウ',
+    email: 'yamada@example.com',
+    position: 'エンジニア',
+    departmentId: 'dept-1',
+    hiredOn: '2024-01-01',
+    birthDate: null,
+    avatarPath: null,
+    userId: null,
+    status: 'active',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  it('値が undefined のフィールドは差分にも set にも含めない', async () => {
+    // フォームが「未入力」を undefined で送ってくるケース。
+    // これを変更扱いにすると、既存の値を null で潰してしまう。
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current]]));
+
+    await updateEmployee(adminCtx, 'emp-1', {
+      position: undefined,
+      fullName: '山田花子',
+    });
+
+    const setArg = updateChain.set.mock.calls[0][0] as Record<string, unknown>;
+    expect(setArg.fullName).toBe('山田花子');
+    expect(setArg).not.toHaveProperty('position');
+
+    expect(insertChain.values.mock.calls[0][0]).toMatchObject({
+      action: 'employee.update',
+      changes: { fullName: { from: '山田太郎', to: '山田花子' } },
+    });
+    expect(
+      (insertChain.values.mock.calls[0][0] as { changes: Record<string, unknown> }).changes,
+    ).not.toHaveProperty('position');
+  });
+
+  it('空文字は null に正規化して保存する', async () => {
+    // 空文字のまま保存すると「未設定」と「空で上書き」が区別できず、
+    // ユニーク制約や NULL 判定が壊れる。
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current]]));
+
+    await updateEmployee(adminCtx, 'emp-1', { email: '', position: '' });
+
+    const setArg = updateChain.set.mock.calls[0][0] as Record<string, unknown>;
+    expect(setArg.email).toBeNull();
+    expect(setArg.position).toBeNull();
+
+    expect(insertChain.values.mock.calls[0][0]).toMatchObject({
+      changes: {
+        email: { from: 'yamada@example.com', to: null },
+        position: { from: 'エンジニア', to: null },
+      },
+    });
+  });
+
+  it('既に null のフィールドに空文字を渡しても変更なしと判定する', async () => {
+    // 空文字 → null の正規化後に比較しないと、
+    // 何も変えていない保存で毎回 UPDATE と監査ログが走る。
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current]]));
+
+    const result = await updateEmployee(adminCtx, 'emp-1', { birthDate: '' });
+
+    expect(result).toEqual({ success: true, data: undefined });
+    expect(db.update).not.toHaveBeenCalled();
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it('複数フィールドを変更すると全てが差分に載る', async () => {
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current]]));
+
+    await updateEmployee(adminCtx, 'emp-1', {
+      fullName: '山田花子',
+      position: 'マネージャー',
+      status: 'inactive',
+    });
+
+    expect(insertChain.values.mock.calls[0][0]).toMatchObject({
+      changes: {
+        fullName: { from: '山田太郎', to: '山田花子' },
+        position: { from: 'エンジニア', to: 'マネージャー' },
+        status: { from: 'active', to: 'inactive' },
+      },
+    });
+  });
+
+  it('社員番号が同じ場合は重複チェッククエリを撃たない', async () => {
+    // 自分自身の社員番号で必ず重複ヒットしてしまうため、
+    // ここを飛ばさないと社員番号以外の更新が一切できなくなる。
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current]]));
+
+    const result = await updateEmployee(adminCtx, 'emp-1', {
+      employeeCode: 'EMP001',
+      fullName: '山田花子',
+    });
+
+    expect(result.success).toBe(true);
+    expect(db.select).toHaveBeenCalledTimes(1);
+  });
+
+  it('社員番号の重複チェックは org_id 込みで行う', async () => {
+    // 社員番号は組織内でのみ一意。org_id が無いと
+    // 他テナントの社員番号と衝突して登録できなくなる。
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current], []]));
+
+    await updateEmployee(adminCtx, 'emp-1', { employeeCode: 'EMP999' });
+
+    const params = collectParams(selectCallAt(db, 1).where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+    expect(params).toContainEqual({ column: 'employee_code', value: 'EMP999' });
+  });
+
+  it('UPDATE 文には id と org_id の両方を付ける', async () => {
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current]]));
+
+    await updateEmployee(adminCtx, 'emp-1', { fullName: '山田花子' });
+
+    const params = collectParams(updateChain.where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'id', value: 'emp-1' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
+  it.each(rolesAtLeast('member'))('%s ロールは従業員を更新できる', async (role) => {
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current]]));
+
+    await expect(
+      updateEmployee(CTX_BY_ROLE[role], 'emp-1', { fullName: '山田花子' }),
+    ).resolves.toMatchObject({ success: true });
+  });
+
+  it.each(rolesBelow('member'))('%s ロールは従業員を更新できない', async (role) => {
+    const { updateEmployee } = await import('@/services/employee');
+
+    await expect(
+      updateEmployee(CTX_BY_ROLE[role], 'emp-1', { fullName: '山田花子' }),
+    ).rejects.toThrow(AuthorizationError);
+
+    const db = await getDb();
+    expect(db.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('createEmployee — 認可境界と重複', () => {
+  it('社員番号の重複チェックは org_id 込みで行う', async () => {
+    const { createEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+    insertChain.returning = vi.fn().mockResolvedValue([{ id: 'emp-new' }]);
+
+    await createEmployee(adminCtx, {
+      employeeCode: 'EMP001',
+      fullName: '山田太郎',
+      status: 'active',
+    });
+
+    const params = collectParams(selectCallAt(db, 0).where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+    expect(params).toContainEqual({ column: 'employee_code', value: 'EMP001' });
+  });
+
+  it('未入力の任意項目は null に正規化して保存する', async () => {
+    const { createEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+    insertChain.returning = vi.fn().mockResolvedValue([{ id: 'emp-new' }]);
+
+    await createEmployee(adminCtx, {
+      employeeCode: 'EMP001',
+      fullName: '山田太郎',
+      fullNameKana: '',
+      email: '',
+      departmentId: '',
+      position: '',
+      hiredOn: '',
+      birthDate: '',
+      status: 'active',
+    });
+
+    expect(insertChain.values.mock.calls[0][0]).toEqual({
+      orgId: 'org-1',
+      employeeCode: 'EMP001',
+      fullName: '山田太郎',
+      fullNameKana: null,
+      email: null,
+      departmentId: null,
+      position: null,
+      hiredOn: null,
+      birthDate: null,
+      status: 'active',
+    });
+  });
+
+  it('重複時は INSERT も監査ログも実行しない', async () => {
+    const { createEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'dup' }]]));
+
+    await createEmployee(adminCtx, {
+      employeeCode: 'EMP001',
+      fullName: '山田太郎',
+      status: 'active',
+    });
+
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it.each(rolesAtLeast('member'))('%s ロールは従業員を登録できる', async (role) => {
+    const { createEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+    insertChain.returning = vi.fn().mockResolvedValue([{ id: 'emp-new' }]);
+
+    await expect(
+      createEmployee(CTX_BY_ROLE[role], {
+        employeeCode: 'EMP001',
+        fullName: '山田太郎',
+        status: 'active',
+      }),
+    ).resolves.toMatchObject({ success: true });
+  });
+});
+
+describe('deleteEmployee — テナント分離', () => {
+  it('DELETE 文に id と org_id を付ける', async () => {
+    // 削除は取り消せない。org_id を落とすと他テナントの従業員を消せてしまう。
+    const { deleteEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'emp-1', fullName: '山田太郎' }]]));
+
+    await deleteEmployee(adminCtx, 'emp-1');
+
+    const params = collectParams(deleteChain.where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'id', value: 'emp-1' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
+  it('他テナントの ID を渡しても取得段階で弾かれ、DELETE を撃たない', async () => {
+    const { deleteEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+
+    const result = await deleteEmployee(ctxOtherOrg, 'emp-1');
+
+    expect(result.success).toBe(false);
+    expect(db.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe('getEmployeeSkills', () => {
+  it('従業員IDと org_id で絞り、スキル名順で返す', async () => {
+    // 従業員 ID だけで引くと、他テナントの ID を指定してスキルを覗ける。
+    const { getEmployeeSkills } = await import('@/services/employee');
+
+    const rows = [
+      {
+        id: 'es1',
+        skillId: 's1',
+        skillName: 'React',
+        skillCategory: 'フロントエンド',
+        level: 3,
+        certifiedAt: null,
+      },
+    ];
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([rows]));
+
+    const result = await getEmployeeSkills(adminCtx, 'emp-1');
+
+    expect(result).toEqual(rows);
+
+    const chain = selectCallAt(db, 0);
+    const params = collectParams(chain.where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'employee_id', value: 'emp-1' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+    expect(sqlText(chain.orderBy.mock.calls[0][0])).toContain('name asc');
+  });
+
+  it('スキルが0件でも空配列を返す', async () => {
+    const { getEmployeeSkills } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+
+    await expect(getEmployeeSkills(adminCtx, 'emp-1')).resolves.toEqual([]);
+  });
+
+  it('viewer も閲覧できる', async () => {
+    const { getEmployeeSkills } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+
+    await expect(getEmployeeSkills(viewerCtx, 'emp-1')).resolves.toEqual([]);
+  });
+});
+
+describe('getEmployeeOneOnOnes', () => {
+  it('従業員IDと org_id で絞り、実施日の降順で返す', async () => {
+    // 1on1 メモは最も機微な情報。org_id が抜けると致命的。
+    const { getEmployeeOneOnOnes } = await import('@/services/employee');
+
+    const rows = [
+      {
+        id: 'oo1',
+        heldOn: '2026-08-01',
+        interviewerName: '鈴木花子',
+        notes: 'メモ',
+        aiSummary: null,
+        moodScore: 4,
+      },
+    ];
+
+    const db = await getDb();
+    // 0番目は面談者のサブクエリ、1番目が本体クエリ。
+    db.select.mockImplementation(createSequentialSelect([[], rows]));
+
+    const result = await getEmployeeOneOnOnes(adminCtx, 'emp-1');
+
+    expect(result).toEqual(rows);
+
+    const chain = selectCallAt(db, 1);
+    const params = collectParams(chain.where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'employee_id', value: 'emp-1' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+    expect(sqlText(chain.orderBy.mock.calls[0][0])).toContain('held_on desc');
+  });
+
+  it('1on1 が0件でも空配列を返す', async () => {
+    const { getEmployeeOneOnOnes } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], []]));
+
+    await expect(getEmployeeOneOnOnes(adminCtx, 'emp-1')).resolves.toEqual([]);
+  });
+
+  it('別テナントのコンテキストでは、その org_id で絞られる', async () => {
+    const { getEmployeeOneOnOnes } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], []]));
+
+    await getEmployeeOneOnOnes(ctxOtherOrg, 'emp-1');
+
+    const params = collectParams(selectCallAt(db, 1).where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-2' });
+    expect(params).not.toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+});
+
+describe('getEmployeeEvaluations', () => {
+  it('従業員IDと org_id で絞り、作成日の降順で返す', async () => {
+    const { getEmployeeEvaluations } = await import('@/services/employee');
+
+    const rows = [
+      {
+        id: 'ev1',
+        cycleName: '2026年上期',
+        evaluatorName: '鈴木花子',
+        status: 'submitted',
+        comment: null,
+        createdAt: new Date(),
+      },
+    ];
+
+    const db = await getDb();
+    // 0番目は評価者のサブクエリ、1番目が本体クエリ。
+    db.select.mockImplementation(createSequentialSelect([[], rows]));
+
+    const result = await getEmployeeEvaluations(adminCtx, 'emp-1');
+
+    expect(result).toEqual(rows);
+
+    const chain = selectCallAt(db, 1);
+    const params = collectParams(chain.where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'employee_id', value: 'emp-1' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+    expect(sqlText(chain.orderBy.mock.calls[0][0])).toContain('created_at desc');
+  });
+
+  it('評価が0件でも空配列を返す', async () => {
+    const { getEmployeeEvaluations } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], []]));
+
+    await expect(getEmployeeEvaluations(viewerCtx, 'emp-1')).resolves.toEqual([]);
+  });
+});
+
+describe('updateEmployeeAvatar', () => {
+  it('avatarPath を更新し、監査ログを残す', async () => {
+    const { updateEmployeeAvatar } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'emp-1' }]]));
+
+    const result = await updateEmployeeAvatar(adminCtx, 'emp-1', 'org-1/emp-1/avatar.png');
+
+    expect(result).toEqual({ success: true, data: undefined });
+
+    const setArg = updateChain.set.mock.calls[0][0] as Record<string, unknown>;
+    expect(setArg.avatarPath).toBe('org-1/emp-1/avatar.png');
+    expect(setArg.updatedAt).toBeInstanceOf(Date);
+
+    expect(insertChain.values.mock.calls[0][0]).toMatchObject({
+      orgId: 'org-1',
+      actorUserId: 'user-1',
+      action: 'employee.avatar_update',
+      resourceType: 'employee',
+      resourceId: 'emp-1',
+      changes: { avatarPath: 'org-1/emp-1/avatar.png' },
+    });
+  });
+
+  it('存在確認・UPDATE の両方に org_id を付ける', async () => {
+    // Storage 側のパスは推測できるため、org_id が無いと
+    // 他テナントの従業員のアバターを差し替えられてしまう。
+    const { updateEmployeeAvatar } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'emp-1' }]]));
+
+    await updateEmployeeAvatar(adminCtx, 'emp-1', 'path.png');
+
+    expect(collectParams(selectCallAt(db, 0).where.mock.calls[0][0])).toContainEqual({
+      column: 'org_id',
+      value: 'org-1',
+    });
+    const updateParams = collectParams(updateChain.where.mock.calls[0][0]);
+    expect(updateParams).toContainEqual({ column: 'id', value: 'emp-1' });
+    expect(updateParams).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
+  it('従業員が見つからない場合は UPDATE も監査ログも行わない', async () => {
+    const { updateEmployeeAvatar } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+
+    const result = await updateEmployeeAvatar(adminCtx, 'missing', 'path.png');
+
+    expect(result).toEqual({ success: false, error: '従業員が見つかりません' });
+    expect(db.update).not.toHaveBeenCalled();
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it.each(rolesAtLeast('member'))('%s ロールはアバターを更新できる', async (role) => {
+    const { updateEmployeeAvatar } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'emp-1' }]]));
+
+    await expect(
+      updateEmployeeAvatar(CTX_BY_ROLE[role], 'emp-1', 'path.png'),
+    ).resolves.toMatchObject({ success: true });
+  });
+
+  it.each(rolesBelow('member'))('%s ロールはアバターを更新できない', async (role) => {
+    const { updateEmployeeAvatar } = await import('@/services/employee');
+
+    await expect(updateEmployeeAvatar(CTX_BY_ROLE[role], 'emp-1', 'path.png')).rejects.toThrow(
+      AuthorizationError,
+    );
+
+    const db = await getDb();
+    expect(db.update).not.toHaveBeenCalled();
   });
 });
 

@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AuthContext } from '@/services/auth-context';
 
+import { ctxOtherOrg } from '../helpers/auth-fixtures';
+import { type ChainMock, createSequentialSelect } from '../helpers/db-mock';
+
 const adminCtx: AuthContext = { userId: 'user-1', orgId: 'org-1', role: 'admin' };
 const memberCtx: AuthContext = { userId: 'user-2', orgId: 'org-1', role: 'member' };
 const viewerCtx: AuthContext = { userId: 'user-3', orgId: 'org-1', role: 'viewer' };
@@ -45,7 +48,40 @@ async function getDb() {
   return mod.db as unknown as {
     select: ReturnType<typeof vi.fn>;
     selectDistinct: ReturnType<typeof vi.fn>;
+    insert: ReturnType<typeof vi.fn>;
   };
+}
+
+/** drizzle の SQL 式から「カラム名 = 束縛値」の組を再帰的に取り出す。 */
+function collectParams(
+  node: unknown,
+  acc: { column: string; value: unknown }[] = [],
+): { column: string; value: unknown }[] {
+  if (!node || typeof node !== 'object') return acc;
+  const n = node as Record<string, unknown>;
+  const encoder = n.encoder as Record<string, unknown> | undefined;
+  if (encoder && typeof encoder.name === 'string') {
+    acc.push({ column: encoder.name, value: n.value });
+  }
+  if (Array.isArray(n.queryChunks)) {
+    for (const chunk of n.queryChunks) collectParams(chunk, acc);
+  }
+  return acc;
+}
+
+/** drizzle の SQL 式を、演算子や並び順が読める程度のテキストに落とす。 */
+function sqlText(node: unknown): string {
+  if (!node || typeof node !== 'object') return '';
+  const n = node as Record<string, unknown>;
+  if (Array.isArray(n.queryChunks)) return n.queryChunks.map(sqlText).join('');
+  if (n.encoder) return '?';
+  if (typeof n.name === 'string' && 'table' in n) return String(n.name);
+  if (Array.isArray(n.value)) return (n.value as string[]).join('');
+  return '';
+}
+
+function selectCallAt(db: { select: ReturnType<typeof vi.fn> }, index: number) {
+  return db.select.mock.results[index].value as ChainMock;
 }
 
 beforeEach(async () => {
@@ -177,5 +213,193 @@ describe('getResourceTypes', () => {
     const result = await getResourceTypes(adminCtx);
 
     expect(result).toEqual([]);
+  });
+});
+
+const baseQuery = { page: 1, perPage: 20, order: 'desc' as const };
+
+describe('listAuditLogs — 絞り込み・並び順・テナント分離', () => {
+  it('action フィルタを条件に追加する', async () => {
+    // 監査ログは「特定の操作だけを追う」使い方が主。action 条件が
+    // 落ちると調査画面が全件表示になり、実質使い物にならない。
+    const { listAuditLogs } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ count: 0 }], []]));
+
+    await listAuditLogs(adminCtx, { ...baseQuery, action: 'employee.delete' });
+
+    const params = collectParams(selectCallAt(db, 1).where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'action', value: 'employee.delete' });
+    // フィルタを足しても org_id が消えないこと。
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
+  it('resourceType と action を同時に指定すると両方が条件に積み上がる', async () => {
+    const { listAuditLogs } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ count: 0 }], []]));
+
+    await listAuditLogs(adminCtx, {
+      ...baseQuery,
+      resourceType: 'employee',
+      action: 'employee.update',
+    });
+
+    const params = collectParams(selectCallAt(db, 1).where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'resource_type', value: 'employee' });
+    expect(params).toContainEqual({ column: 'action', value: 'employee.update' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
+  it('総件数クエリと明細クエリは同じ where を共有する', async () => {
+    // 片方だけ条件が抜けると、総件数とページ内容が食い違い
+    // 「最終ページが空」といった不具合になる。
+    const { listAuditLogs } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ count: 0 }], []]));
+
+    await listAuditLogs(adminCtx, { ...baseQuery, action: 'skill.create' });
+
+    const countParams = collectParams(selectCallAt(db, 0).where.mock.calls[0][0]);
+    const rowParams = collectParams(selectCallAt(db, 1).where.mock.calls[0][0]);
+    expect(countParams).toEqual(rowParams);
+  });
+
+  it('order=asc のときは created_at の昇順で並べる', async () => {
+    // 三項演算子の asc 側。降順しか通していないと、
+    // 「古い順」表示が壊れていても気付けない。
+    const { listAuditLogs } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ count: 0 }], []]));
+
+    await listAuditLogs(adminCtx, { ...baseQuery, order: 'asc' });
+
+    const orderArgs = selectCallAt(db, 1).orderBy.mock.calls[0];
+    expect(sqlText(orderArgs[0])).toContain('created_at asc');
+  });
+
+  it('order=desc のときは created_at の降順で並べる', async () => {
+    const { listAuditLogs } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ count: 0 }], []]));
+
+    await listAuditLogs(adminCtx, { ...baseQuery, order: 'desc' });
+
+    const orderArgs = selectCallAt(db, 1).orderBy.mock.calls[0];
+    expect(sqlText(orderArgs[0])).toContain('created_at desc');
+  });
+
+  it('created_at に加えて id をタイブレーカーにする', async () => {
+    // created_at は一括操作で同値になる。id が無いとページ間で
+    // 行の重複・欠落が起きる。
+    const { listAuditLogs } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ count: 0 }], []]));
+
+    await listAuditLogs(adminCtx, baseQuery);
+
+    const orderArgs = selectCallAt(db, 1).orderBy.mock.calls[0];
+    expect(orderArgs).toHaveLength(2);
+    expect(sqlText(orderArgs[1])).toContain('id asc');
+  });
+
+  it('ページングは (page-1)*perPage を offset に変換する', async () => {
+    const { listAuditLogs } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ count: 0 }], []]));
+
+    await listAuditLogs(adminCtx, { page: 4, perPage: 25, order: 'desc' });
+
+    const rowsChain = selectCallAt(db, 1);
+    expect(rowsChain.limit).toHaveBeenCalledWith(25);
+    expect(rowsChain.offset).toHaveBeenCalledWith(75);
+  });
+
+  it('別テナントのコンテキストでは、その org_id だけで絞られる', async () => {
+    // 監査ログは「誰が何をしたか」の記録。他テナント分が混ざると
+    // 内部統制上そのまま事故になる。
+    const { listAuditLogs } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ count: 0 }], []]));
+
+    await listAuditLogs(ctxOtherOrg, baseQuery);
+
+    const params = collectParams(selectCallAt(db, 1).where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-2' });
+    expect(params).not.toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
+  it('1件も無い組織では total 0・空配列を返す', async () => {
+    const { listAuditLogs } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ count: 0 }], []]));
+
+    await expect(listAuditLogs(adminCtx, baseQuery)).resolves.toEqual({ logs: [], total: 0 });
+  });
+});
+
+describe('getResourceTypes — テナント分離', () => {
+  it('自組織の org_id で絞り、resource_type 昇順で返す', async () => {
+    const { getResourceTypes } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    db.selectDistinct.mockImplementation(createSequentialSelect([[]]));
+
+    await getResourceTypes(ctxOtherOrg);
+
+    const chain = db.selectDistinct.mock.results[0].value as ChainMock;
+    expect(collectParams(chain.where.mock.calls[0][0])).toContainEqual({
+      column: 'org_id',
+      value: 'org-2',
+    });
+    expect(sqlText(chain.orderBy.mock.calls[0][0])).toContain('resource_type asc');
+  });
+});
+
+describe('writeAuditLog', () => {
+  it('ctx の org_id / user_id と、渡された action・resourceType を記録する', async () => {
+    // 監査ログの本体。actor が欠けると「誰がやったか」が追えなくなる。
+    const { writeAuditLog } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    const insertChain = createSequentialSelect([[]])() as ChainMock;
+    db.insert.mockReturnValue(insertChain);
+
+    await writeAuditLog(adminCtx, 'employee.create', 'employee', 'emp-1', { fullName: '山田太郎' });
+
+    expect(insertChain.values.mock.calls[0][0]).toEqual({
+      orgId: 'org-1',
+      actorUserId: 'user-1',
+      action: 'employee.create',
+      resourceType: 'employee',
+      resourceId: 'emp-1',
+      changes: { fullName: '山田太郎' },
+    });
+  });
+
+  it('changes 省略時は undefined ではなく null で保存する', async () => {
+    // undefined のまま渡すと Drizzle が列自体を省略し、
+    // NOT NULL 制約やデフォルト値の挙動に依存してしまう。
+    const { writeAuditLog } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    const insertChain = createSequentialSelect([[]])() as ChainMock;
+    db.insert.mockReturnValue(insertChain);
+
+    await writeAuditLog(adminCtx, 'evaluation.delete', 'evaluation', null);
+
+    expect(insertChain.values.mock.calls[0][0]).toMatchObject({
+      resourceId: null,
+      changes: null,
+    });
   });
 });

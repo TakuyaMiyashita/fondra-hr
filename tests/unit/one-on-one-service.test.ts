@@ -863,7 +863,7 @@ describe('deleteOneOnOne', () => {
     await expect(deleteOneOnOne(viewerCtx, 'oo1')).rejects.toThrow(AuthorizationError);
   });
 
-  it.each(rolesAtLeast('member'))('%s ロールは削除できる', async (role) => {
+  it.each(rolesAtLeast('admin'))('%s ロールは削除できる', async (role) => {
     const { deleteOneOnOne } = await import('@/services/one-on-one');
 
     selectChain.then = vi
@@ -875,7 +875,15 @@ describe('deleteOneOnOne', () => {
     });
   });
 
-  it.each(rolesBelow('member'))('%s ロールは削除できない', async (role) => {
+  /**
+   * 1on1 記録は本人の悩みや評価に関わる機微な情報を含む。
+   * 認可マトリクス（docs/database/authorization-matrix.md）でも member に
+   * 削除権限を与えていない。
+   *
+   * 既定の authorize() は viewer 以外の書き込みを通すため、明示的に
+   * admin 以上を要求しないと member が他人の記録を削除できてしまう。
+   */
+  it.each(rolesBelow('admin'))('%s ロールは削除できない', async (role) => {
     const { deleteOneOnOne } = await import('@/services/one-on-one');
 
     await expect(deleteOneOnOne(CTX_BY_ROLE[role], 'oo1')).rejects.toThrow(AuthorizationError);

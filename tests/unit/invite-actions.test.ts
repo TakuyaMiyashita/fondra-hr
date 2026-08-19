@@ -36,7 +36,12 @@ const { createClient } = vi.hoisted(() => ({ createClient: vi.fn() }));
 
 vi.mock('next/navigation', () => ({ redirect }));
 vi.mock('@/lib/supabase/server', () => ({ createClient }));
-vi.mock('@/services/auth', () => ({ acceptInvitation: vi.fn(), getInvitationByToken: vi.fn() }));
+vi.mock('@/services/auth', () => ({
+  acceptInvitation: vi.fn(),
+  getInvitationByToken: vi.fn(),
+  // 実装が user_metadata のキーとして参照する。
+  PENDING_INVITATION_TOKEN_KEY: 'pending_invitation_token',
+}));
 
 async function svc() {
   return vi.mocked(await import('@/services/auth'));
@@ -139,19 +144,38 @@ describe('acceptInviteAndSignUp — セッションの claim', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('sends the user to login without refreshing when email confirmation is required', async () => {
+  /**
+   * メール確認が有効なときに受諾を消化しないことの回帰テスト。
+   *
+   * 確認前に acceptInvitation を呼ぶと accepted_at が立って招待が消費され、
+   * 本人はログインできないまま管理者が再招待する羽目になる。
+   * 受諾は /auth/callback の completePendingSignUp へ移してある。
+   */
+  it('sends the user to login without consuming the invitation when confirmation is required', async () => {
     const { acceptInviteAndSignUp } = await actions();
     const s = await svc();
     auth.signUp.mockResolvedValue({
       data: { user: { id: 'user-new' }, session: null },
       error: null,
     });
-    s.acceptInvitation.mockResolvedValue(ok(undefined));
 
     const to = await captureRedirect(() => acceptInviteAndSignUp(VALID));
 
     expect(to).toBe('/login?registered=true');
+    expect(s.acceptInvitation).not.toHaveBeenCalled();
     expect(auth.refreshSession).not.toHaveBeenCalled();
+  });
+
+  it('トークンを user_metadata に預け、確認後に消化できるようにする', async () => {
+    const { acceptInviteAndSignUp } = await actions();
+    const s = await svc();
+    s.acceptInvitation.mockResolvedValue(ok(undefined));
+
+    await captureRedirect(() => acceptInviteAndSignUp(VALID));
+
+    const arg = auth.signUp.mock.calls[0][0];
+    expect(arg.options.data).toEqual({ pending_invitation_token: VALID.token });
+    expect(arg.options.emailRedirectTo).toContain('/auth/callback');
   });
 });
 
@@ -287,10 +311,9 @@ describe('acceptInviteAndSignUp — invitation acceptance', () => {
 
     await captureRedirect(() => acceptInviteAndSignUp(VALID));
 
-    expect(auth.signUp).toHaveBeenCalledWith({
-      email: 'invitee@example.com',
-      password: 'password123',
-    });
+    expect(auth.signUp).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'invitee@example.com', password: 'password123' }),
+    );
   });
 });
 
@@ -391,10 +414,9 @@ describe('acceptInviteAndSignUp — トークン検証（権限昇格の防止�
 
     await captureRedirect(() => acceptInviteAndSignUp({ ...VALID, email: 'attacker@example.com' }));
 
-    expect(auth.signUp).toHaveBeenCalledWith({
-      email: 'invitee@example.com',
-      password: 'password123',
-    });
+    expect(auth.signUp).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'invitee@example.com', password: 'password123' }),
+    );
   });
 
   it('honours the invited role when the invitation itself grants owner', async () => {

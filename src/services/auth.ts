@@ -151,3 +151,96 @@ export async function acceptInvitation(
     return err(`招待の承認に失敗しました: ${message}`);
   }
 }
+
+/**
+ * メール確認を待っているサインアップの内容。
+ *
+ * 確認前に組織・メンバーシップを作ると、確認されなかった登録のぶんだけ
+ * 「誰も入れない組織」が残り、招待経路では `accepted_at` だけが立って
+ * 招待が消費されてしまう。そのため作成内容を user_metadata に預けておき、
+ * 確認後（/auth/callback）にここで消化する。
+ */
+type PendingSignUp =
+  { kind: 'invitation'; token: string } | { kind: 'organization'; orgName: string };
+
+/** user_metadata に預けるキー。signUp 側と /auth/callback 側で共有する。 */
+export const PENDING_ORG_NAME_KEY = 'pending_org_name';
+export const PENDING_INVITATION_TOKEN_KEY = 'pending_invitation_token';
+
+function readPendingSignUp(metadata: Record<string, unknown> | null | undefined) {
+  const token = metadata?.[PENDING_INVITATION_TOKEN_KEY];
+  if (typeof token === 'string' && token !== '') {
+    return { kind: 'invitation', token } satisfies PendingSignUp;
+  }
+
+  const orgName = metadata?.[PENDING_ORG_NAME_KEY];
+  if (typeof orgName === 'string' && orgName !== '') {
+    return { kind: 'organization', orgName } satisfies PendingSignUp;
+  }
+
+  return null;
+}
+
+/**
+ * メール確認後に、保留していた組織作成 / 招待受諾を実行する。
+ *
+ * `created` が true のときは JWT の app_metadata に org_id / role が
+ * 入っていないため、呼び出し側で必ずセッションをリフレッシュすること。
+ * これを怠るとリダイレクトループになる（signUp のコメント参照）。
+ *
+ * user_metadata はクライアントから書き換えられる領域である点に注意する。
+ * 組織作成は「未所属のユーザーが自分の組織を作る」だけなのでサインアップと
+ * 等価だが、招待受諾は権限が伴うため、トークンに加えて確認済みメールとの
+ * 一致も要求する。
+ */
+export async function completePendingSignUp(
+  userId: string,
+  email: string | null | undefined,
+  metadata: Record<string, unknown> | null | undefined,
+): Promise<Result<{ created: boolean }>> {
+  const pending = readPendingSignUp(metadata);
+  if (!pending) {
+    return ok({ created: false });
+  }
+
+  // 既にどこかに所属していれば消化済み。パスワード再設定など、確認以外の
+  // 用途で同じコールバックを通ったときに組織を作り直さないためのガード。
+  const existing = await getUserMemberships(userId);
+  if (existing.length > 0) {
+    return ok({ created: false });
+  }
+
+  if (pending.kind === 'invitation') {
+    const invitation = await getInvitationByToken(pending.token);
+    if (!invitation) {
+      return err('この招待リンクは無効か、期限切れです');
+    }
+
+    // トークンだけを信用の起点にすると、トークンを入手した第三者が
+    // 別アドレスのアカウントで組織に参加できてしまう。
+    if (!email || email.toLowerCase() !== invitation.email.toLowerCase()) {
+      return err('招待されたメールアドレスと一致しません');
+    }
+
+    const accepted = await acceptInvitation(
+      invitation.id,
+      userId,
+      invitation.orgId,
+      invitation.role,
+      invitation.email,
+    );
+
+    if (!accepted.success) {
+      return err(accepted.error);
+    }
+
+    return ok({ created: true });
+  }
+
+  const org = await createOrganizationWithOwner(userId, pending.orgName);
+  if (!org.success) {
+    return err(org.error);
+  }
+
+  return ok({ created: true });
+}

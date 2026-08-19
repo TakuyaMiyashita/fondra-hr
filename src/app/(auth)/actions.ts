@@ -5,7 +5,11 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { type Result, err, ok } from '@/lib/result';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createOrganizationWithOwner, switchOrganization } from '@/services/auth';
+import {
+  PENDING_ORG_NAME_KEY,
+  createOrganizationWithOwner,
+  switchOrganization,
+} from '@/services/auth';
 import {
   signUpSchema,
   signInSchema,
@@ -28,6 +32,13 @@ export async function signUp(data: {
   const { data: authData, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
+    options: {
+      // 確認メールのリンク先。これを指定しないと Supabase の site_url に飛び、
+      // /auth/callback を通らないため保留分が消化されない。
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      // 組織名は確認後に使うので預けておく（下記コメント参照）。
+      data: { [PENDING_ORG_NAME_KEY]: parsed.data.orgName },
+    },
   });
 
   if (error) {
@@ -36,6 +47,14 @@ export async function signUp(data: {
 
   if (!authData.user) {
     return err('ユーザーの作成に失敗しました');
+  }
+
+  // メール確認が有効な場合、signUp() はセッションを返さない（未確認のため）。
+  // ここで組織を作ると、確認されなかった登録のぶんだけ「誰も入れない組織」が
+  // DB に残り続ける。作成は確認後（/auth/callback → completePendingSignUp）へ
+  // 遅らせ、ここでは確認を促すためログイン画面へ送る。
+  if (!authData.session) {
+    redirect('/login?registered=true');
   }
 
   const orgResult = await createOrganizationWithOwner(authData.user.id, parsed.data.orgName);
@@ -49,15 +68,8 @@ export async function signUp(data: {
   // /login へリダイレクトし、ミドルウェアは認証済みとみなして /dashboard へ戻すため、
   // トークンが失効する1時間まで無限リダイレクトになる。
   // 組織を作った「後」にリフレッシュして、claim の入ったトークンを発行し直す。
-  //
-  // メール確認が有効な場合、signUp() はセッションを返さない（未確認のため）。
-  // その場合はリフレッシュせず、確認を促すためログイン画面へ送る。
-  if (authData.session) {
-    await supabase.auth.refreshSession();
-    redirect('/dashboard');
-  }
-
-  redirect('/login?registered=true');
+  await supabase.auth.refreshSession();
+  redirect('/dashboard');
 }
 
 export async function signIn(data: { email: string; password: string }): Promise<Result<void>> {

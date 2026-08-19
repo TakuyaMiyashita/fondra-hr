@@ -163,7 +163,7 @@ Vercel で GitHub リポジトリをインポートし、以下の環境変数�
 
 | 設定                              | 検証環境         | 本番で必要な変更                                     |
 | --------------------------------- | ---------------- | ---------------------------------------------------- |
-| `auth.email.enable_confirmations` | `false`（既定）  | `true`。**現状は他人のメールアドレスでも登録できる** |
+| `auth.email.enable_confirmations` | `false`（既定）  | `true`。無効の間は他人のメールアドレスでも登録できる |
 | `site_url`                        | localhost のまま | 独自ドメイン。上記のとおり必須                       |
 | `auth.rate_limit`                 | 緩め             | サインイン・OTP の上限を絞る                         |
 | DB バックアップ                   | 不要             | 有料プランの PITR を検討                             |
@@ -173,20 +173,47 @@ Vercel で GitHub リポジトリをインポートし、以下の環境変数�
 ローカル開発の利便性のため `false` にしてある。`config push` するとこの値が
 そのまま反映される点に注意する。
 
-#### enable_confirmations は設定変更だけでは有効化できない
+#### enable_confirmations の有効化手順
 
-**実装の変更を伴う。** `signUp`（`src/app/(auth)/actions.ts`）と招待受諾
-（`src/app/(auth)/invite/[token]/actions.ts`）は、Auth ユーザーを作った直後に
-組織・メンバーシップを作る。メール確認を有効にすると次の状態が生まれる。
+**実装は対応済み。** ホスティング先の Supabase プロジェクトで
+Authentication → Providers → Email → Confirm email を有効にすれば足りる
+（`config push` する場合は `supabase/config.toml` の値も併せて変更する）。
+
+`supabase/config.toml` は `false` のままにしてある。ローカル開発と e2e は
+サインアップから画面表示までを一続きで通すため、確認メールを挟むと
+テストが成立しない。
+
+##### なぜ実装の変更が要ったか
+
+`signUp` と招待受諾は、以前は Auth ユーザーを作った直後に組織・メンバーシップを
+作っていた。メール確認を有効にすると `signUp()` はセッションを返さない
+（未確認のため）が、組織の作成はそのまま走るので次の状態が生まれていた。
 
 - 確認されなかった登録のぶんだけ、**誰も入れない組織が DB に残り続ける**
 - 招待経路はさらに悪く、`acceptInvitation` が `accepted_at` を立てるため
   **確認しないまま招待だけが消費される**。本人はログインできず、
   管理者は再招待が必要になる
 
-有効化する場合は、組織・メンバーシップの作成を確認後（`/auth/callback` の
-処理内、または `auth.users.email_confirmed_at` を見る DB トリガー）へ
-移す必要がある。
+##### 現在の流れ
+
+作成内容を `user_metadata` に預け、確認後に消化する。
+
+1. `signUp()` の `options.data` に `pending_org_name`（招待経路は
+   `pending_invitation_token`）を入れ、`emailRedirectTo` を
+   `/auth/callback` に向ける
+2. セッションが返らなければ（＝確認待ち）**何も作らず**
+   `/login?registered=true` へ送る
+3. 確認リンクから `/auth/callback` に戻ったところで
+   `completePendingSignUp()`（`src/services/auth.ts`）が組織作成 / 招待受諾を
+   実行し、預けた metadata を消してセッションをリフレッシュする
+
+確認が無効な場合は `signUp()` がセッションを返すため、従来どおりその場で
+作成する。どちらの設定でも動く。
+
+`user_metadata` は**クライアントから書き換えられる**領域である点に注意する。
+`completePendingSignUp()` は預かった値を信用せず、招待をトークンで引き直し、
+**確認済みメールとの一致**と**未所属であること**を改めて検証する。ここを
+省くと、トークンを入手した第三者が別アドレスのアカウントで組織に参加できる。
 
 なお、確認が無効な現状で `signUp()` が返すセッションは**組織を作る前**に
 発行されるため、JWT の `app_metadata.org_id` が null になる。これを持ったまま

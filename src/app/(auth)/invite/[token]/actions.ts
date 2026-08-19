@@ -4,7 +4,11 @@ import { redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
 import { type Result, err } from '@/lib/result';
-import { acceptInvitation, getInvitationByToken } from '@/services/auth';
+import {
+  PENDING_INVITATION_TOKEN_KEY,
+  acceptInvitation,
+  getInvitationByToken,
+} from '@/services/auth';
 import { acceptInviteSchema } from '@/lib/validations/auth';
 
 /**
@@ -45,6 +49,12 @@ export async function acceptInviteAndSignUp(data: {
   const { data: authData, error } = await supabase.auth.signUp({
     email: invitation.email,
     password: parsed.data.password,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      // 確認後に受諾を消化するためトークンを預ける。確認済みメールとの
+      // 一致は消化側（completePendingSignUp）で改めて検証する。
+      data: { [PENDING_INVITATION_TOKEN_KEY]: parsed.data.token },
+    },
   });
 
   if (error) {
@@ -53,6 +63,13 @@ export async function acceptInviteAndSignUp(data: {
 
   if (!authData.user) {
     return err('ユーザーの作成に失敗しました');
+  }
+
+  // メール確認が有効な場合、signUp() はセッションを返さない。ここで受諾すると
+  // accepted_at が立って招待が消費され、本人はログインできないまま管理者が
+  // 再招待する羽目になる。受諾は確認後（/auth/callback）へ遅らせる。
+  if (!authData.session) {
+    redirect('/login?registered=true');
   }
 
   const result = await acceptInvitation(
@@ -71,10 +88,6 @@ export async function acceptInviteAndSignUp(data: {
   // JWT の app_metadata.org_id が null のままになる。これを持ったまま
   // 画面に入るとリダイレクトループになるため、登録後にリフレッシュする。
   // 詳細は src/app/(auth)/actions.ts の signUp を参照。
-  if (authData.session) {
-    await supabase.auth.refreshSession();
-    redirect('/dashboard');
-  }
-
-  redirect('/login?registered=true');
+  await supabase.auth.refreshSession();
+  redirect('/dashboard');
 }

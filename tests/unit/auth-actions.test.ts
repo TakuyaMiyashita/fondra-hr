@@ -40,6 +40,9 @@ vi.mock('@/lib/supabase/admin', () => ({ createAdminClient }));
 vi.mock('@/services/auth', () => ({
   createOrganizationWithOwner: vi.fn(),
   switchOrganization: vi.fn(),
+  // 実装が user_metadata のキーとして参照する。値は実物と同じでなくてよいが、
+  // signUp と /auth/callback が同じキーを使うことがこの機能の前提なので実値にする。
+  PENDING_ORG_NAME_KEY: 'pending_org_name',
 }));
 
 async function svc() {
@@ -172,7 +175,10 @@ describe('signUp', () => {
     // ログイン後にテナント未所属の壊れた状態に入ってしまう。
     const { signUp } = await actions();
     const s = await svc();
-    auth.signUp.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
+    auth.signUp.mockResolvedValue({
+      data: { user: { id: 'user-1' }, session: { access_token: 'stale' } },
+      error: null,
+    });
     s.createOrganizationWithOwner.mockResolvedValue(err('組織の作成に失敗しました: duplicate key'));
 
     expect(await signUp(VALID_SIGNUP)).toEqual(err('組織の作成に失敗しました: duplicate key'));
@@ -194,10 +200,9 @@ describe('signUp', () => {
     expect(to).toBe('/dashboard');
     // 組織のオーナーは「今サインアップした本人」でなければならない。
     expect(s.createOrganizationWithOwner).toHaveBeenCalledWith('user-1', 'Acme');
-    expect(auth.signUp).toHaveBeenCalledWith({
-      email: 'user@example.com',
-      password: 'password123',
-    });
+    expect(auth.signUp).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'user@example.com', password: 'password123' }),
+    );
   });
 
   /**
@@ -249,33 +254,47 @@ describe('signUp', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('sends the user to login without refreshing when email confirmation is required', async () => {
-    // メール確認が有効だと signUp はセッションを返さない。
-    // リフレッシュ対象が無いので確認を促すためログイン画面へ送る。
+  /**
+   * メール確認が有効なときに組織を作らないことの回帰テスト。
+   *
+   * 確認前に作ると、確認されなかった登録のぶんだけ「誰も入れない組織」が
+   * DB に残り続ける。確認を必須にできない原因がこれだった。
+   * 作成は /auth/callback の completePendingSignUp へ移してある。
+   */
+  it('sends the user to login without creating the organization when confirmation is required', async () => {
     const { signUp } = await actions();
     const s = await svc();
     auth.signUp.mockResolvedValue({
       data: { user: { id: 'user-1' }, session: null },
       error: null,
     });
-    s.createOrganizationWithOwner.mockResolvedValue(ok({ orgId: ORG_UUID }));
 
     const to = await captureRedirect(() => signUp(VALID_SIGNUP));
 
     expect(to).toBe('/login?registered=true');
+    expect(s.createOrganizationWithOwner).not.toHaveBeenCalled();
+    // 作る組織が無い以上、リフレッシュする claim も無い。
     expect(auth.refreshSession).not.toHaveBeenCalled();
   });
 
-  it('does not forward the organization name to Supabase Auth', async () => {
-    // Auth 側には認証情報のみを渡す。業務データは Drizzle 側で持つ設計。
+  it('組織名を user_metadata に預け、確認後に消化できるようにする', async () => {
+    // 確認メールのリンクは /auth/callback に戻す必要がある。ここを省くと
+    // Supabase の site_url に飛び、預けた組織名が消化されないまま残る。
     const { signUp } = await actions();
     const s = await svc();
-    auth.signUp.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
+    auth.signUp.mockResolvedValue({
+      data: { user: { id: 'user-1' }, session: { access_token: 'stale' } },
+      error: null,
+    });
     s.createOrganizationWithOwner.mockResolvedValue(ok({ orgId: ORG_UUID }));
 
     await captureRedirect(() => signUp(VALID_SIGNUP));
 
-    expect(auth.signUp.mock.calls[0][0]).not.toHaveProperty('orgName');
+    const arg = auth.signUp.mock.calls[0][0];
+    // 認証情報は従来どおりトップレベル。業務データは metadata 側に閉じる。
+    expect(arg).not.toHaveProperty('orgName');
+    expect(arg.options.data).toEqual({ pending_org_name: 'Acme' });
+    expect(arg.options.emailRedirectTo).toContain('/auth/callback');
   });
 });
 

@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { departments } from '@/db/schema/departments';
 import { employeeSkills } from '@/db/schema/employee-skills';
 import { employees } from '@/db/schema/employees';
+import { authUsers, memberships } from '@/db/schema/memberships';
 import { evaluationCycles } from '@/db/schema/evaluation-cycles';
 import { evaluations } from '@/db/schema/evaluations';
 import { oneOnOnes } from '@/db/schema/one-on-ones';
@@ -132,6 +133,34 @@ export async function getEmployee(ctx: AuthContext, id: string): Promise<Result<
   return ok(row as EmployeeDetail);
 }
 
+/**
+ * 従業員レコードに紐付けるべきログインユーザーを、メールアドレスで解決する。
+ *
+ * 「このログインユーザーはどの従業員か」が分からないと、本人限定の操作
+ * （自分が当事者の 1on1 だけ編集する等）を判定できない。招待フローは
+ * アカウントのメールを招待レコードのメールに強制しているため、
+ * メールアドレスがこのプロダクトでの実質的な結合キーになっている。
+ *
+ * 検索対象を「同じ組織のメンバー」に限定しているのが要。ここを
+ * auth.users 全体にすると、他テナントのユーザーを自組織の従業員に
+ * 紐付けられてしまう。
+ *
+ * 大文字小文字は無視する（ログイン時のメールは正規化されるが、
+ * 従業員マスタ側は管理者の手入力で表記が揺れるため）。
+ */
+async function resolveLinkedUserId(orgId: string, email: string | null): Promise<string | null> {
+  if (!email) return null;
+
+  const [user] = await db
+    .select({ id: authUsers.id })
+    .from(memberships)
+    .innerJoin(authUsers, eq(memberships.userId, authUsers.id))
+    .where(and(eq(memberships.orgId, orgId), sql`lower(${authUsers.email}) = lower(${email})`))
+    .limit(1);
+
+  return user?.id ?? null;
+}
+
 function cleanInput(input: CreateEmployeeInput) {
   return {
     employeeCode: input.employeeCode,
@@ -168,9 +197,11 @@ export async function createEmployee(
     return err('この社員番号は既に使用されています');
   }
 
+  const userId = await resolveLinkedUserId(ctx.orgId, data.email);
+
   const [created] = await db
     .insert(employees)
-    .values({ ...data, orgId: ctx.orgId })
+    .values({ ...data, orgId: ctx.orgId, userId })
     .returning({ id: employees.id });
 
   await writeAuditLog(ctx, 'employee.create', 'employee', created.id, data);
@@ -218,6 +249,17 @@ export async function updateEmployee(
     if (cleaned !== currentVal) {
       changes[key] = { from: currentVal, to: cleaned };
       updateData[key] = cleaned;
+    }
+  }
+
+  // メールが変わったら紐付けを引き直す。一致するユーザーが居なくなった場合は
+  // 解除する（古いメールのまま紐付けが残ると、別人の記録を「自分」として
+  // 扱ってしまう）。メールを触っていない更新では紐付けに手を出さない。
+  if ('email' in changes) {
+    const userId = await resolveLinkedUserId(ctx.orgId, updateData.email as string | null);
+    if (userId !== current.userId) {
+      changes.userId = { from: current.userId, to: userId };
+      updateData.userId = userId;
     }
   }
 

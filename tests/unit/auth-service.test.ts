@@ -322,7 +322,7 @@ describe('acceptInvitation', () => {
   it('メンバーシップを作成し、招待を承認済みにする', async () => {
     const { acceptInvitation } = await import('@/services/auth');
 
-    const result = await acceptInvitation('inv-1', 'user-1', 'org-1', 'member');
+    const result = await acceptInvitation('inv-1', 'user-1', 'org-1', 'member', 'taro@example.com');
 
     expect(result).toEqual({ success: true, data: undefined });
 
@@ -342,6 +342,35 @@ describe('acceptInvitation', () => {
     });
   });
 
+  /**
+   * 実務では「入社手続きで従業員レコードを登録 → 後からアカウントを発行」
+   * の順になるため、従業員側からの紐付け（createEmployee）だけでは漏れる。
+   * 招待受諾のタイミングでも、同じ組織・同じメールの従業員に紐付ける。
+   *
+   * これが無いと employees.user_id が null のままになり、
+   * 本人限定の操作（自分が当事者の 1on1 のみ編集する等）が一切通らなくなる。
+   */
+  it('同じ組織・同じメールの従業員レコードに user_id を紐付ける', async () => {
+    const { acceptInvitation } = await import('@/services/auth');
+
+    await acceptInvitation('inv-1', 'user-1', 'org-1', 'member', 'Taro@Example.com');
+
+    // 1回目は invitations の更新、2回目が employees の紐付け
+    const setArg = updateChain.set.mock.calls[1][0] as { userId: string };
+    expect(setArg.userId).toBe('user-1');
+
+    const text = sqlText(updateChain.where.mock.calls[1][0]);
+    // 大文字小文字を無視して突き合わせる（マスタ側は手入力で表記が揺れる）
+    expect(text).toContain('lower(');
+    // 他テナントの従業員を巻き込まないこと
+    expect(collectParams(updateChain.where.mock.calls[1][0])).toContainEqual({
+      column: 'org_id',
+      value: 'org-1',
+    });
+    // 既に紐付け済みのレコードは奪わないこと
+    expect(text).toContain('user_id is null');
+  });
+
   it('メンバーシップ作成が失敗した場合は失敗 Result を返す', async () => {
     // 同一ユーザー・同一組織の unique 制約違反（二重承認）で到達する経路。
     const { acceptInvitation } = await import('@/services/auth');
@@ -351,7 +380,7 @@ describe('acceptInvitation', () => {
       throw new Error('duplicate membership');
     });
 
-    const result = await acceptInvitation('inv-1', 'user-1', 'org-1', 'member');
+    const result = await acceptInvitation('inv-1', 'user-1', 'org-1', 'member', 'taro@example.com');
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -370,7 +399,7 @@ describe('acceptInvitation', () => {
       throw { code: '23505' };
     });
 
-    const result = await acceptInvitation('inv-1', 'user-1', 'org-1', 'viewer');
+    const result = await acceptInvitation('inv-1', 'user-1', 'org-1', 'viewer', 'taro@example.com');
 
     expect(result.success).toBe(false);
     if (!result.success) {

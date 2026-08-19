@@ -1,6 +1,7 @@
-import { and, eq, gt, isNull } from 'drizzle-orm';
+import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
+import { employees } from '@/db/schema/employees';
 import { invitations } from '@/db/schema/invitations';
 import { memberships } from '@/db/schema/memberships';
 import { organizations } from '@/db/schema/organizations';
@@ -117,6 +118,7 @@ export async function acceptInvitation(
   userId: string,
   orgId: string,
   role: Role,
+  email: string,
 ): Promise<Result<void>> {
   try {
     await db.insert(memberships).values({ userId, orgId, role });
@@ -125,6 +127,23 @@ export async function acceptInvitation(
       .update(invitations)
       .set({ acceptedAt: new Date() })
       .where(eq(invitations.id, invitationId));
+
+    // 招待より先に従業員レコードが作られているのが実務上は普通なので
+    // （入社手続きで登録し、後からアカウントを発行する）、ここでも紐付ける。
+    // 従業員側からの紐付け（createEmployee）だけでは、この順序で漏れる。
+    //
+    // 既に紐付け済みのレコードは触らない。管理者が意図して別ユーザーに
+    // 紐付けたものを、後から来た招待が奪わないようにするため。
+    await db
+      .update(employees)
+      .set({ userId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(employees.orgId, orgId),
+          isNull(employees.userId),
+          sql`lower(${employees.email}) = lower(${email})`,
+        ),
+      );
 
     return ok(undefined);
   } catch (e) {

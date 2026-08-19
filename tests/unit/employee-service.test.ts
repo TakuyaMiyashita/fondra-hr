@@ -718,6 +718,58 @@ describe('updateEmployee — 差分更新の詳細', () => {
     updatedAt: new Date(),
   };
 
+  /**
+   * メールは user_id への紐付けキーなので、変更したら引き直す必要がある。
+   * 引き直さないと、古いメールで紐付いたユーザーが「自分」のまま残り、
+   * 別人の記録を本人として扱ってしまう。
+   */
+  it('メール変更時に紐付けを引き直す', async () => {
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    // 1回目: 現在値 / 2回目: 新しいメールでの紐付け先
+    db.select.mockImplementation(createSequentialSelect([[current], [{ id: 'user-9' }]]));
+
+    await updateEmployee(adminCtx, 'emp-1', { email: 'new@example.com' });
+
+    expect(updateChain.set.mock.calls[0][0]).toMatchObject({ userId: 'user-9' });
+  });
+
+  it('メール変更で一致するユーザーが居なくなったら紐付けを解除する', async () => {
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ ...current, userId: 'user-9' }], []]));
+
+    await updateEmployee(adminCtx, 'emp-1', { email: 'nobody@example.com' });
+
+    expect(updateChain.set.mock.calls[0][0]).toMatchObject({ userId: null });
+  });
+
+  it('メールを触らない更新では紐付けを引き直さない', async () => {
+    // 氏名だけの更新で余計なクエリを打たない。
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ ...current, userId: 'user-9' }]]));
+
+    await updateEmployee(adminCtx, 'emp-1', { fullName: '山田花子' });
+
+    expect(updateChain.set.mock.calls[0][0]).not.toHaveProperty('userId');
+    expect(db.select).toHaveBeenCalledTimes(1);
+  });
+
+  it('メールが同じ値なら差分にならず紐付けも引き直さない', async () => {
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ ...current, userId: 'user-9' }]]));
+
+    await updateEmployee(adminCtx, 'emp-1', { email: current.email });
+
+    expect(db.select).toHaveBeenCalledTimes(1);
+  });
+
   it('値が undefined のフィールドは差分にも set にも含めない', async () => {
     // フォームが「未入力」を undefined で送ってくるケース。
     // これを変更扱いにすると、既存の値を null で潰してしまう。
@@ -919,6 +971,8 @@ describe('createEmployee — 認可境界と重複', () => {
       hiredOn: null,
       birthDate: null,
       status: 'active',
+      // メール未入力なので紐付け先を解決できない（安全側に倒れる）
+      userId: null,
     });
   });
 
@@ -945,6 +999,73 @@ describe('createEmployee — 認可境界と重複', () => {
    *
    * つまりここは本人チェックの土台であり、緩めると本人チェック自体が抜け道になる。
    */
+  /**
+   * ログインユーザーとの紐付け。
+   *
+   * 「このログインユーザーはどの従業員か」が分からないと、本人限定の操作
+   * （自分が当事者の 1on1 だけ編集する等）を判定できない。
+   * メールアドレスが結合キーになる。
+   */
+  it('同じ組織のメンバーとメールが一致すれば user_id を紐付ける', async () => {
+    const { createEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    // 1回目: 社員番号の重複チェック / 2回目: 紐付け先ユーザーの解決
+    db.select.mockImplementation(createSequentialSelect([[], [{ id: 'user-9' }]]));
+    insertChain.returning = vi.fn().mockResolvedValue([{ id: 'emp-new' }]);
+
+    await createEmployee(adminCtx, {
+      employeeCode: 'EMP001',
+      fullName: '山田太郎',
+      email: 'taro@example.com',
+      status: 'active',
+    });
+
+    expect(insertChain.values.mock.calls[0][0]).toMatchObject({ userId: 'user-9' });
+  });
+
+  it('一致するメンバーが居なければ user_id は null のまま', async () => {
+    // 紐付かない場合は「自分に紐づくデータが無い」＝本人限定操作ができない、
+    // という安全側に倒れる。
+    const { createEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], []]));
+    insertChain.returning = vi.fn().mockResolvedValue([{ id: 'emp-new' }]);
+
+    await createEmployee(adminCtx, {
+      employeeCode: 'EMP001',
+      fullName: '山田太郎',
+      email: 'nobody@example.com',
+      status: 'active',
+    });
+
+    expect(insertChain.values.mock.calls[0][0]).toMatchObject({ userId: null });
+  });
+
+  it('紐付け先の検索を自組織のメンバーに限定する', async () => {
+    // ここを auth.users 全体にすると、他テナントのユーザーを
+    // 自組織の従業員に紐付けられてしまう。
+    const { createEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [{ id: 'user-9' }]]));
+    insertChain.returning = vi.fn().mockResolvedValue([{ id: 'emp-new' }]);
+
+    await createEmployee(adminCtx, {
+      employeeCode: 'EMP001',
+      fullName: '山田太郎',
+      email: 'taro@example.com',
+      status: 'active',
+    });
+
+    const chain = db.select.mock.results[1].value as ChainMock;
+    expect(collectParams(chain.where.mock.calls[0][0])).toContainEqual({
+      column: 'org_id',
+      value: 'org-1',
+    });
+  });
+
   it.each(rolesBelow('admin'))('%s ロールは従業員を登録できない', async (role) => {
     const { createEmployee } = await import('@/services/employee');
 

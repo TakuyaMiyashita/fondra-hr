@@ -24,8 +24,24 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary', 'html'],
       reportsDirectory: './coverage',
-      include: ['src/services/**/*.ts', 'src/lib/**/*.ts', 'src/app/**/actions.ts'],
-      exclude: ['src/lib/supabase/**', 'src/**/*.d.ts'],
+      include: [
+        'src/services/**/*.ts',
+        'src/lib/**/*.ts',
+        'src/app/**/actions.ts',
+        // 認証の配線。ロジック本体は Service Layer にあるが、
+        // 配線が壊れるとメール確認後にリダイレクトループが起きるため計測する。
+        'src/app/auth/callback/route.ts',
+        'src/proxy.ts',
+      ],
+      // Supabase クライアントの初期化は薄いラッパで検証する価値が無いため除外する。
+      // ただし middleware.ts は未認証リダイレクトの判定を持つロジックなので、
+      // 除外の対象外とする（proxy.ts はここへ委譲しているだけ）。
+      exclude: [
+        'src/lib/supabase/client.ts',
+        'src/lib/supabase/server.ts',
+        'src/lib/supabase/admin.ts',
+        'src/**/*.d.ts',
+      ],
       // 到達した水準は下げない。回帰防止のための下限。
       //
       // branches だけ 99 なのは、employees/actions.ts の

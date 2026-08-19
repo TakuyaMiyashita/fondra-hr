@@ -51,9 +51,7 @@ let calls: string[] = [];
 type ExchangeResult = { data: { user: unknown }; error: unknown };
 
 /** Supabase Auth クライアントの最小モック。実装が使うメソッドだけを持つ。 */
-function mockSupabase(
-  exchangeResult: ExchangeResult = { data: { user: USER }, error: null },
-) {
+function mockSupabase(exchangeResult: ExchangeResult = { data: { user: USER }, error: null }) {
   const auth = {
     exchangeCodeForSession: vi.fn(async () => {
       calls.push('exchangeCodeForSession');

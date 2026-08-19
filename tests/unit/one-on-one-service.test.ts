@@ -7,6 +7,7 @@ import { CTX_BY_ROLE, ctxOtherOrg, rolesAtLeast, rolesBelow } from '../helpers/a
 import { type ChainMock, createChainMock, createSequentialSelect } from '../helpers/db-mock';
 
 const adminCtx: AuthContext = { userId: 'user-1', orgId: 'org-1', role: 'admin' };
+const memberCtx: AuthContext = { userId: 'user-3', orgId: 'org-1', role: 'member' };
 const viewerCtx: AuthContext = { userId: 'user-3', orgId: 'org-1', role: 'viewer' };
 
 let selectChain: ChainMock;
@@ -768,7 +769,7 @@ describe('updateOneOnOne', () => {
     }
   });
 
-  it.each(rolesAtLeast('member'))('%s ロールは更新できる', async (role) => {
+  it.each(rolesAtLeast('admin'))('%s ロールは誰の記録でも更新できる', async (role) => {
     const { updateOneOnOne } = await import('@/services/one-on-one');
 
     selectChain.then = vi.fn().mockImplementation((cb) => Promise.resolve([current]).then(cb));
@@ -799,6 +800,151 @@ describe('updateOneOnOne', () => {
 
     const db = await getDb();
     expect(db.update).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * member の本人限定制御。
+ *
+ * 1on1 は本人の悩みや評価に関わる。member は自分が当事者（対象者または面談者）の
+ * 記録だけを扱える。「自分」は employees.user_id との突き合わせで判定する
+ * （src/services/self.ts）。
+ */
+describe('updateOneOnOne — member の本人チェック', () => {
+  const current = {
+    id: 'oo1',
+    orgId: 'org-1',
+    employeeId: 'e1',
+    interviewerId: 'e2',
+    heldOn: '2026-08-01',
+    notes: 'old notes',
+    aiSummary: null,
+    moodScore: 3,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const input = {
+    id: 'oo1',
+    employeeId: 'e1',
+    interviewerId: 'e2',
+    heldOn: '2026-08-01',
+    notes: 'changed',
+    moodScore: 3,
+  };
+
+  it('自分が対象者なら更新できる', async () => {
+    const { updateOneOnOne } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    // 1回目: 現在の記録 / 2回目: 自分の従業員レコード
+    db.select.mockImplementation(createSequentialSelect([[current], [{ id: 'e1' }]]));
+
+    await expect(updateOneOnOne(memberCtx, input)).resolves.toMatchObject({ success: true });
+  });
+
+  it('自分が面談者でも更新できる', async () => {
+    const { updateOneOnOne } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current], [{ id: 'e2' }]]));
+
+    await expect(updateOneOnOne(memberCtx, input)).resolves.toMatchObject({ success: true });
+  });
+
+  it('当事者でない記録は更新できない', async () => {
+    const { updateOneOnOne } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current], [{ id: 'e9' }]]));
+
+    const result = await updateOneOnOne(memberCtx, input);
+
+    expect(result).toEqual({
+      success: false,
+      error: '自分が対象者または面談者の1on1記録のみ編集できます',
+    });
+    expect(db.update).not.toHaveBeenCalled();
+  });
+
+  it('自分が入った記録を他人同士の記録に付け替えられない', async () => {
+    // 変更前だけを見ていると、自分が入った記録を作ってから当事者を
+    // 他人同士に差し替えることで、他人の記録を代筆できてしまう。
+    const { updateOneOnOne } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current], [{ id: 'e1' }]]));
+
+    const result = await updateOneOnOne(memberCtx, {
+      ...input,
+      employeeId: 'e8',
+      interviewerId: 'e9',
+    });
+
+    expect(result.success).toBe(false);
+    expect(db.update).not.toHaveBeenCalled();
+  });
+
+  it('従業員レコードに紐付いていない member は更新できない', async () => {
+    const { updateOneOnOne } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[current], []]));
+
+    const result = await updateOneOnOne(memberCtx, input);
+
+    expect(result.success).toBe(false);
+    expect(db.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('createOneOnOne — member の本人チェック', () => {
+  const input = {
+    employeeId: 'e1',
+    interviewerId: 'e2',
+    heldOn: '2026-08-01',
+    notes: 'notes',
+    moodScore: 3,
+  };
+
+  it('自分が当事者なら作成できる', async () => {
+    const { createOneOnOne } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    // 1回目: 自分の従業員レコード / 2,3回目: 対象者・面談者の存在確認
+    db.select.mockImplementation(
+      createSequentialSelect([[{ id: 'e1' }], [{ id: 'e1' }], [{ id: 'e2' }]]),
+    );
+    insertChain.returning = vi.fn().mockResolvedValue([{ id: 'oo-new' }]);
+
+    await expect(createOneOnOne(memberCtx, input)).resolves.toMatchObject({ success: true });
+  });
+
+  it('他人同士の記録は作成できない', async () => {
+    const { createOneOnOne } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'e9' }]]));
+
+    const result = await createOneOnOne(memberCtx, input);
+
+    expect(result).toEqual({
+      success: false,
+      error: '自分が対象者または面談者の1on1記録のみ作成できます',
+    });
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it('従業員レコードに紐付いていない member は作成できない', async () => {
+    const { createOneOnOne } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+
+    const result = await createOneOnOne(memberCtx, input);
+
+    expect(result.success).toBe(false);
+    expect(db.insert).not.toHaveBeenCalled();
   });
 });
 

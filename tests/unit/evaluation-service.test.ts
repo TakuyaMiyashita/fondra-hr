@@ -970,7 +970,7 @@ describe('createEvaluation — 存在確認の順序', () => {
     expect(params).toContainEqual({ column: 'evaluator_id', value: 'e2' });
   });
 
-  it.each(rolesAtLeast('member'))('%s ロールは評価を作成できる', async (role) => {
+  it.each(rolesAtLeast('admin'))('%s ロールは誰の評価でも作成できる', async (role) => {
     const { createEvaluation } = await import('@/services/evaluation');
 
     const db = await getDb();
@@ -982,6 +982,61 @@ describe('createEvaluation — 存在確認の順序', () => {
     await expect(
       createEvaluation(CTX_BY_ROLE[role], { cycleId: 'c1', employeeId: 'e1', evaluatorId: 'e2' }),
     ).resolves.toMatchObject({ success: true });
+  });
+
+  /**
+   * member は自分が評価者の評価だけ作成できる。
+   * ここを開けると、自分が評価者でない評価を勝手に起票できてしまう。
+   *
+   * 「自分」の判定は employees.user_id との突き合わせで行う
+   * （src/services/self.ts）。紐付いていない member は作成できない。
+   */
+  it('member は自分が評価者なら作成できる', async () => {
+    const { createEvaluation } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    // 1回目: 自分の従業員レコード解決 / 以降: サイクル・従業員・評価者・重複
+    db.select.mockImplementation(
+      createSelectSequence([[{ id: 'me' }], [{ id: 'c1' }], [{ id: 'e1' }], [{ id: 'me' }], []]),
+    );
+    insertChain.returning = vi.fn().mockResolvedValue([{ id: 'eval-new' }]);
+
+    await expect(
+      createEvaluation(memberCtx, { cycleId: 'c1', employeeId: 'e1', evaluatorId: 'me' }),
+    ).resolves.toMatchObject({ success: true });
+  });
+
+  it('member は自分が評価者でない評価を作成できない', async () => {
+    const { createEvaluation } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSelectSequence([[{ id: 'me' }]]));
+
+    const result = await createEvaluation(memberCtx, {
+      cycleId: 'c1',
+      employeeId: 'e1',
+      evaluatorId: 'someone-else',
+    });
+
+    expect(result).toEqual({ success: false, error: '自分が評価者の評価のみ作成できます' });
+    expect(insertChain.values).not.toHaveBeenCalled();
+  });
+
+  it('従業員レコードに紐付いていない member は作成できない', async () => {
+    // メール未登録などで紐付かない場合は安全側に倒す。
+    const { createEvaluation } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSelectSequence([[]]));
+
+    const result = await createEvaluation(memberCtx, {
+      cycleId: 'c1',
+      employeeId: 'e1',
+      evaluatorId: 'me',
+    });
+
+    expect(result.success).toBe(false);
+    expect(insertChain.values).not.toHaveBeenCalled();
   });
 });
 
@@ -1081,7 +1136,7 @@ describe('updateEvaluation — 差分更新の詳細', () => {
     expect(updateParams).toContainEqual({ column: 'org_id', value: 'org-1' });
   });
 
-  it.each(rolesAtLeast('member'))('%s ロールは評価を更新できる', async (role) => {
+  it.each(rolesAtLeast('admin'))('%s ロールは誰の評価でも更新できる', async (role) => {
     const { updateEvaluation } = await import('@/services/evaluation');
 
     const db = await getDb();
@@ -1090,6 +1145,35 @@ describe('updateEvaluation — 差分更新の詳細', () => {
     await expect(
       updateEvaluation(CTX_BY_ROLE[role], { id: 'ev1', status: 'submitted' }),
     ).resolves.toMatchObject({ success: true });
+  });
+
+  /**
+   * 被評価者本人が自分の評価点やコメントを書き換えられないようにする。
+   * 評価の完全性に直結する。
+   */
+  it('member は自分が評価者の評価を更新できる', async () => {
+    const { updateEvaluation } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    // 1回目: 現在の評価 / 2回目: 自分の従業員レコード
+    db.select.mockImplementation(createSelectSequence([[current], [{ id: 'e2' }]]));
+
+    await expect(
+      updateEvaluation(memberCtx, { id: 'ev1', status: 'submitted' }),
+    ).resolves.toMatchObject({ success: true });
+  });
+
+  it('member は自分が評価者でない評価を更新できない', async () => {
+    // current.evaluatorId は 'e2'。被評価者 'e1' 本人として更新を試みる。
+    const { updateEvaluation } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSelectSequence([[current], [{ id: 'e1' }]]));
+
+    const result = await updateEvaluation(memberCtx, { id: 'ev1', ratings: { q1: 5 } });
+
+    expect(result).toEqual({ success: false, error: '自分が評価者の評価のみ編集できます' });
+    expect(updateChain.set).not.toHaveBeenCalled();
   });
 });
 

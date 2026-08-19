@@ -12,6 +12,7 @@ import type {
 import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
+import { getOwnEmployeeId } from '@/services/self';
 import type {
   EmployeeOption,
   OneOnOne,
@@ -138,6 +139,15 @@ export async function createOneOnOne(
 ): Promise<Result<{ id: string }>> {
   authorize(ctx, 'create', 'one_on_one');
 
+  // 1on1 は本人の悩みや評価に関わる。member は自分が当事者の記録だけ扱える。
+  // admin 以上は人事・マネジメントの立場で全件を扱う。
+  if (!hasMinRole(ctx, 'admin')) {
+    const ownId = await getOwnEmployeeId(ctx);
+    if (!ownId || (input.employeeId !== ownId && input.interviewerId !== ownId)) {
+      return err('自分が対象者または面談者の1on1記録のみ作成できます');
+    }
+  }
+
   const [emp] = await db
     .select({ id: employees.id })
     .from(employees)
@@ -194,6 +204,20 @@ export async function updateOneOnOne(
 
   if (!current) {
     return err('1on1記録が見つかりません');
+  }
+
+  // 変更前と変更後の両方で当事者であることを求める。変更後だけを見ると
+  // 他人同士の記録を自分の記録に見せかけて奪えるし、変更前だけを見ると
+  // 自分が入った記録を作ってから他人同士の記録に付け替えられる。
+  if (!hasMinRole(ctx, 'admin')) {
+    const ownId = await getOwnEmployeeId(ctx);
+    const isPartyBefore =
+      !!ownId && (current.employeeId === ownId || current.interviewerId === ownId);
+    const isPartyAfter = !!ownId && (input.employeeId === ownId || input.interviewerId === ownId);
+
+    if (!isPartyBefore || !isPartyAfter) {
+      return err('自分が対象者または面談者の1on1記録のみ編集できます');
+    }
   }
 
   const changes: Record<string, { from: unknown; to: unknown }> = {};

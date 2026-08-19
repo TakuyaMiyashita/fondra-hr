@@ -73,9 +73,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # バージョンを固定する。`latest` だと上流の npm パッケージが壊れた日に
+      # CI 全体が落ちる（2026-08-18 に
+      # `No matching Supabase CLI binary package found for linux-x64` で
+      # 複数の PR が失敗した。コード変更を含まない docs PR でも落ちたため
+      # 上流起因と判断できる）。
+      # 上げるときは意図的に上げる。
       - uses: supabase/setup-cli@v3
         with:
-          version: latest
+          version: 2.115.0
 
       # マイグレーション適用と supabase/seed.sql の投入もここで行われる
       - name: Start Supabase

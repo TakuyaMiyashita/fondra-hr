@@ -270,7 +270,13 @@ describe('acceptInviteAndSignUp — invitation acceptance', () => {
 
     const to = await captureRedirect(() => acceptInviteAndSignUp(VALID));
 
-    expect(s.acceptInvitation).toHaveBeenCalledWith(INVITATION_ID, 'user-new', ORG_ID, 'member');
+    expect(s.acceptInvitation).toHaveBeenCalledWith(
+      INVITATION_ID,
+      'user-new',
+      ORG_ID,
+      'member',
+      'invitee@example.com',
+    );
     expect(to).toBe('/dashboard');
   });
 
@@ -330,7 +336,13 @@ describe('acceptInviteAndSignUp — トークン検証（権限昇格の防止�
 
     await captureRedirect(() => acceptInviteAndSignUp({ ...VALID, role: 'owner' }));
 
-    expect(s.acceptInvitation).toHaveBeenCalledWith(INVITATION_ID, 'user-new', ORG_ID, 'member');
+    expect(s.acceptInvitation).toHaveBeenCalledWith(
+      INVITATION_ID,
+      'user-new',
+      ORG_ID,
+      'member',
+      'invitee@example.com',
+    );
   });
 
   it('ignores a client-supplied organization id', async () => {
@@ -342,7 +354,13 @@ describe('acceptInviteAndSignUp — トークン検証（権限昇格の防止�
     const foreignOrg = '99999999-9999-4999-8999-999999999999';
     await captureRedirect(() => acceptInviteAndSignUp({ ...VALID, orgId: foreignOrg }));
 
-    expect(s.acceptInvitation).toHaveBeenCalledWith(INVITATION_ID, 'user-new', ORG_ID, 'member');
+    expect(s.acceptInvitation).toHaveBeenCalledWith(
+      INVITATION_ID,
+      'user-new',
+      ORG_ID,
+      'member',
+      'invitee@example.com',
+    );
     expect(s.acceptInvitation.mock.calls[0]).not.toContain(foreignOrg);
   });
 
@@ -356,7 +374,13 @@ describe('acceptInviteAndSignUp — トークン検証（権限昇格の防止�
       acceptInviteAndSignUp({ ...VALID, invitationId: foreignInvitation }),
     );
 
-    expect(s.acceptInvitation).toHaveBeenCalledWith(INVITATION_ID, 'user-new', ORG_ID, 'member');
+    expect(s.acceptInvitation).toHaveBeenCalledWith(
+      INVITATION_ID,
+      'user-new',
+      ORG_ID,
+      'member',
+      'invitee@example.com',
+    );
   });
 
   it('ignores a client-supplied email and signs up as the invited address', async () => {
@@ -383,7 +407,13 @@ describe('acceptInviteAndSignUp — トークン検証（権限昇格の防止�
 
     await captureRedirect(() => acceptInviteAndSignUp(VALID));
 
-    expect(s.acceptInvitation).toHaveBeenCalledWith(INVITATION_ID, 'user-new', ORG_ID, 'owner');
+    expect(s.acceptInvitation).toHaveBeenCalledWith(
+      INVITATION_ID,
+      'user-new',
+      ORG_ID,
+      'owner',
+      'invitee@example.com',
+    );
   });
 
   it('propagates an unexpected lookup failure instead of swallowing it', async () => {

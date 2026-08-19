@@ -60,6 +60,7 @@ export async function acceptInviteAndSignUp(data: {
     authData.user.id,
     invitation.orgId,
     invitation.role,
+    invitation.email,
   );
 
   if (!result.success) {

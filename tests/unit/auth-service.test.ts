@@ -407,3 +407,217 @@ describe('acceptInvitation', () => {
     }
   });
 });
+
+/**
+ * メール確認後に、保留していた組織作成 / 招待受諾を消化する。
+ *
+ * 確認前に作ると、確認されなかった登録のぶんだけ「誰も入れない組織」が残り、
+ * 招待経路では accepted_at だけが立って招待が消費される。この関数はその
+ * 遅延実行の受け皿であり、メール確認を有効化できるかどうかがここに懸かる。
+ *
+ * 預け先の user_metadata は**クライアントから書き換えられる**領域なので、
+ * ここでの再検証（招待の引き直し・メール一致・所属の有無）が防衛線になる。
+ */
+describe('completePendingSignUp', () => {
+  const invitation = {
+    id: 'inv-1',
+    orgId: 'org-1',
+    email: 'invitee@example.com',
+    role: 'member' as const,
+    expiresAt: new Date(Date.now() + 86400000),
+    acceptedAt: null,
+    orgName: 'Acme',
+  };
+
+  it('保留が無ければ DB に触れない', async () => {
+    // パスワード再設定など、確認以外の用途で同じコールバックを通る。
+    const { completePendingSignUp } = await import('@/services/auth');
+
+    const db = await getDb();
+    const result = await completePendingSignUp('user-1', 'user@example.com', {});
+
+    expect(result).toEqual({ success: true, data: { created: false } });
+    expect(db.select).not.toHaveBeenCalled();
+  });
+
+  it.each([[undefined], [null], [{ pending_org_name: 123 }], [{ pending_org_name: '' }]])(
+    'metadata が %s なら保留無しとして扱う',
+    async (metadata) => {
+      const { completePendingSignUp } = await import('@/services/auth');
+
+      const db = await getDb();
+      const result = await completePendingSignUp('user-1', 'user@example.com', metadata);
+
+      expect(result).toEqual({ success: true, data: { created: false } });
+      expect(db.select).not.toHaveBeenCalled();
+    },
+  );
+
+  it('既に所属していれば作り直さない', async () => {
+    // 消化済みの metadata が残ったまま再度コールバックを通っても、
+    // 組織が増殖しないこと。
+    const { completePendingSignUp } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ orgId: 'org-1', role: 'owner' }]]));
+
+    const result = await completePendingSignUp('user-1', 'user@example.com', {
+      pending_org_name: 'Acme',
+    });
+
+    expect(result).toEqual({ success: true, data: { created: false } });
+    expect(insertChain.values).not.toHaveBeenCalled();
+  });
+
+  it('未所属なら預けた組織名で組織を作る', async () => {
+    const { completePendingSignUp } = await import('@/services/auth');
+
+    const result = await completePendingSignUp('user-1', 'user@example.com', {
+      pending_org_name: 'Acme',
+    });
+
+    expect(result).toEqual({ success: true, data: { created: true } });
+    // 組織のオーナーは確認を終えた本人。
+    expect(insertChain.values).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', role: 'owner' }),
+    );
+  });
+
+  it('組織作成に失敗したら失敗 Result を返す', async () => {
+    const { completePendingSignUp } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.insert.mockImplementation(() => {
+      throw new Error('duplicate key');
+    });
+
+    const result = await completePendingSignUp('user-1', 'user@example.com', {
+      pending_org_name: 'Acme',
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: '組織の作成に失敗しました: duplicate key',
+    });
+  });
+
+  it('預けたトークンで招待を引き直して受諾する', async () => {
+    const { completePendingSignUp } = await import('@/services/auth');
+
+    const db = await getDb();
+    // 0: 所属の確認 / 1: 招待の引き直し
+    db.select.mockImplementation(createSequentialSelect([[], [invitation]]));
+
+    const result = await completePendingSignUp('user-1', 'invitee@example.com', {
+      pending_invitation_token: 'tok-1',
+    });
+
+    expect(result).toEqual({ success: true, data: { created: true } });
+    // 招待に書かれたロールがそのまま付与されること（昇格させない）。
+    expect(insertChain.values).toHaveBeenCalledWith({
+      userId: 'user-1',
+      orgId: 'org-1',
+      role: 'member',
+    });
+  });
+
+  it('招待が無効・期限切れなら受諾しない', async () => {
+    const { completePendingSignUp } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], []]));
+
+    const result = await completePendingSignUp('user-1', 'invitee@example.com', {
+      pending_invitation_token: 'tok-1',
+    });
+
+    expect(result).toEqual({ success: false, error: 'この招待リンクは無効か、期限切れです' });
+    expect(insertChain.values).not.toHaveBeenCalled();
+  });
+
+  /**
+   * user_metadata はクライアントから書き換えられるため、トークンだけを
+   * 信用の起点にすると、トークンを入手した第三者が別アドレスのアカウントで
+   * 組織に参加できてしまう。確認済みメールとの一致を必ず要求する。
+   */
+  it('確認済みメールが招待先と違えば受諾しない', async () => {
+    const { completePendingSignUp } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [invitation]]));
+
+    const result = await completePendingSignUp('user-1', 'attacker@example.com', {
+      pending_invitation_token: 'tok-1',
+    });
+
+    expect(result).toEqual({ success: false, error: '招待されたメールアドレスと一致しません' });
+    expect(insertChain.values).not.toHaveBeenCalled();
+  });
+
+  it('メールが取れない場合も受諾しない', async () => {
+    const { completePendingSignUp } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [invitation]]));
+
+    const result = await completePendingSignUp('user-1', null, {
+      pending_invitation_token: 'tok-1',
+    });
+
+    expect(result.success).toBe(false);
+    expect(insertChain.values).not.toHaveBeenCalled();
+  });
+
+  it('メールの大文字小文字は無視して一致とみなす', async () => {
+    const { completePendingSignUp } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [invitation]]));
+
+    const result = await completePendingSignUp('user-1', 'Invitee@Example.COM', {
+      pending_invitation_token: 'tok-1',
+    });
+
+    expect(result).toEqual({ success: true, data: { created: true } });
+  });
+
+  it('受諾に失敗したら失敗 Result を返す', async () => {
+    const { completePendingSignUp } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [invitation]]));
+    db.insert.mockImplementation(() => {
+      throw new Error('duplicate membership');
+    });
+
+    const result = await completePendingSignUp('user-1', 'invitee@example.com', {
+      pending_invitation_token: 'tok-1',
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: '招待の承認に失敗しました: duplicate membership',
+    });
+  });
+
+  it('両方預かっていたら招待を優先する', async () => {
+    // 招待経路は他人の組織への参加であり権限が伴う。組織の新規作成と
+    // 取り違えると、招待が未消化のまま別組織ができてしまう。
+    const { completePendingSignUp } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [invitation]]));
+
+    await completePendingSignUp('user-1', 'invitee@example.com', {
+      pending_invitation_token: 'tok-1',
+      pending_org_name: 'Acme',
+    });
+
+    expect(insertChain.values).toHaveBeenCalledWith({
+      userId: 'user-1',
+      orgId: 'org-1',
+      role: 'member',
+    });
+    expect(insertChain.values).not.toHaveBeenCalledWith(expect.objectContaining({ name: 'Acme' }));
+  });
+});

@@ -1229,6 +1229,52 @@ describe('getEmployeeOneOnOnes', () => {
   });
 });
 
+describe('getEmployeeOneOnOnes — 当事者に限る閲覧範囲', () => {
+  /**
+   * 1on1 一覧と同じ範囲に揃える。従業員詳細から回り込めば他人の面談メモが
+   * 読める、という抜け道を作らない。
+   */
+  it('admin は絞り込み条件を足さず、紐付けも引かない', async () => {
+    const { getEmployeeOneOnOnes } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], []]));
+
+    await getEmployeeOneOnOnes(adminCtx, 'emp-1');
+
+    // 0: 面談者サブクエリ / 1: 本体。紐付けの追加クエリは出ない。
+    expect(db.select).toHaveBeenCalledTimes(2);
+    expect(sqlText(selectCallAt(db, 1).where.mock.calls[0][0])).not.toContain(' or ');
+  });
+
+  it('member には自分が当事者の記録だけ返す', async () => {
+    const { getEmployeeOneOnOnes } = await import('@/services/employee');
+
+    const db = await getDb();
+    // 0: 面談者サブクエリ / 1: 自分の従業員レコード / 2: 本体
+    db.select.mockImplementation(createSequentialSelect([[], [{ id: 'me' }], []]));
+
+    await getEmployeeOneOnOnes(memberCtx, 'emp-1');
+
+    const where = selectCallAt(db, 2).where.mock.calls[0][0];
+    const params = collectParams(where);
+    // 対象の従業員での絞り込みは残したまま、当事者条件を重ねる。
+    expect(params).toContainEqual({ column: 'employee_id', value: 'emp-1' });
+    expect(params).toContainEqual({ column: 'interviewer_id', value: 'me' });
+    expect(sqlText(where)).toContain(' or ');
+  });
+
+  it('紐付いていない member には何も返さず、1on1 を引きにいかない', async () => {
+    const { getEmployeeOneOnOnes } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], []]));
+
+    await expect(getEmployeeOneOnOnes(memberCtx, 'emp-1')).resolves.toEqual([]);
+    expect(db.select).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('getEmployeeEvaluations', () => {
   it('従業員IDと org_id で絞り、作成日の降順で返す', async () => {
     const { getEmployeeEvaluations } = await import('@/services/employee');

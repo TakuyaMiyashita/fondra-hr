@@ -357,13 +357,123 @@ describe('getOneOnOne', () => {
     expect(result.success).toBe(false);
   });
 
-  it('viewer も詳細を閲覧できる', async () => {
+  it('viewer も自分が当事者の記録なら閲覧できる', async () => {
     const { getOneOnOne } = await import('@/services/one-on-one');
 
     const db = await getDb();
-    db.select.mockImplementation(createSequentialSelect([[], [], [{ id: 'oo1' }]]));
+    // 0: 自分の従業員レコード / 1,2: 従業員サブクエリ / 3: 本体
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'me' }], [], [], [{ id: 'oo1' }]]));
 
     await expect(getOneOnOne(viewerCtx, 'oo1')).resolves.toMatchObject({ success: true });
+  });
+});
+
+/**
+ * 1on1 の閲覧範囲を、作成・編集と同じ「自分が当事者のものだけ」に揃える。
+ *
+ * 作成・編集を当事者に絞っていても、閲覧が全ロールに開いたままだと
+ * member が他人の面談メモを全件読めてしまい、制限の意味が無い。
+ * 1on1 の記録は本人の悩みや評価に関わるため、ここが実質的な情報保護になる。
+ */
+describe('1on1 の閲覧範囲', () => {
+  it('admin は絞り込み条件を足さず、紐付けも引かない', async () => {
+    const { listOneOnOnes } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], [], [{ count: 0 }], []]));
+
+    await listOneOnOnes(adminCtx, baseQuery);
+
+    // 0,1: 従業員サブクエリ / 2: 件数 / 3: 本体。紐付けの追加クエリは出ない。
+    expect(db.select).toHaveBeenCalledTimes(4);
+    const text = sqlText(selectCallAt(db, 2).where.mock.calls[0][0]);
+    expect(text).not.toContain(' or ');
+  });
+
+  it('member の一覧には当事者条件が入る', async () => {
+    const { listOneOnOnes } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    // 0: 自分の従業員レコード / 1,2: 従業員サブクエリ / 3: 件数 / 4: 本体
+    db.select.mockImplementation(
+      createSequentialSelect([[{ id: 'me' }], [], [], [{ count: 0 }], []]),
+    );
+
+    await listOneOnOnes(memberCtx, baseQuery);
+
+    const where = selectCallAt(db, 3).where.mock.calls[0][0];
+    const params = collectParams(where);
+    expect(params).toContainEqual({ column: 'employee_id', value: 'me' });
+    expect(params).toContainEqual({ column: 'interviewer_id', value: 'me' });
+    // 対象者「または」面談者。and で繋ぐと自分同士の記録しか出ない。
+    expect(sqlText(where)).toContain(' or ');
+  });
+
+  it('件数と本体に同じ条件を使う', async () => {
+    // 片方だけ絞ると、見えない行を数えたページネーションになる。
+    const { listOneOnOnes } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(
+      createSequentialSelect([[{ id: 'me' }], [], [], [{ count: 0 }], []]),
+    );
+
+    await listOneOnOnes(memberCtx, baseQuery);
+
+    expect(selectCallAt(db, 4).where.mock.calls[0][0]).toBe(
+      selectCallAt(db, 3).where.mock.calls[0][0],
+    );
+  });
+
+  it('紐付いていない member には何も返さず、1on1 を引きにいかない', async () => {
+    // 紐付いていない＝「自分の記録が無い」。制限なしに倒してはならない。
+    const { listOneOnOnes } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+
+    const result = await listOneOnOnes(memberCtx, baseQuery);
+
+    expect(result).toEqual({ records: [], total: 0 });
+    expect(db.select).toHaveBeenCalledTimes(1);
+  });
+
+  it('member の詳細取得にも当事者条件が入る', async () => {
+    // 一覧だけ絞っても、ID を直接叩けば読めてしまう。
+    const { getOneOnOne } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'me' }], [], [], [{ id: 'oo1' }]]));
+
+    await getOneOnOne(memberCtx, 'oo1');
+
+    const where = selectCallAt(db, 3).where.mock.calls[0][0];
+    expect(collectParams(where)).toContainEqual({ column: 'employee_id', value: 'me' });
+    expect(sqlText(where)).toContain(' or ');
+  });
+
+  it('当事者でない記録は「見つかりません」で返す', async () => {
+    // 存在の有無を伝えると、誰と誰が 1on1 をしたかが ID の総当たりで分かる。
+    const { getOneOnOne } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'me' }], [], [], []]));
+
+    const result = await getOneOnOne(memberCtx, 'oo1');
+
+    expect(result).toEqual({ success: false, error: '1on1記録が見つかりません' });
+  });
+
+  it('紐付いていない member の詳細取得は 1on1 を引きにいかない', async () => {
+    const { getOneOnOne } = await import('@/services/one-on-one');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+
+    const result = await getOneOnOne(memberCtx, 'oo1');
+
+    expect(result).toEqual({ success: false, error: '1on1記録が見つかりません' });
+    expect(db.select).toHaveBeenCalledTimes(1);
   });
 });
 

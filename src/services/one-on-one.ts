@@ -12,7 +12,7 @@ import type {
 import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
-import { getOwnEmployeeId } from '@/services/self';
+import { getOneOnOneScope, getOwnEmployeeId } from '@/services/self';
 import type {
   EmployeeOption,
   OneOnOne,
@@ -36,10 +36,26 @@ export async function listOneOnOnes(
 ): Promise<OneOnOneListResult> {
   authorize(ctx, 'read', 'one_on_one');
 
+  // member / viewer には自分が当事者の記録だけを返す。作成・編集を当事者に
+  // 絞っていても、閲覧が開いていれば他人の面談メモを全件読めてしまう。
+  const scope = await getOneOnOneScope(ctx);
+  if (scope.kind === 'none') {
+    return { records: [], total: 0 };
+  }
+
   const emp = employee('emp');
   const interviewer = employee('interviewer');
 
   const conditions = [eq(oneOnOnes.orgId, ctx.orgId)];
+
+  if (scope.kind === 'party') {
+    conditions.push(
+      or(
+        eq(oneOnOnes.employeeId, scope.employeeId),
+        eq(oneOnOnes.interviewerId, scope.employeeId),
+      )!,
+    );
+  }
 
   if (query.employeeId) {
     conditions.push(eq(oneOnOnes.employeeId, query.employeeId));
@@ -102,8 +118,26 @@ export async function listOneOnOnes(
 export async function getOneOnOne(ctx: AuthContext, id: string): Promise<Result<OneOnOneDetail>> {
   authorize(ctx, 'read', 'one_on_one');
 
+  // 一覧と同じ範囲に揃える。ここを開けたままだと ID を直接叩けば
+  // 他人の記録が読めてしまう。
+  const scope = await getOneOnOneScope(ctx);
+  if (scope.kind === 'none') {
+    return err('1on1記録が見つかりません');
+  }
+
   const emp = employee('emp');
   const interviewer = employee('interviewer');
+
+  const conditions = [eq(oneOnOnes.id, id), eq(oneOnOnes.orgId, ctx.orgId)];
+
+  if (scope.kind === 'party') {
+    conditions.push(
+      or(
+        eq(oneOnOnes.employeeId, scope.employeeId),
+        eq(oneOnOnes.interviewerId, scope.employeeId),
+      )!,
+    );
+  }
 
   const [row] = await db
     .select({
@@ -123,9 +157,11 @@ export async function getOneOnOne(ctx: AuthContext, id: string): Promise<Result<
     .from(oneOnOnes)
     .innerJoin(emp, eq(oneOnOnes.employeeId, emp.id))
     .innerJoin(interviewer, eq(oneOnOnes.interviewerId, interviewer.id))
-    .where(and(eq(oneOnOnes.id, id), eq(oneOnOnes.orgId, ctx.orgId)))
+    .where(and(...conditions))
     .limit(1);
 
+  // 当事者でない場合も「見つかりません」で返す。存在の有無を伝えると、
+  // 誰と誰が 1on1 をしたかが ID の総当たりで分かってしまう。
   if (!row) {
     return err('1on1記録が見つかりません');
   }

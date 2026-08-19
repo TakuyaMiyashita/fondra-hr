@@ -8,7 +8,7 @@
 | memberships       | CRUD            | CRUD            | R               | R      |
 | invitations       | CRUD            | CRUD            | -               | -      |
 | departments       | CRUD            | CRUD            | R               | R      |
-| employees         | CRUD            | CRUD            | CRU             | R      |
+| employees         | CRUD            | CRUD            | R               | R      |
 | skills            | CRUD            | CRUD            | CRU             | R      |
 | employee_skills   | CRUD            | CRUD            | CRD             | R      |
 | one_on_ones       | CRUD            | CRUD            | CRU*            | R      |
@@ -22,6 +22,10 @@
 - **削除は原則 admin 以上**。employees / skills / departments / evaluation_cycles /
   evaluations / one_on_ones のいずれも member は削除できない
   （`employee_skills` の割当解除のみ member 可）
+- **`employees` の書き込みは admin 以上**。従業員レコードのメールアドレスは
+  ログインユーザーとの紐付けキーであり、member が書き換えられると
+  任意のレコードを「自分」に付け替えて本人限定の操作を奪えるため
+  （下記「本人チェックの前提」を参照）
 
 ### `*` / `**` — 未実装の制限
 

@@ -681,6 +681,109 @@ describe('getCycle', () => {
   });
 });
 
+describe('getCycle — 評価コメントのフィールド制御', () => {
+  /**
+   * 評価サイクルの read は全ロールに開いているため、行単位では
+   * コメントを守れない。member / viewer には自分が書いた評価の
+   * コメントだけを返す（被評価者本人にも見せない）。
+   */
+  const cycleRow = {
+    id: 'c1',
+    name: '2026年上期',
+    periodStart: '2026-04-01',
+    periodEnd: '2026-09-30',
+    status: 'in_progress',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const evalRows = [
+    {
+      id: 'ev1',
+      cycleId: 'c1',
+      employeeId: 'e1',
+      employeeName: '山田太郎',
+      employeeCode: 'EMP-001',
+      evaluatorId: 'me',
+      evaluatorName: '自分',
+      ratings: null,
+      comment: '自分が書いた評価',
+      status: 'draft',
+      createdAt: new Date(),
+    },
+    {
+      id: 'ev2',
+      cycleId: 'c1',
+      employeeId: 'e2',
+      employeeName: '鈴木花子',
+      employeeCode: 'EMP-002',
+      evaluatorId: 'someone-else',
+      evaluatorName: '佐藤次郎',
+      ratings: null,
+      comment: '他人が書いた評価',
+      status: 'draft',
+      createdAt: new Date(),
+    },
+  ];
+
+  async function comments(ctx: AuthContext, own: unknown[] = [{ id: 'me' }]) {
+    const { getCycle } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    // 0: サイクル本体 / 1,2: 従業員サブクエリ / 3: 評価一覧 / 4: 自分の従業員レコード
+    db.select.mockImplementation(createSelectSequence([[cycleRow], [], [], evalRows, own]));
+
+    const result = await getCycle(ctx, 'c1');
+    if (!result.success) throw new Error('取得に失敗した');
+    return result.data.evaluations.map((e) => e.comment);
+  }
+
+  it('admin には全件のコメントを返す', async () => {
+    await expect(comments(adminCtx)).resolves.toEqual(['自分が書いた評価', '他人が書いた評価']);
+  });
+
+  it('admin では紐付けの追加クエリを打たない', async () => {
+    const { getCycle } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSelectSequence([[cycleRow], [], [], evalRows]));
+
+    await getCycle(adminCtx, 'c1');
+
+    // 本体・サブクエリ2つ・評価一覧の4回まで。5回目が出たら無駄な問い合わせ。
+    expect(db.select).toHaveBeenCalledTimes(4);
+  });
+
+  it('member には自分が評価者の評価のコメントだけ返す', async () => {
+    await expect(comments(memberCtx)).resolves.toEqual(['自分が書いた評価', null]);
+  });
+
+  it('紐付いていない member にはコメントを返さない', async () => {
+    await expect(comments(memberCtx, [])).resolves.toEqual([null, null]);
+  });
+
+  it('viewer にはコメントを返さない', async () => {
+    await expect(comments(viewerCtx, [])).resolves.toEqual([null, null]);
+  });
+
+  it('マスクはコメントだけで、他のフィールドはそのまま返す', async () => {
+    const { getCycle } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSelectSequence([[cycleRow], [], [], evalRows, []]));
+
+    const result = await getCycle(viewerCtx, 'c1');
+    if (!result.success) throw new Error('取得に失敗した');
+
+    expect(result.data.evaluations[0]).toMatchObject({
+      id: 'ev1',
+      employeeName: '山田太郎',
+      evaluatorName: '自分',
+      status: 'draft',
+    });
+  });
+});
+
 describe('createCycle — 監査ログとテナント分離', () => {
   it('org_id 付きで INSERT し、監査ログを残す', async () => {
     const { createCycle } = await import('@/services/evaluation');

@@ -173,6 +173,26 @@ Vercel で GitHub リポジトリをインポートし、以下の環境変数�
 ローカル開発の利便性のため `false` にしてある。`config push` するとこの値が
 そのまま反映される点に注意する。
 
+#### enable_confirmations は設定変更だけでは有効化できない
+
+**実装の変更を伴う。** `signUp`（`src/app/(auth)/actions.ts`）と招待受諾
+（`src/app/(auth)/invite/[token]/actions.ts`）は、Auth ユーザーを作った直後に
+組織・メンバーシップを作る。メール確認を有効にすると次の状態が生まれる。
+
+- 確認されなかった登録のぶんだけ、**誰も入れない組織が DB に残り続ける**
+- 招待経路はさらに悪く、`acceptInvitation` が `accepted_at` を立てるため
+  **確認しないまま招待だけが消費される**。本人はログインできず、
+  管理者は再招待が必要になる
+
+有効化する場合は、組織・メンバーシップの作成を確認後（`/auth/callback` の
+処理内、または `auth.users.email_confirmed_at` を見る DB トリガー）へ
+移す必要がある。
+
+なお、確認が無効な現状で `signUp()` が返すセッションは**組織を作る前**に
+発行されるため、JWT の `app_metadata.org_id` が null になる。これを持ったまま
+画面に入るとリダイレクトループになるため、組織作成後に `refreshSession()` を
+挟んでいる。この経路を触るときは同じ順序を壊さないこと。
+
 ### SUPABASE_SERVICE_ROLE_KEY に NEXT_PUBLIC_ を付けない
 
 組織切替は JWT フックが読む `app_metadata` を書き換える必要があり、これは

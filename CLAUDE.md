@@ -25,6 +25,10 @@
 
 - `@dnd-kit/core` + `@dnd-kit/sortable` — 組織図 D&D（追加済み）
 - `next-themes` — ダークモード（追加済み）
+- `@testing-library/user-event` — コンポーネントテストのユーザー操作（追加済み）。
+  `fireEvent` は DOM イベントを直接発火するだけで、実際のクリックに伴う
+  フォーカス移動やポインタイベントの並びを再現しない。Base UI の Select /
+  Popover はそれらに依存して開閉するため、`fireEvent` では検証できない
 - `date-fns` — 日付操作
 
 ## アーキテクチャ

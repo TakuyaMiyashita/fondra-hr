@@ -11,7 +11,7 @@ import type {
 } from '@/lib/validations/one-on-one';
 import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
-import { authorize } from '@/services/authorize';
+import { authorize, hasMinRole } from '@/services/authorize';
 import type {
   EmployeeOption,
   OneOnOne,
@@ -231,7 +231,11 @@ export async function updateOneOnOne(
 }
 
 export async function deleteOneOnOne(ctx: AuthContext, id: string): Promise<Result<void>> {
-  authorize(ctx, 'delete', 'one_on_one');
+  // 1on1 記録は本人の悩みや評価に関わる機微な情報を含み、認可マトリクス
+  // (docs/database/authorization-matrix.md) でも member に削除権限を与えていない。
+  // 既定の authorize() は viewer 以外の書き込みを通すため、明示的に admin 以上を要求する。
+  // これが無いと member が他人の 1on1 記録を削除できてしまう。
+  authorize(ctx, 'delete', 'one_on_one', (c) => hasMinRole(c, 'admin'));
 
   const [target] = await db
     .select({ id: oneOnOnes.id })

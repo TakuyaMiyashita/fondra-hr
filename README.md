@@ -148,6 +148,20 @@ pnpm dev
 - [UIデザインガイドライン](./docs/design/ui-guidelines.md)
 - [テスト戦略](./docs/testing.md)
 
+## デプロイ
+
+Vercel + Supabase Cloud への手順は [`docs/deployment.md`](./docs/deployment.md) を参照。
+
+運用しているのは**検証環境ひとつのみ**で、本番環境は用意していない。
+実ユーザーを持たないため環境を分ける利点が無いという判断による。
+本番運用する場合に何を変えるべきかは同ドキュメントに併記している。
+
+- 検証環境: <https://fondra-hr-staging.vercel.app>
+- Supabase: `fondra-hr-staging`（ap-northeast-1）
+
+検証環境のデータは随時作り直してよい。再構築は `link` → `db push` →
+`config push` の3コマンドで完了する。
+
 ## ライセンス
 
 MIT

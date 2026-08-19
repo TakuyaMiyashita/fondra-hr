@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useTransition } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,7 @@ export function EvaluationFormDialog({ open, onOpenChange, cycleId, employees, o
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<CreateEvaluationInput>({
     resolver: zodResolver(createEvaluationSchema),
@@ -71,8 +71,8 @@ export function EvaluationFormDialog({ open, onOpenChange, cycleId, employees, o
     ),
   };
 
-  const employeeId = watch('employeeId');
-  const evaluatorId = watch('evaluatorId');
+  const employeeId = useWatch({ control, name: 'employeeId' });
+  const evaluatorId = useWatch({ control, name: 'evaluatorId' });
 
   function onSubmit(data: CreateEvaluationInput) {
     startTransition(async () => {

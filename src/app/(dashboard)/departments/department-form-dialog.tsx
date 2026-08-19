@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useTransition } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -73,7 +73,7 @@ export function DepartmentFormDialog({
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<CreateDepartmentInput>({
     resolver: zodResolver(createDepartmentSchema),
@@ -98,7 +98,7 @@ export function DepartmentFormDialog({
     }
   }, [open, defaultValues, defaultParentId, reset]);
 
-  const parentId = watch('parentId');
+  const parentId = useWatch({ control, name: 'parentId' });
 
   const excludeIds =
     isEdit && defaultValues ? getDescendantIds(departments, defaultValues.id) : new Set<string>();

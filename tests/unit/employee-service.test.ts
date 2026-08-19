@@ -847,7 +847,7 @@ describe('updateEmployee — 差分更新の詳細', () => {
     expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
   });
 
-  it.each(rolesAtLeast('member'))('%s ロールは従業員を更新できる', async (role) => {
+  it.each(rolesAtLeast('admin'))('%s ロールは従業員を更新できる', async (role) => {
     const { updateEmployee } = await import('@/services/employee');
 
     const db = await getDb();
@@ -858,7 +858,7 @@ describe('updateEmployee — 差分更新の詳細', () => {
     ).resolves.toMatchObject({ success: true });
   });
 
-  it.each(rolesBelow('member'))('%s ロールは従業員を更新できない', async (role) => {
+  it.each(rolesBelow('admin'))('%s ロールは従業員を更新できない', async (role) => {
     const { updateEmployee } = await import('@/services/employee');
 
     await expect(
@@ -937,7 +937,30 @@ describe('createEmployee — 認可境界と重複', () => {
     expect(db.insert).not.toHaveBeenCalled();
   });
 
-  it.each(rolesAtLeast('member'))('%s ロールは従業員を登録できる', async (role) => {
+  /**
+   * 従業員レコードのメールアドレスはログインユーザーとの紐付けキーになる
+   * （docs/database/authorization-matrix.md）。member が従業員を作成・更新できると、
+   * 任意のレコードのメールを自分のログインメールに変えて「自分」に付け替え、
+   * 本人限定の操作（自分の評価の編集など）を他人のレコードに対して行える。
+   *
+   * つまりここは本人チェックの土台であり、緩めると本人チェック自体が抜け道になる。
+   */
+  it.each(rolesBelow('admin'))('%s ロールは従業員を登録できない', async (role) => {
+    const { createEmployee } = await import('@/services/employee');
+
+    await expect(
+      createEmployee(CTX_BY_ROLE[role], {
+        employeeCode: 'EMP001',
+        fullName: '山田太郎',
+        status: 'active',
+      }),
+    ).rejects.toThrow(AuthorizationError);
+
+    const db = await getDb();
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it.each(rolesAtLeast('admin'))('%s ロールは従業員を登録できる', async (role) => {
     const { createEmployee } = await import('@/services/employee');
 
     const db = await getDb();
@@ -1182,7 +1205,7 @@ describe('updateEmployeeAvatar', () => {
     expect(db.insert).not.toHaveBeenCalled();
   });
 
-  it.each(rolesAtLeast('member'))('%s ロールはアバターを更新できる', async (role) => {
+  it.each(rolesAtLeast('admin'))('%s ロールはアバターを更新できる', async (role) => {
     const { updateEmployeeAvatar } = await import('@/services/employee');
 
     const db = await getDb();
@@ -1193,7 +1216,7 @@ describe('updateEmployeeAvatar', () => {
     ).resolves.toMatchObject({ success: true });
   });
 
-  it.each(rolesBelow('member'))('%s ロールはアバターを更新できない', async (role) => {
+  it.each(rolesBelow('admin'))('%s ロールはアバターを更新できない', async (role) => {
     const { updateEmployeeAvatar } = await import('@/services/employee');
 
     await expect(updateEmployeeAvatar(CTX_BY_ROLE[role], 'emp-1', 'path.png')).rejects.toThrow(

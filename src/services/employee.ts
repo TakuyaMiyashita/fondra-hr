@@ -150,7 +150,11 @@ export async function createEmployee(
   ctx: AuthContext,
   input: CreateEmployeeInput,
 ): Promise<Result<{ id: string }>> {
-  authorize(ctx, 'create', 'employee');
+  // 従業員レコードのメールアドレスはログインユーザーとの紐付けキーになる
+  // （docs/database/authorization-matrix.md）。member が書き換えられると、
+  // 任意の従業員レコードを「自分」に付け替えて本人限定の操作を奪えるため、
+  // マスタ管理は admin 以上に限定する。
+  authorize(ctx, 'create', 'employee', (c) => hasMinRole(c, 'admin'));
 
   const data = cleanInput(input);
 
@@ -179,7 +183,8 @@ export async function updateEmployee(
   id: string,
   input: Partial<CreateEmployeeInput>,
 ): Promise<Result<void>> {
-  authorize(ctx, 'update', 'employee');
+  // create と同じ理由で admin 以上に限定する。
+  authorize(ctx, 'update', 'employee', (c) => hasMinRole(c, 'admin'));
 
   const [current] = await db
     .select()
@@ -329,7 +334,8 @@ export async function updateEmployeeAvatar(
   employeeId: string,
   avatarPath: string,
 ): Promise<Result<void>> {
-  authorize(ctx, 'update', 'employee');
+  // アバターも従業員マスタの一部。更新権限は他のフィールドと揃える。
+  authorize(ctx, 'update', 'employee', (c) => hasMinRole(c, 'admin'));
 
   const [target] = await db
     .select({ id: employees.id })

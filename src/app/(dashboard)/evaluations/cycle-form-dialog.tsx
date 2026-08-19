@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useTransition } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -60,7 +60,7 @@ export function CycleFormDialog({ mode, open, onOpenChange, defaultValues, onSuc
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<CreateCycleInput & { status?: CycleStatus }>({
     resolver: zodResolver(createCycleSchema),
@@ -97,7 +97,7 @@ export function CycleFormDialog({ mode, open, onOpenChange, defaultValues, onSuc
     }
   }, [open, defaultValues, reset]);
 
-  const status = watch('status');
+  const status = useWatch({ control, name: 'status' });
 
   function onSubmit(data: CreateCycleInput & { status?: CycleStatus }) {
     startTransition(async () => {

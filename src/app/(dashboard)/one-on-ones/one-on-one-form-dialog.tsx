@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useTransition } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -63,7 +63,7 @@ export function OneOnOneFormDialog({
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<CreateOneOnOneInput>({
     resolver: zodResolver(createOneOnOneSchema),
@@ -106,9 +106,9 @@ export function OneOnOneFormDialog({
     }
   }, [open, defaultValues, reset]);
 
-  const employeeId = watch('employeeId');
-  const interviewerId = watch('interviewerId');
-  const moodScore = watch('moodScore');
+  const employeeId = useWatch({ control, name: 'employeeId' });
+  const interviewerId = useWatch({ control, name: 'interviewerId' });
+  const moodScore = useWatch({ control, name: 'moodScore' });
 
   // Base UI の Select は items を渡さないと、選択中の値をラベルではなく
   // 生の値（UUID や __none__）のまま表示する。

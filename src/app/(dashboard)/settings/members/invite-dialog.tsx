@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useTransition } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -51,14 +51,14 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: Props) {
     handleSubmit,
     setValue,
     reset,
-    watch,
+    control,
     formState: { errors },
   } = useForm<InviteMemberInput>({
     resolver: zodResolver(inviteMemberSchema),
     defaultValues: { email: '', role: 'member' },
   });
 
-  const selectedRole = watch('role');
+  const selectedRole = useWatch({ control, name: 'role' });
 
   function onSubmit(data: InviteMemberInput) {
     startTransition(async () => {

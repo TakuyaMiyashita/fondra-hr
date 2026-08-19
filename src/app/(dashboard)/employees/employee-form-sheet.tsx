@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useTransition } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -66,7 +66,7 @@ export function EmployeeFormSheet({
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<FormInput, unknown, CreateEmployeeInput>({
     resolver: zodResolver(createEmployeeSchema),
@@ -95,8 +95,8 @@ export function EmployeeFormSheet({
         },
   });
 
-  const departmentId = watch('departmentId');
-  const status = watch('status');
+  const departmentId = useWatch({ control, name: 'departmentId' });
+  const status = useWatch({ control, name: 'status' });
 
   function onSubmit(data: CreateEmployeeInput) {
     startTransition(async () => {

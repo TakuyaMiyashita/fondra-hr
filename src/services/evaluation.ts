@@ -14,6 +14,7 @@ import type {
 import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
+import { canReadEvaluationComment, canReadPersonalData } from '@/services/field-visibility';
 import { getOwnEmployeeId } from '@/services/self';
 import type {
   CycleWithEvaluations,
@@ -106,9 +107,18 @@ export async function getCycle(
     .where(and(eq(evaluations.cycleId, id), eq(evaluations.orgId, ctx.orgId)))
     .orderBy(asc(sql`${emp.employeeCode}`));
 
+  // 評価コメントは admin 以上と、自分が評価者の評価にだけ返す。
+  // admin 以上は無条件に見えるので、紐付けの解決（追加クエリ）を省く。
+  const ownEmployeeId = canReadPersonalData(ctx) ? null : await getOwnEmployeeId(ctx);
+
+  const masked = evalRows.map((row) => ({
+    ...row,
+    comment: canReadEvaluationComment(ctx, row.evaluatorId, ownEmployeeId) ? row.comment : null,
+  }));
+
   return ok({
     cycle: cycleRow as EvaluationCycleDetail,
-    evaluations: evalRows as Evaluation[],
+    evaluations: masked as Evaluation[],
   });
 }
 

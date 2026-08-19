@@ -1269,6 +1269,144 @@ describe('getEmployeeEvaluations', () => {
   });
 });
 
+describe('getEmployee — 生年月日のフィールド制御', () => {
+  /**
+   * 従業員の read は全ロールに開いている（認可マトリクス）ため、
+   * 行単位の認可では生年月日を守れない。Service Layer で列を落とす。
+   */
+  const detail = {
+    id: 'emp-1',
+    employeeCode: 'EMP001',
+    fullName: '山田太郎',
+    fullNameKana: 'ヤマダタロウ',
+    email: 'yamada@example.com',
+    position: 'エンジニア',
+    departmentId: 'dept-1',
+    departmentName: '開発部',
+    hiredOn: '2024-01-01',
+    birthDate: '1990-05-15',
+    status: 'active',
+    avatarPath: null,
+    userId: 'user-9' as string | null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  async function fetchAs(ctx: AuthContext, row = detail) {
+    const { getEmployee } = await import('@/services/employee');
+    const db = await getDb();
+    db.select.mockReturnValue(createChainMock([row]));
+    return getEmployee(ctx, 'emp-1');
+  }
+
+  it('admin は他人の生年月日を見られる', async () => {
+    const result = await fetchAs(adminCtx);
+    expect(result).toMatchObject({ success: true, data: { birthDate: '1990-05-15' } });
+  });
+
+  it('member には他人の生年月日を返さない', async () => {
+    const result = await fetchAs(memberCtx);
+    expect(result).toMatchObject({ success: true, data: { birthDate: null } });
+  });
+
+  it('viewer には他人の生年月日を返さない', async () => {
+    const result = await fetchAs(viewerCtx);
+    expect(result).toMatchObject({ success: true, data: { birthDate: null } });
+  });
+
+  it('member は自分の従業員レコードなら生年月日を見られる', async () => {
+    const result = await fetchAs(memberCtx, { ...detail, userId: memberCtx.userId });
+    expect(result).toMatchObject({ success: true, data: { birthDate: '1990-05-15' } });
+  });
+
+  it('未紐付けの従業員は member から見えない', async () => {
+    // user_id が null のレコードを「自分」と誤判定すると、
+    // マスタ登録直後の全従業員の生年月日が member に開く。
+    const result = await fetchAs(memberCtx, { ...detail, userId: null });
+    expect(result).toMatchObject({ success: true, data: { birthDate: null } });
+  });
+
+  it('マスクは生年月日だけで、他のフィールドはそのまま返す', async () => {
+    const result = await fetchAs(viewerCtx);
+    expect(result).toMatchObject({
+      success: true,
+      data: { fullName: '山田太郎', email: 'yamada@example.com', hiredOn: '2024-01-01' },
+    });
+  });
+});
+
+describe('getEmployeeEvaluations — 評価コメントのフィールド制御', () => {
+  const rows = [
+    {
+      id: 'ev1',
+      cycleName: '2026年上期',
+      evaluatorId: 'me',
+      evaluatorName: '自分',
+      status: 'submitted',
+      comment: '自分が書いた評価',
+      createdAt: new Date(),
+    },
+    {
+      id: 'ev2',
+      cycleName: '2026年上期',
+      evaluatorId: 'someone-else',
+      evaluatorName: '鈴木花子',
+      status: 'submitted',
+      comment: '他人が書いた評価',
+      createdAt: new Date(),
+    },
+  ];
+
+  it('admin には全件のコメントを返し、紐付けの追加クエリを打たない', async () => {
+    const { getEmployeeEvaluations } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], rows]));
+
+    const result = await getEmployeeEvaluations(adminCtx, 'emp-1');
+
+    expect(result.map((r) => r.comment)).toEqual(['自分が書いた評価', '他人が書いた評価']);
+    // 0: 評価者サブクエリ / 1: 本体。admin は無条件に見えるので紐付けを引かない。
+    expect(db.select).toHaveBeenCalledTimes(2);
+  });
+
+  it('member には自分が評価者の評価のコメントだけ返す', async () => {
+    const { getEmployeeEvaluations } = await import('@/services/employee');
+
+    const db = await getDb();
+    // 0: 評価者サブクエリ / 1: 本体 / 2: 自分の従業員レコード解決
+    db.select.mockImplementation(createSequentialSelect([[], rows, [{ id: 'me' }]]));
+
+    const result = await getEmployeeEvaluations(memberCtx, 'emp-1');
+
+    expect(result.map((r) => r.comment)).toEqual(['自分が書いた評価', null]);
+  });
+
+  it('紐付いていない member にはコメントを返さない', async () => {
+    const { getEmployeeEvaluations } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], rows, []]));
+
+    const result = await getEmployeeEvaluations(memberCtx, 'emp-1');
+
+    expect(result.map((r) => r.comment)).toEqual([null, null]);
+  });
+
+  it('判定に使う evaluatorId は返り値に含めない', async () => {
+    // 評価者の従業員 ID は画面に不要。判定のためだけに引いている。
+    const { getEmployeeEvaluations } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], rows]));
+
+    const result = await getEmployeeEvaluations(adminCtx, 'emp-1');
+
+    expect(result[0]).not.toHaveProperty('evaluatorId');
+    expect(result[0]).toHaveProperty('evaluatorName', '自分');
+  });
+});
+
 describe('updateEmployeeAvatar', () => {
   it('avatarPath を更新し、監査ログを残す', async () => {
     const { updateEmployeeAvatar } = await import('@/services/employee');

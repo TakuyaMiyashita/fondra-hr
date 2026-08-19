@@ -14,6 +14,12 @@ import type { CreateEmployeeInput, EmployeeListQuery } from '@/lib/validations/e
 import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
+import {
+  canReadBirthDate,
+  canReadEvaluationComment,
+  canReadPersonalData,
+} from '@/services/field-visibility';
+import { getOwnEmployeeId } from '@/services/self';
 import type {
   DepartmentOption,
   Employee,
@@ -130,7 +136,12 @@ export async function getEmployee(ctx: AuthContext, id: string): Promise<Result<
     return err('従業員が見つかりません');
   }
 
-  return ok(row as EmployeeDetail);
+  // 生年月日は admin 以上と本人にだけ返す。従業員の read は全ロールに開いて
+  // いるので、ここで落とさないと member / viewer に全員の生年月日が渡る。
+  return ok({
+    ...row,
+    birthDate: canReadBirthDate(ctx, row.userId) ? row.birthDate : null,
+  } as EmployeeDetail);
 }
 
 /**
@@ -355,10 +366,11 @@ export async function getEmployeeEvaluations(
     .from(employees)
     .as('evaluator');
 
-  return db
+  const rows = await db
     .select({
       id: evaluations.id,
       cycleName: evaluationCycles.name,
+      evaluatorId: evaluations.evaluatorId,
       evaluatorName: sql<string>`${evaluator.fullName}`,
       status: evaluations.status,
       comment: evaluations.comment,
@@ -369,6 +381,19 @@ export async function getEmployeeEvaluations(
     .innerJoin(evaluator, eq(evaluations.evaluatorId, evaluator.id))
     .where(and(eq(evaluations.employeeId, employeeId), eq(evaluations.orgId, ctx.orgId)))
     .orderBy(desc(evaluations.createdAt));
+
+  // admin 以上は無条件に見えるので、紐付けの解決（追加クエリ）を省く。
+  const ownEmployeeId = canReadPersonalData(ctx) ? null : await getOwnEmployeeId(ctx);
+
+  // evaluatorId は判定にだけ使い、呼び出し側には返さない。
+  return rows.map((row) => ({
+    id: row.id,
+    cycleName: row.cycleName,
+    evaluatorName: row.evaluatorName,
+    status: row.status,
+    comment: canReadEvaluationComment(ctx, row.evaluatorId, ownEmployeeId) ? row.comment : null,
+    createdAt: row.createdAt,
+  }));
 }
 
 export async function updateEmployeeAvatar(

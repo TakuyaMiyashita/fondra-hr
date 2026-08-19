@@ -14,6 +14,7 @@ import type {
 import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
+import { getOwnEmployeeId } from '@/services/self';
 import type {
   CycleWithEvaluations,
   Evaluation,
@@ -225,6 +226,15 @@ export async function createEvaluation(
 ): Promise<Result<{ id: string }>> {
   authorize(ctx, 'create', 'evaluation');
 
+  // member は自分が評価者の評価だけ作れる。ここを開けると、自分が評価者でない
+  // 評価を勝手に起票できてしまう。
+  if (!hasMinRole(ctx, 'admin')) {
+    const ownId = await getOwnEmployeeId(ctx);
+    if (!ownId || input.evaluatorId !== ownId) {
+      return err('自分が評価者の評価のみ作成できます');
+    }
+  }
+
   const [cycle] = await db
     .select({ id: evaluationCycles.id })
     .from(evaluationCycles)
@@ -305,6 +315,15 @@ export async function updateEvaluation(
 
   if (!current) {
     return err('評価が見つかりません');
+  }
+
+  // member は自分が評価者の評価だけ編集できる。これが無いと被評価者本人が
+  // 自分の評価点やコメントを書き換えられる。
+  if (!hasMinRole(ctx, 'admin')) {
+    const ownId = await getOwnEmployeeId(ctx);
+    if (!ownId || current.evaluatorId !== ownId) {
+      return err('自分が評価者の評価のみ編集できます');
+    }
   }
 
   const changes: Record<string, { from: unknown; to: unknown }> = {};

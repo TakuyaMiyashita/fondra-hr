@@ -19,7 +19,7 @@ import {
   canReadEvaluationComment,
   canReadPersonalData,
 } from '@/services/field-visibility';
-import { getOwnEmployeeId } from '@/services/self';
+import { getOneOnOneScope, getOwnEmployeeId } from '@/services/self';
 import type {
   DepartmentOption,
   Employee,
@@ -340,6 +340,24 @@ export async function getEmployeeOneOnOnes(
     .from(employees)
     .as('interviewer');
 
+  // 1on1 一覧と同じ範囲に揃える。従業員詳細から回り込めば他人の面談メモが
+  // 読める、という抜け道を作らない。
+  const scope = await getOneOnOneScope(ctx);
+  if (scope.kind === 'none') {
+    return [];
+  }
+
+  const conditions = [eq(oneOnOnes.employeeId, employeeId), eq(oneOnOnes.orgId, ctx.orgId)];
+
+  if (scope.kind === 'party') {
+    conditions.push(
+      or(
+        eq(oneOnOnes.employeeId, scope.employeeId),
+        eq(oneOnOnes.interviewerId, scope.employeeId),
+      )!,
+    );
+  }
+
   return db
     .select({
       id: oneOnOnes.id,
@@ -351,7 +369,7 @@ export async function getEmployeeOneOnOnes(
     })
     .from(oneOnOnes)
     .innerJoin(interviewer, eq(oneOnOnes.interviewerId, interviewer.id))
-    .where(and(eq(oneOnOnes.employeeId, employeeId), eq(oneOnOnes.orgId, ctx.orgId)))
+    .where(and(...conditions))
     .orderBy(desc(oneOnOnes.heldOn));
 }
 

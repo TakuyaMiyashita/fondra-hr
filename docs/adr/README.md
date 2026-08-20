@@ -29,3 +29,4 @@
 | [0004](./0004-evaluation-comment-disclosed-after-confirmation.md) | 評価コメントの本人開示は確定後のみ                       | 採用 |
 | [0005](./0005-single-environment.md)                              | 本番環境を作らず検証環境ひとつで運用する                 | 採用 |
 | [0006](./0006-defer-org-creation-until-email-confirmed.md)        | 組織作成をメール確認後まで遅らせる                       | 採用 |
+| [0007](./0007-keep-email-confirmation-disabled.md)                | 検証環境ではメール確認を有効化しない                     | 採用 |

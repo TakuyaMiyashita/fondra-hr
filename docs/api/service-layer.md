@@ -64,21 +64,88 @@ async function writeAuditLog(
 そのため監査ログを持つ組織は通常の `DELETE` では消せず、削除には
 DB 関数 `purge_organization()` を使う（後述）。
 
+## 本人限定の認可
+
+ロール別の CRUD だけでは「member は自分が当事者のデータだけ扱える」を表現できない。
+`src/services/self.ts` が、ログインユーザー（`auth.users`）と従業員レコードの
+突き合わせを担う。
+
+```typescript
+function getOwnEmployeeId(ctx: AuthContext): Promise<string | null>;
+```
+
+`employees.user_id` を引く。**null（未紐付け）は「チェック不要」ではなく
+「操作不可」に倒す。** 呼び出し側でここを取り違えると、紐付け前のユーザーに
+全社のデータが開く。
+
+紐付けはメールアドレスで自動的に行われる（`employee.ts` の
+`resolveLinkedUserId`）。従業員の作成・更新時と招待受諾時の両方向で行う。
+実務では「入社手続きで従業員レコードを登録 → 後からアカウントを発行」の
+順になるため、片方向では漏れる。**この紐付けがあるため `employees` の書き込みは
+admin 以上に限定している** — member がメールを自分のものに書き換えられると、
+任意のレコードを「自分」に付け替えて本人限定の操作を奪える。
+
+### 1on1 の閲覧範囲
+
+```typescript
+type OneOnOneScope =
+  | { kind: 'all' } // admin 以上
+  | { kind: 'party'; employeeId: string } // 自分が当事者のものだけ
+  | { kind: 'none' }; // 未紐付け → 何も見えない
+
+function getOneOnOneScope(ctx: AuthContext): Promise<OneOnOneScope>;
+```
+
+`listOneOnOnes` / `getOneOnOne` / `getEmployeeOneOnOnes` の**3経路すべて**に
+同じ条件を掛ける。従業員詳細のタブから回り込む抜け道を作らない。
+詳細取得で当事者でなかった場合は「見つかりません」を返す
+（存在の有無を伝えると、誰と誰が 1on1 をしたかが ID の総当たりで分かる）。
+
+## フィールド単位の可視制御
+
+従業員・評価サイクルの read は全ロールに開いているため、行単位の認可では
+機微な列を守れない。`src/services/field-visibility.ts` が読み取り時に
+列を null へ潰す。
+
+```typescript
+function canReadBirthDate(ctx: AuthContext, employeeUserId: string | null): boolean;
+function canReadEvaluationComment(
+  ctx: AuthContext,
+  evaluation: { evaluatorId: string; employeeId: string; status: string },
+  ownEmployeeId: string | null,
+): boolean;
+```
+
+| フィールド             | 返す相手                                     |
+| ---------------------- | -------------------------------------------- |
+| `employees.birth_date` | admin 以上 / 本人                            |
+| `evaluations.comment`  | admin 以上 / 評価者 / 被評価者（確定後のみ） |
+
+マスクは値を null に潰す形で行う。「マスクされている」事実自体を伝えない方が
+安全で、既存の型（いずれも nullable）と UI（null は「—」表示）をそのまま使える。
+
+admin 以上は無条件に見えるため、紐付けの解決クエリ（`getOwnEmployeeId`）は
+member / viewer のときだけ発行する。
+
+詳細は [`docs/database/authorization-matrix.md`](../database/authorization-matrix.md)。
+
 ## サービス一覧
 
-| サービス    | 配置                           | 主な責務                                        |
-| ----------- | ------------------------------ | ----------------------------------------------- |
-| Auth        | `src/services/auth.ts`         | 組織作成・メンバーシップ管理・招待承認          |
-| AuthContext | `src/services/auth-context.ts` | AuthContext 型・Role 型の定義                   |
-| Authorize   | `src/services/authorize.ts`    | authorize() / hasMinRole() / AuthorizationError |
-| AuditLog    | `src/services/audit-log.ts`    | 監査ログの記録・一覧取得・リソース種別取得      |
-| Dashboard   | `src/services/dashboard.ts`    | ダッシュボード統計・アクティビティ・集計        |
-| Department  | `src/services/department.ts`   | 部署 CRUD・ツリー構造管理                       |
-| Employee    | `src/services/employee.ts`     | 従業員 CRUD・アバター管理・部署一覧取得         |
-| Evaluation  | `src/services/evaluation.ts`   | 評価サイクル CRUD・個別評価 CRUD                |
-| OneOnOne    | `src/services/one-on-one.ts`   | 1on1記録 CRUD・従業員オプション取得             |
-| Settings    | `src/services/settings.ts`     | 組織設定・メンバー管理・招待管理                |
-| Skill       | `src/services/skill.ts`        | スキル CRUD・マトリクス・割当管理               |
+| サービス        | 配置                               | 主な責務                                        |
+| --------------- | ---------------------------------- | ----------------------------------------------- |
+| Auth            | `src/services/auth.ts`             | 組織作成・メンバーシップ管理・招待承認          |
+| AuthContext     | `src/services/auth-context.ts`     | AuthContext 型・Role 型の定義                   |
+| Authorize       | `src/services/authorize.ts`        | authorize() / hasMinRole() / AuthorizationError |
+| AuditLog        | `src/services/audit-log.ts`        | 監査ログの記録・一覧取得・リソース種別取得      |
+| Self            | `src/services/self.ts`             | ログインユーザーと従業員レコードの突き合わせ    |
+| FieldVisibility | `src/services/field-visibility.ts` | 個人情報のフィールド単位の可視性判定            |
+| Dashboard       | `src/services/dashboard.ts`        | ダッシュボード統計・アクティビティ・集計        |
+| Department      | `src/services/department.ts`       | 部署 CRUD・ツリー構造管理                       |
+| Employee        | `src/services/employee.ts`         | 従業員 CRUD・アバター管理・部署一覧取得         |
+| Evaluation      | `src/services/evaluation.ts`       | 評価サイクル CRUD・個別評価 CRUD                |
+| OneOnOne        | `src/services/one-on-one.ts`       | 1on1記録 CRUD・従業員オプション取得             |
+| Settings        | `src/services/settings.ts`         | 組織設定・メンバー管理・招待管理                |
+| Skill           | `src/services/skill.ts`            | スキル CRUD・マトリクス・割当管理               |
 
 ## 各サービスのメソッド
 
@@ -91,6 +158,16 @@ DB 関数 `purge_organization()` を使う（後述）。
 | `switchOrganization(userId, orgId)`                   | なし（認証ブートストラップ） | 組織切替（メンバーシップ検証）      |
 | `getInvitationByToken(token)`                         | なし（認証前アクセス）       | トークンから招待情報取得            |
 | `acceptInvitation(invitationId, userId, orgId, role)` | なし（認証ブートストラップ） | 招待承認 + メンバーシップ登録       |
+| `completePendingSignUp(userId, email, metadata)`      | なし（認証ブートストラップ） | メール確認後の組織作成 / 招待受諾   |
+
+`completePendingSignUp()` は、メール確認が有効なときに保留していた組織作成・
+招待受諾を消化する。確認前に作ると「誰も入れない組織」が残り、招待経路では
+`accepted_at` だけが立って招待が消費されるため、作成内容を `user_metadata` に
+預けて `/auth/callback` で実行する。
+
+**`user_metadata` はクライアントから書き換えられる。** 預かった値を信用せず、
+招待はトークンで DB から引き直し、確認済みメールとの一致と未所属であることを
+検証する。詳細は [`docs/deployment.md`](../deployment.md)。
 
 ### Employee (`src/services/employee.ts`)
 

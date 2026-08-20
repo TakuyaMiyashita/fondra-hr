@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 
 export default function MembersError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -19,7 +19,7 @@ export default function MembersError({
         {error.message ||
           'サーバーとの通信中にエラーが発生しました。時間をおいて再度お試しください。'}
       </p>
-      <Button className="mt-6" onClick={reset}>
+      <Button className="mt-6" onClick={retry}>
         再試行
       </Button>
     </div>

@@ -103,6 +103,12 @@ shadcn/ui の `--radius: 0.625rem` を基準。個別指定は避け、shadcn/ui
 - `error.tsx` で Suspense Error Boundary を活用
 - 「何が起きたか」+「どうすればいいか」を明示
 - 「エラーが発生しました」だけは禁止
+- **復帰ボタンは `reset` ではなく `retry` を呼ぶ。** Next.js 16.3 で追加された
+  prop で、`reset` は子を再レンダリングするだけなのに対し `retry` は再フェッチを
+  伴う。データ取得の失敗に `reset` を使うと、押しても同じ失敗が再現するだけになる
+- ルートレイアウト自体の失敗は `src/app/global-error.tsx` が拾う。ここには
+  `globals.css` もテーマ属性も届かないため、Tailwind ではなくインラインの
+  `style` で組む（Next.js の仕様）
 
 ### 成功フィードバック
 

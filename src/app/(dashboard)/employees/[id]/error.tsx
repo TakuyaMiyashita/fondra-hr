@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
 export default function EmployeeDetailError({
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   const router = useRouter();
 
@@ -24,7 +24,7 @@ export default function EmployeeDetailError({
         <Button variant="outline" onClick={() => router.push('/employees')}>
           一覧に戻る
         </Button>
-        <Button onClick={reset}>再試行</Button>
+        <Button onClick={retry}>再試行</Button>
       </div>
     </div>
   );

@@ -409,7 +409,13 @@ export async function getEmployeeEvaluations(
     cycleName: row.cycleName,
     evaluatorName: row.evaluatorName,
     status: row.status,
-    comment: canReadEvaluationComment(ctx, row.evaluatorId, ownEmployeeId) ? row.comment : null,
+    comment: canReadEvaluationComment(
+      ctx,
+      { evaluatorId: row.evaluatorId, employeeId, status: row.status },
+      ownEmployeeId,
+    )
+      ? row.comment
+      : null,
     createdAt: row.createdAt,
   }));
 }

@@ -113,7 +113,7 @@ export async function getCycle(
 
   const masked = evalRows.map((row) => ({
     ...row,
-    comment: canReadEvaluationComment(ctx, row.evaluatorId, ownEmployeeId) ? row.comment : null,
+    comment: canReadEvaluationComment(ctx, row, ownEmployeeId) ? row.comment : null,
   }));
 
   return ok({
@@ -333,6 +333,18 @@ export async function updateEvaluation(
     const ownId = await getOwnEmployeeId(ctx);
     if (!ownId || current.evaluatorId !== ownId) {
       return err('自分が評価者の評価のみ編集できます');
+    }
+
+    // 確定は被評価者本人への開示スイッチ（canReadEvaluationComment）。
+    // 評価者が自分で倒せると開示のタイミングを評価者が握ることになる。
+    if (input.status === 'confirmed') {
+      return err('評価の確定は管理者のみ行えます');
+    }
+
+    // 確定後の書き換えも塞ぐ。本人が読んだ内容を評価者が後から
+    // 差し替えられると、確定の意味が無くなる。
+    if (current.status === 'confirmed') {
+      return err('確定済みの評価は管理者のみ編集できます');
     }
   }
 

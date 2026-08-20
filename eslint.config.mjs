@@ -29,6 +29,12 @@ const eslintConfig = defineConfig([
     'supabase/.temp/**',
     // Vitest のカバレッジ HTML レポート（生成物）
     'coverage/**',
+    // Playwright の実行成果物
+    'test-results/**',
+    'playwright-report/**',
+    // サブエージェント用の git worktree。中に node_modules を持つため、
+    // 除外しないと ESLint が依存関係まで走査して数千件の警告を出す。
+    '.claude/worktrees/**',
   ]),
 ]);
 

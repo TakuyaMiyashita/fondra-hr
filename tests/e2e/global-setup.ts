@@ -207,6 +207,29 @@ async function seedFixtures(orgId: string, memberUserId: string): Promise<Fixtur
     });
   }
 
+  // 被評価者が member 本人の評価。確定後だけ本人に開示される規則の検証用に、
+  // 確定済みと未確定の両方を置く。
+  if (!comments.includes(MARKERS.confirmedComment)) {
+    await insert('evaluations', {
+      org_id: orgId,
+      cycle_id: cycleId,
+      employee_id: selfEmployeeId,
+      evaluator_id: othersEmployeeId,
+      comment: MARKERS.confirmedComment,
+      status: 'confirmed',
+    });
+  }
+  if (!comments.includes(MARKERS.unconfirmedComment)) {
+    await insert('evaluations', {
+      org_id: orgId,
+      cycle_id: cycleId,
+      employee_id: selfEmployeeId,
+      evaluator_id: thirdEmployeeId,
+      comment: MARKERS.unconfirmedComment,
+      status: 'submitted',
+    });
+  }
+
   return { orgId, selfEmployeeId, othersEmployeeId };
 }
 

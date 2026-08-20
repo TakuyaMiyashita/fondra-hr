@@ -78,6 +78,24 @@ test.describe('member — 評価コメント', () => {
   });
 });
 
+test.describe('member — 被評価者としての開示', () => {
+  test.use({ storageState: AUTH_FILES.member });
+
+  /**
+   * 自分が被評価者の評価は、確定（confirmed）後だけ本人に開示する。
+   * 確定前のコメントが本人に流れると、書き手が推敲できないまま伝わる。
+   */
+  test('確定済みなら自分の評価のコメントが見える', async ({ page }) => {
+    await openCycleDetail(page);
+    expect(await bodyText(page)).toContain(MARKERS.confirmedComment);
+  });
+
+  test('未確定なら自分の評価でもコメントは見えない', async ({ page }) => {
+    await openCycleDetail(page);
+    expect(await bodyText(page)).not.toContain(MARKERS.unconfirmedComment);
+  });
+});
+
 test.describe('member — 1on1の閲覧範囲', () => {
   test.use({ storageState: AUTH_FILES.member });
 
@@ -115,6 +133,8 @@ test.describe('viewer — 従業員レコードに紐付いていない場合', 
     const text = await bodyText(page);
     expect(text).not.toContain(MARKERS.othersComment);
     expect(text).not.toContain(MARKERS.selfComment);
+    // 確定済みでも、当事者でなければ開示されない。
+    expect(text).not.toContain(MARKERS.confirmedComment);
   });
 
   test('他人の生年月日は表示されない', async ({ page }) => {

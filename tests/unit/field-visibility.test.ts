@@ -51,25 +51,82 @@ describe('canReadBirthDate', () => {
 });
 
 describe('canReadEvaluationComment', () => {
-  it('admin 以上は評価者に関わらず見られる', () => {
-    expect(canReadEvaluationComment(ctxOf('admin'), 'e2', null)).toBe(true);
-    expect(canReadEvaluationComment(ctxOf('owner'), 'e2', 'e1')).toBe(true);
+  const evaluation = (
+    over: Partial<{ evaluatorId: string; employeeId: string; status: string }> = {},
+  ) => ({
+    evaluatorId: 'evaluator',
+    employeeId: 'subject',
+    status: 'submitted',
+    ...over,
   });
 
-  it('member は自分が評価者の評価だけ見られる', () => {
-    expect(canReadEvaluationComment(ctxOf('member'), 'me', 'me')).toBe(true);
-    expect(canReadEvaluationComment(ctxOf('member'), 'someone-else', 'me')).toBe(false);
+  it('admin 以上は評価者・被評価者に関わらず見られる', () => {
+    expect(canReadEvaluationComment(ctxOf('admin'), evaluation(), null)).toBe(true);
+    expect(canReadEvaluationComment(ctxOf('owner'), evaluation(), 'me')).toBe(true);
+  });
+
+  it('自分が評価者なら状態に関わらず見られる', () => {
+    // 書いた本人なので下書き段階でも隠す理由が無い。
+    for (const status of ['draft', 'in_progress', 'submitted', 'confirmed', 'returned']) {
+      expect(
+        canReadEvaluationComment(ctxOf('member'), evaluation({ evaluatorId: 'me', status }), 'me'),
+      ).toBe(true);
+    }
+  });
+
+  it('自分が被評価者なら確定後だけ見られる', () => {
+    expect(
+      canReadEvaluationComment(
+        ctxOf('member'),
+        evaluation({ employeeId: 'me', status: 'confirmed' }),
+        'me',
+      ),
+    ).toBe(true);
   });
 
   /**
-   * 被評価者本人にも見せない。評価の確定・開示フローが無い以上、
-   * 下書き段階のコメントが本人に流れる方が事故が大きい。
+   * 確定前のコメントは本人に流さない。書き手が推敲できないまま
+   * 評価が伝わってしまうため。確定への遷移は admin 以上に限定してある。
    */
-  it('紐付いていない member は誰の評価コメントも見られない', () => {
-    expect(canReadEvaluationComment(ctxOf('member'), 'e2', null)).toBe(false);
+  it.each(['draft', 'in_progress', 'submitted', 'returned'])(
+    '被評価者本人でも %s の段階では見られない',
+    (status) => {
+      expect(
+        canReadEvaluationComment(ctxOf('member'), evaluation({ employeeId: 'me', status }), 'me'),
+      ).toBe(false);
+    },
+  );
+
+  it('当事者でなければ確定済みでも見られない', () => {
+    expect(
+      canReadEvaluationComment(ctxOf('member'), evaluation({ status: 'confirmed' }), 'me'),
+    ).toBe(false);
   });
 
-  it('viewer は自分が評価者になり得ないので実質すべて見えない', () => {
-    expect(canReadEvaluationComment(ctxOf('viewer'), 'e2', null)).toBe(false);
+  /**
+   * 未紐付けはどの id とも一致しない。ここが true になると、
+   * 紐付け前のユーザーに全社の評価コメントが開く。
+   */
+  it('紐付いていない member は確定済みでも見られない', () => {
+    expect(
+      canReadEvaluationComment(
+        ctxOf('member'),
+        evaluation({ employeeId: 'someone', status: 'confirmed' }),
+        null,
+      ),
+    ).toBe(false);
+  });
+
+  it('viewer も同じ規則に従う', () => {
+    expect(
+      canReadEvaluationComment(
+        ctxOf('viewer'),
+        evaluation({ employeeId: 'me', status: 'confirmed' }),
+        'me',
+      ),
+    ).toBe(true);
+    expect(canReadEvaluationComment(ctxOf('viewer'), evaluation({ employeeId: 'me' }), 'me')).toBe(
+      false,
+    );
   });
 });

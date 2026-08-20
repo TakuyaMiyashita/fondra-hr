@@ -27,14 +27,31 @@ sequenceDiagram
 
     User->>UI: 組織名 + メール + パスワード入力
     UI->>SA: signUp()
-    SA->>Auth: auth.signUp()
-    Auth-->>SA: user
-    SA->>SVC: createOrganizationWithOwner()
-    SVC->>DB: INSERT organizations
-    SVC->>DB: INSERT memberships (role=owner)
-    SVC-->>SA: ok
-    SA-->>UI: redirect /login?registered=true
+    SA->>Auth: auth.signUp(options.data = { pending_org_name })
+    alt メール確認が有効
+        Auth-->>SA: user のみ（session なし）
+        Note over SA: 組織は作らない。確認されない登録のぶんだけ<br/>誰も入れない組織が残るのを防ぐ
+        SA-->>UI: redirect /login?registered=true
+        User->>Auth: 確認メールのリンクを開く
+        Auth-->>SA: /auth/callback?code=...
+        SA->>Auth: exchangeCodeForSession()
+        SA->>SVC: completePendingSignUp()
+        SVC->>DB: INSERT organizations / memberships
+        SA->>Auth: refreshSession()
+        SA-->>UI: redirect /employees
+    else メール確認が無効
+        Auth-->>SA: user + session
+        SA->>SVC: createOrganizationWithOwner()
+        SVC->>DB: INSERT organizations
+        SVC->>DB: INSERT memberships (role=owner)
+        SA->>Auth: refreshSession()
+        SA-->>UI: redirect /dashboard
+    end
 ```
+
+`refreshSession()` を省くとメンバーシップ作成前の JWT のまま画面に入り、
+リダイレクトループになる。詳細は
+[認証・認可モデル](../architecture/auth-and-authorization.md)。
 
 ## 2. ログイン → ダッシュボード
 
@@ -45,7 +62,7 @@ sequenceDiagram
     participant SA as Server Action
     participant Auth as Supabase Auth
     participant Hook as Custom Access Token Hook
-    participant MW as Middleware
+    participant MW as proxy.ts
 
     User->>UI: メール + パスワード入力
     UI->>SA: signIn()
@@ -80,12 +97,19 @@ sequenceDiagram
     SVC-->>UI: 招待情報 (org_name, role, email)
     Invitee->>UI: パスワード入力
     UI->>SA: acceptInviteAndSignUp()
-    SA->>Auth: auth.signUp()
-    Auth-->>SA: user
-    SA->>SVC: acceptInvitation()
-    SVC->>DB: INSERT memberships
-    SVC->>DB: UPDATE invitations SET accepted_at
-    SA-->>UI: redirect /login?registered=true
+    SA->>Auth: auth.signUp(options.data = { pending_invitation_token })
+    alt メール確認が有効
+        Auth-->>SA: user のみ（session なし）
+        Note over SA: 受諾しない。ここで accepted_at を立てると<br/>確認しないまま招待だけが消費される
+        SA-->>UI: redirect /login?registered=true
+        Note over Invitee,DB: 確認後、/auth/callback で completePendingSignUp() が<br/>トークンを引き直し、確認済みメールとの一致を検証して受諾
+    else メール確認が無効
+        Auth-->>SA: user + session
+        SA->>SVC: acceptInvitation()
+        SVC->>DB: INSERT memberships
+        SVC->>DB: UPDATE invitations SET accepted_at
+        SA-->>UI: redirect /dashboard
+    end
 ```
 
 ## 4. 組織切替
@@ -129,7 +153,7 @@ service_role は RLS をバイパスするため、**書き込みの手前で必
 ```mermaid
 sequenceDiagram
     actor User
-    participant MW as Middleware
+    participant MW as proxy.ts
     participant Auth as Supabase Auth
 
     User->>MW: 認証が必要なパスにアクセス
@@ -181,7 +205,9 @@ sequenceDiagram
     User->>UI: /one-on-ones にアクセス
     UI->>SVC: listOneOnOnes(ctx, params)
     SVC->>SVC: authorize(ctx, 'read', 'one_on_one')
-    SVC->>DB: SELECT one_on_ones WHERE org_id = ctx.orgId
+    SVC->>SVC: getOneOnOneScope(ctx)
+    Note over SVC: admin 以上は全件。member / viewer は<br/>自分が当事者の記録のみ。未紐付けは0件
+    SVC->>DB: SELECT WHERE org_id = ctx.orgId<br/>AND (employee_id = 自分 OR interviewer_id = 自分)
     DB-->>UI: 1on1リスト
 
     Note over User,DB: 記録作成（member の場合）
@@ -226,9 +252,19 @@ sequenceDiagram
     UI->>SA: updateEvaluationAction(data)
     SA->>SVC: updateEvaluation(ctx, input)
     SVC->>SVC: authorize + evaluator 本人チェック
+    Note over SVC: member は confirmed に遷移できない。<br/>確定済みの編集も admin 以上に限定
     SVC->>DB: UPDATE evaluations SET ratings, comment, status
     SVC-->>UI: ok
+
+    Note over Admin,DB: 確定（admin）— 被評価者本人への開示スイッチ
+    Admin->>SA: updateEvaluationAction({ status: 'confirmed' })
+    SA->>SVC: updateEvaluation(ctx, input)
+    SVC->>DB: UPDATE evaluations SET status = 'confirmed'
+    Note over SVC,DB: 以降、被評価者本人にもコメントが返る<br/>（canReadEvaluationComment）
 ```
+
+評価コメントの可視性は読み取り時にフィールド単位で制御している。
+詳細は [認可マトリクス](../database/authorization-matrix.md)。
 
 ## 9. AI チャット
 

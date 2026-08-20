@@ -12,7 +12,7 @@ graph TB
         NEXT[Next.js 16 App Router]
         RSC[React Server Components]
         SA[Server Actions]
-        MW[Middleware]
+        MW["proxy.ts（Middleware）"]
     end
 
     subgraph "Application Logic"

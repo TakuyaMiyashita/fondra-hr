@@ -7,7 +7,7 @@ import { useEffect, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
-import { FormDescription, FormError, FormField, FormLabel } from '@/components/shared/form-field';
+import { FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -199,9 +199,14 @@ export function OneOnOneFormDialog({
             <FormError>{errors.heldOn?.message}</FormError>
           </FormField>
 
-          <FormField>
-            <FormLabel>コンディション</FormLabel>
-            <div className="flex gap-1">
+          <div className="space-y-2">
+            {/* 入力欄ではなくトグルボタン群なので Label ではなく group の見出しにする。
+                role="radio" は使わない。roving tabindex と矢印キーを実装しない限り、
+                ロールだけ正しく挙動が嘘になるため。相互排他は aria-pressed で表す。 */}
+            <span id="oo-mood-label" className="text-sm leading-none font-medium select-none">
+              コンディション
+            </span>
+            <div role="group" aria-labelledby="oo-mood-label" className="flex gap-1">
               {[1, 2, 3, 4, 5].map((score) => (
                 <Button
                   key={score}
@@ -210,14 +215,16 @@ export function OneOnOneFormDialog({
                   size="sm"
                   className="h-8 w-10"
                   disabled={isPending}
+                  aria-pressed={moodScore === score}
+                  aria-label={`コンディション ${score}`}
                   onClick={() => setValue('moodScore', moodScore === score ? 0 : score)}
                 >
                   {score}
                 </Button>
               ))}
             </div>
-            <FormDescription>1（低い）〜 5（高い）</FormDescription>
-          </FormField>
+            <p className="text-muted-foreground text-xs">1（低い）〜 5（高い）</p>
+          </div>
 
           <FormField invalid={!!errors.notes}>
             <FormLabel htmlFor="oo-notes">メモ</FormLabel>

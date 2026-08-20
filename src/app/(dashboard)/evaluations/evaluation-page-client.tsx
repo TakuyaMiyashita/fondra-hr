@@ -117,15 +117,20 @@ export function EvaluationPageClient({ initialCycles, employees }: Props) {
       ) : (
         <div className="space-y-3">
           {cycles.map((cycle) => (
-            <Card
-              key={cycle.id}
-              className="hover:bg-muted/30 cursor-pointer transition-colors"
-              onClick={() => handleSelectCycle(cycle)}
-            >
+            // カード全体を button にすると中の DropdownMenuTrigger と入れ子になり
+            // （nested-interactive）、読み上げ名もカード全文になる。
+            // サイクル名だけを button にして、疑似要素でカード全体を覆う。
+            <Card key={cycle.id} className="hover:bg-muted/30 relative transition-colors">
               <CardContent className="flex items-center justify-between py-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{cycle.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCycle(cycle)}
+                      className="focus-visible:ring-ring/50 cursor-pointer rounded-sm font-medium outline-none after:absolute after:inset-0 after:content-[''] focus-visible:ring-3"
+                    >
+                      {cycle.name}
+                    </button>
                     <StatusBadge status={cycle.status} />
                   </div>
                   <div className="text-muted-foreground flex items-center gap-3 text-sm">
@@ -138,31 +143,21 @@ export function EvaluationPageClient({ initialCycles, employees }: Props) {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
+                {/* z-10 で after:inset-0 の当たり判定より上に出す */}
+                <div className="relative z-10 flex items-center gap-1">
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       aria-label={`${cycle.name} の操作`}
                       render={<Button variant="ghost" size="icon-sm" />}
-                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          setEditCycle(cycle);
-                        }}
-                      >
+                      <DropdownMenuItem onClick={() => setEditCycle(cycle)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         編集
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          setDeleteCycle(cycle);
-                        }}
-                      >
+                      <DropdownMenuItem onClick={() => setDeleteCycle(cycle)}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         削除
                       </DropdownMenuItem>

@@ -52,3 +52,6 @@ next-env.d.ts
 
 # サブエージェント用の git worktree（中に node_modules を持つ）
 .claude/worktrees/
+
+# Claude Code のローカル設定（settings.json はコミットする）
+.claude/settings.local.json

@@ -153,7 +153,7 @@ async function seedFixtures(orgId: string, memberUserId: string): Promise<Fixtur
   // 被評価者が member 本人の評価。確定後だけ本人に開示される規則の検証用に、
   // 確定済みと未確定の両方を置く。
   if (!comments.includes(MARKERS.confirmedComment)) {
-    await insert('evaluations', {
+    await adminInsert('evaluations', {
       org_id: orgId,
       cycle_id: cycleId,
       employee_id: selfEmployeeId,
@@ -163,7 +163,7 @@ async function seedFixtures(orgId: string, memberUserId: string): Promise<Fixtur
     });
   }
   if (!comments.includes(MARKERS.unconfirmedComment)) {
-    await insert('evaluations', {
+    await adminInsert('evaluations', {
       org_id: orgId,
       cycle_id: cycleId,
       employee_id: selfEmployeeId,

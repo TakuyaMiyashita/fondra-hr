@@ -235,6 +235,7 @@ export function AiAssistantClient() {
             size="icon"
             onClick={() => sendMessage(input)}
             disabled={isLoading || !input.trim()}
+            aria-label={isLoading ? '送信中' : '送信'}
           >
             {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>

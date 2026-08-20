@@ -72,8 +72,21 @@ ESLint の `no-restricted-syntax` で止めている。
 | `<Button nativeButton={false}>` | `<a role="button" href=...>` | リンクの role を上書きし「ボタン」と読み上げられる |
 | `<ButtonLink href=...>`         | `<a class="..." href=...>`   | 正しい                                             |
 
-アイコンのみのボタン・リンクには `aria-label` で名前を与える。アイコンだけでは
-読み上げ時に名前が無い要素になる。
+### アイコンのみの操作要素
+
+**アイコンだけのボタン・リンクには必ず `aria-label` を付ける。** 名前が無いと
+読み上げでは「ボタン」としか案内されず、行が並ぶと区別できない。
+
+- 作法は `aria-label` に統一する（`sr-only` の span は使わない）
+- **一覧の行内にあるものは、対象を名前に含める。**
+  「削除」ではなく `${m.email} を削除`、「操作」ではなく `${skill.name} の操作`。
+  同じ名前のボタンが並んでも意味がない
+- 開閉するものには `aria-expanded` も付ける
+- `src/components/ui/` は shadcn の自動生成なので対象外（手で直さない）
+
+`tests/e2e/accessible-names.spec.ts` が主要10画面を横断で走査し、名前の無い
+操作要素があれば落とす。**ユニットテストを持たない画面（nuqs + debounce の
+一覧、Recharts、dnd-kit）もここで拾える。**
 
 ### フォーム
 

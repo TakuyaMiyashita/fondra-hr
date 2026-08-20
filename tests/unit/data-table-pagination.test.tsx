@@ -14,8 +14,17 @@ function renderPagination(props: { page: number; perPage: number; total: number 
       onPerPageChange={onPerPageChange}
     />,
   );
-  const [first, prev, next, last] = screen.getAllByRole('button');
-  return { onPageChange, onPerPageChange, first: first!, prev: prev!, next: next!, last: last! };
+  // 位置ではなくアクセシブル名で引く。アイコンだけのボタンは名前を与えないと
+  // 読み上げで区別できず、テストも並び順に依存して壊れやすくなる。
+  const byName = (name: string) => screen.getByRole('button', { name });
+  return {
+    onPageChange,
+    onPerPageChange,
+    first: byName('最初のページへ'),
+    prev: byName('前のページへ'),
+    next: byName('次のページへ'),
+    last: byName('最後のページへ'),
+  };
 }
 
 describe('DataTablePagination', () => {
@@ -94,6 +103,17 @@ describe('DataTablePagination', () => {
       expect(prev).toBeDisabled();
       expect(next).toBeDisabled();
       expect(last).toBeDisabled();
+    });
+  });
+
+  describe('アクセシブル名', () => {
+    it('4つの移動ボタンがそれぞれ名前を持つ', () => {
+      renderPagination({ page: 2, perPage: 10, total: 25 });
+
+      // アイコンだけのボタンは aria-label が無いと名前の無い要素になる
+      for (const name of ['最初のページへ', '前のページへ', '次のページへ', '最後のページへ']) {
+        expect(screen.getByRole('button', { name })).toBeInTheDocument();
+      }
     });
   });
 

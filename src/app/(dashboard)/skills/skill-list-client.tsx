@@ -166,7 +166,10 @@ export function SkillListClient({ initialSkills, initialTotal, categories }: Pro
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
-                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+                        <DropdownMenuTrigger
+                          aria-label={`${skill.name} の操作`}
+                          render={<Button variant="ghost" size="icon-sm" />}
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">

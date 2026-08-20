@@ -62,7 +62,7 @@ export function CycleDetailView({ detail, employees, onBack, onRefresh }: Props)
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" onClick={onBack}>
+        <Button variant="ghost" size="icon-sm" onClick={onBack} aria-label="評価サイクル一覧に戻る">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-2xl font-bold tracking-tight">{cycle.name}</h1>
@@ -125,7 +125,10 @@ export function CycleDetailView({ detail, employees, onBack, onRefresh }: Props)
                   )}
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+                  <DropdownMenuTrigger
+                    aria-label={`${ev.employeeName} の評価の操作`}
+                    render={<Button variant="ghost" size="icon-sm" />}
+                  >
                     <MoreHorizontal className="h-4 w-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

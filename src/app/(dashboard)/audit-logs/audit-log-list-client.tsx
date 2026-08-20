@@ -202,6 +202,7 @@ export function AuditLogListClient({ initialLogs, initialTotal, resourceTypes }:
                 size="icon-sm"
                 disabled={page <= 1}
                 onClick={() => handlePageChange(page - 1)}
+                aria-label="前のページへ"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -213,6 +214,7 @@ export function AuditLogListClient({ initialLogs, initialTotal, resourceTypes }:
                 size="icon-sm"
                 disabled={page >= totalPages}
                 onClick={() => handlePageChange(page + 1)}
+                aria-label="次のページへ"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>

@@ -74,6 +74,7 @@ export function DepartmentTreeItem({
           className="text-muted-foreground hover:text-foreground flex size-5 shrink-0 cursor-grab items-center justify-center rounded-sm active:cursor-grabbing"
           {...attributes}
           {...listeners}
+          aria-label={`${node.name} を並べ替え`}
         >
           <GripVertical className="size-4" />
         </button>
@@ -85,6 +86,8 @@ export function DepartmentTreeItem({
             'text-muted-foreground hover:text-foreground flex size-5 shrink-0 items-center justify-center rounded-sm',
             !hasChildren && 'invisible',
           )}
+          aria-expanded={expanded}
+          aria-label={expanded ? `${node.name} の子部署を閉じる` : `${node.name} の子部署を開く`}
         >
           <ChevronRight
             className={cn('size-4 transition-transform duration-200', expanded && 'rotate-90')}
@@ -102,6 +105,7 @@ export function DepartmentTreeItem({
 
         <DropdownMenu>
           <DropdownMenuTrigger
+            aria-label={`${node.name} の操作`}
             render={
               <Button
                 variant="ghost"

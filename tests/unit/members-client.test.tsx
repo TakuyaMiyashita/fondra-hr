@@ -92,6 +92,17 @@ describe('MembersClient', () => {
 
       expect(within(rowOf('member@example.com')).queryByRole('button')).not.toBeInTheDocument();
     });
+
+    it('削除ボタンの名前に対象のメールアドレスを含む', () => {
+      // ゴミ箱アイコンだけでは、行が並んだとき読み上げで誰を消すのか分からない
+      renderMembers('admin', [makeMember()]);
+
+      expect(
+        within(rowOf('member@example.com')).getByRole('button', {
+          name: 'member@example.com を削除',
+        }),
+      ).toBeInTheDocument();
+    });
   });
 
   describe('オーナー行と自分自身の行の保護', () => {

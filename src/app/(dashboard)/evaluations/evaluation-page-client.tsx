@@ -141,6 +141,7 @@ export function EvaluationPageClient({ initialCycles, employees }: Props) {
                 <div className="flex items-center gap-1">
                   <DropdownMenu>
                     <DropdownMenuTrigger
+                      aria-label={`${cycle.name} の操作`}
                       render={<Button variant="ghost" size="icon-sm" />}
                       onClick={(e: React.MouseEvent) => e.stopPropagation()}
                     >

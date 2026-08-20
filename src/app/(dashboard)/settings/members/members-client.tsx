@@ -203,6 +203,7 @@ export function MembersClient({ members, invitations, role, currentUserId }: Pro
                           size="icon"
                           onClick={() => setDeleteTarget(m)}
                           disabled={isPending}
+                          aria-label={`${m.email} を削除`}
                         >
                           <Trash2 className="text-destructive h-4 w-4" />
                         </Button>
@@ -252,6 +253,7 @@ export function MembersClient({ members, invitations, role, currentUserId }: Pro
                           size="icon"
                           onClick={() => setRevokeTarget(inv)}
                           disabled={isPending}
+                          aria-label={`${inv.email} への招待を取り消す`}
                         >
                           <Trash2 className="text-destructive h-4 w-4" />
                         </Button>

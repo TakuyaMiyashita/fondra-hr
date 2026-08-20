@@ -155,9 +155,18 @@ describe('CycleDetailView', () => {
     const user = userEvent.setup();
     const { onBack } = renderView(makeDetail([]));
 
-    // 先頭のボタンが戻る矢印
-    await user.click(screen.getAllByRole('button')[0]!);
+    await user.click(screen.getByRole('button', { name: '評価サイクル一覧に戻る' }));
 
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('評価ごとの操作メニューが、誰の評価かを名前に含む', () => {
+    // アイコンだけのトリガは名前を与えないと、行が増えるほど読み上げで
+    // 区別できなくなる（「ボタン」が並ぶだけになる）
+    renderView(makeDetail([makeEvaluation()]));
+
+    expect(
+      screen.getByRole('button', { name: `${makeEvaluation().employeeName} の評価の操作` }),
+    ).toBeInTheDocument();
   });
 });

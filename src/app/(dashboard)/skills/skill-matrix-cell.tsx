@@ -90,6 +90,7 @@ export function SkillMatrixCell({ employeeId, skillId, level, onUpdate }: Props)
               className="text-destructive ml-1"
               disabled={isPending}
               onClick={handleRemove}
+              aria-label="スキルレベルを解除"
             >
               <X className="h-4 w-4" />
             </Button>

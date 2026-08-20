@@ -5,7 +5,7 @@
 **マルチテナント型タレントマネジメント SaaS**
 
 従業員情報・スキル・1on1記録・評価を一元管理する。<br>
-テナント分離と認可設計の堅牢さを主題に据えた個人開発プロジェクト。
+テナント分離と認可設計の堅牢さに重心を置いた個人開発プロジェクト。
 
 [![CI](https://github.com/TakuyaMiyashita/fondra-hr/actions/workflows/ci.yml/badge.svg)](https://github.com/TakuyaMiyashita/fondra-hr/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#ライセンス)
@@ -19,19 +19,10 @@
 
 ![ダッシュボード](./docs/images/dashboard.png)
 
-## 主題
+## アーキテクチャ
 
 SaaS で壊してはいけないのは、**他社のデータが見えること**と**権限を越えた操作ができること**の2つ。
 機能の数ではなく、この2点をどう設計し、壊れていないことをどう示すかに時間を使っている。
-
-- **テナント分離は二重に持つ** — Service Layer の `WHERE org_id` と RLS。
-  どちらか一方が漏れてもデータは守られる
-- **認可はロール表だけでは足りない** — 「自分が当事者のデータだけ」「確定後だけ本人に開示」
-  といった制御を、行単位・列単位の2段階で追加している
-- **「見えないこと」は対照群とセットで検証する** — 同じ値が owner では見えることを
-  確認しないと、データが無いだけで検証が素通りする
-
-## アーキテクチャ
 
 ```mermaid
 flowchart LR
@@ -55,14 +46,18 @@ flowchart LR
     style RLS fill:#fdf2f8,stroke:#db2777
 ```
 
-RSC / Server Action から直接 Drizzle を呼ばない。必ず Service Layer を経由し、
-`authorize()` → DB操作 → 監査ログの順で処理する。DB アクセスは Drizzle に一本化し、
-Supabase JS Client は Auth と Storage にのみ使う。
+**テナント分離は二重に持つ。** Service Layer の `WHERE org_id` と RLS の
+どちらか一方が漏れてもデータは守られる。RSC / Server Action から直接 Drizzle を呼ばず、
+必ず Service Layer を経由して `authorize()` → DB操作 → 監査ログの順で処理する。
+DB アクセスは Drizzle に一本化し、Supabase JS Client は Auth と Storage にのみ使う。
 
 RLS には `org_id` の単純チェックしか持たせない。複雑な条件を SQL で書くと壊れたときに
 気付けないため、ロール別の制御は TypeScript 側に寄せている。
 
 ### 認可の3段階
+
+**ロール表だけでは足りない。** 「自分が当事者のデータだけ」「確定後だけ本人に開示」といった
+制御を、行単位・列単位で重ねている。
 
 | 段階                 | 何を絞るか               | 例                                                |
 | -------------------- | ------------------------ | ------------------------------------------------- |
@@ -75,6 +70,22 @@ RLS には `org_id` の単純チェックしか持たせない。複雑な条件
 紐付け前のユーザーに全社のデータが開く。
 
 → [認可マトリクス](./docs/database/authorization-matrix.md) ／ [認証・認可モデル](./docs/architecture/auth-and-authorization.md)
+
+## デモ環境
+
+**<https://fondra-hr-staging.vercel.app>** にデモ組織「株式会社フォンドラ」
+（従業員30名 / 部署12件 / 1on1 108件 / 評価2サイクル）を用意している。
+
+**同じ画面を別のロールで開くと、認可の効き方がそのまま見える。**
+
+| メールアドレス               | ロール | 見え方                                            |
+| ---------------------------- | ------ | ------------------------------------------------- |
+| `owner@fondra.example.com`   | owner  | 全データ                                          |
+| `hr@fondra.example.com`      | admin  | 全データ（組織削除を除く）                        |
+| `manager@fondra.example.com` | member | 生年月日が「—」になり、他人の1on1が一覧から消える |
+
+パスワードは全て `demo-password123`。自由に触ってよい。書き込みも削除もできるので、
+データが荒れていたら作り直している最中かもしれない。
 
 ## 動かす
 
@@ -90,30 +101,24 @@ npx supabase db reset   # マイグレーション適用 + デモデータ投入
 pnpm dev
 ```
 
-### ロールを切り替えて認可を見る
-
-デモ組織「株式会社フォンドラ」（従業員30名 / 部署12件 / 1on1 108件 / 評価2サイクル）が
-投入される。**同じ画面を別のロールで開くと、認可の効き方がそのまま見える。**
-
-| メールアドレス               | ロール | 見え方                                            |
-| ---------------------------- | ------ | ------------------------------------------------- |
-| `owner@fondra.example.com`   | owner  | 全データ                                          |
-| `hr@fondra.example.com`      | admin  | 全データ（組織削除を除く）                        |
-| `manager@fondra.example.com` | member | 生年月日が「—」になり、他人の1on1が一覧から消える |
-
-パスワードは全て `demo-password123`。日付は実行日からの相対で生成されるため、
-いつ reset しても「直近90日の1on1」「進行中の評価サイクル」が成立する。
+`db reset` でデモ環境と同じデータが入り、**同じ3アカウントでログインできる**。
+日付は実行日からの相対で生成されるため、いつ reset しても
+「直近90日の1on1」「進行中の評価サイクル」が成立する。
 
 ### テスト
 
 ```bash
-pnpm test:coverage   # unit + カバレッジ（DB 不要）
-pnpm test:e2e        # Playwright（ローカル Supabase 必要）
+pnpm test:coverage      # unit + カバレッジ（DB 不要）
+pnpm check:conventions  # 規約の機械検査（DB 不要）
+pnpm test:e2e           # Playwright（ローカル Supabase 必要）
 ```
 
-unit 1400件超・e2e 89件。カバレッジは statements / functions / lines 100%、branches 99% を
+unit 1400件超・e2e 100件超。カバレッジは statements / functions / lines 100%、branches 99% を
 閾値として CI で強制している。e2e は owner / member / viewer の3セッションを用意し、
 機微な値がページのどこにも現れないことを検証する。
+
+**「見えないこと」は対照群とセットで確認する。** 同じ値が owner では見えることを
+確認しないと、データが無いだけで検証が素通りする。
 
 → [テスト戦略](./docs/testing.md)
 
@@ -153,18 +158,21 @@ React Hook Form + Zod・Vercel AI SDK・Vitest + Testing Library + Playwright
 
 実装コードだけでなく設計書も成果物として [`docs/`](./docs/) に置いている。
 
-|                                                                                        |                                               |
-| -------------------------------------------------------------------------------------- | --------------------------------------------- |
-| [システム全体像](./docs/architecture/system-overview.md)                               | 構成と責務の分担                              |
-| [レイヤードアーキテクチャ](./docs/architecture/layered-architecture.md)                | 層の切り方と依存の向き                        |
-| [テナント分離](./docs/architecture/multi-tenancy.md)                                   | 二重防御の設計                                |
-| [認証・認可モデル](./docs/architecture/auth-and-authorization.md)                      | JWT フック・組織切替・メール確認・3段階の認可 |
-| [認可マトリクス](./docs/database/authorization-matrix.md)                              | ロール × リソース × 操作の一覧                |
-| [Service Layer API](./docs/api/service-layer.md)                                       | 各サービスのメソッドと認可                    |
-| [ER図](./docs/database/er-diagram.md) ／ [RLS ポリシー](./docs/database/rls-policy.md) | データモデルとポリシー定義                    |
-| [テスト戦略](./docs/testing.md)                                                        | 3つの project・カバレッジ方針・ロール別 e2e   |
-| [UI ガイドライン](./docs/design/ui-guidelines.md)                                      | 画面構成・空状態・エラー表示                  |
-| [デプロイ手順](./docs/deployment.md)                                                   | Vercel + Supabase Cloud                       |
+|                                                                                        |                                                    |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| [システム全体像](./docs/architecture/system-overview.md)                               | 構成と責務の分担                                   |
+| [レイヤードアーキテクチャ](./docs/architecture/layered-architecture.md)                | 層の切り方と依存の向き                             |
+| [テナント分離](./docs/architecture/multi-tenancy.md)                                   | 二重防御の設計                                     |
+| [認証・認可モデル](./docs/architecture/auth-and-authorization.md)                      | JWT フック・組織切替・メール確認・3段階の認可      |
+| [認可マトリクス](./docs/database/authorization-matrix.md)                              | ロール × リソース × 操作の一覧                     |
+| [Service Layer API](./docs/api/service-layer.md)                                       | 各サービスのメソッドと認可                         |
+| [ER図](./docs/database/er-diagram.md) ／ [RLS ポリシー](./docs/database/rls-policy.md) | データモデルとポリシー定義                         |
+| [ユーザーフロー](./docs/design/user-flows.md)                                          | サインアップ・招待・1on1・評価のフロー図           |
+| [画面一覧](./docs/design/screen-inventory.md)                                          | 全画面の状態定義（通常・ローディング・空・エラー） |
+| [UI ガイドライン](./docs/design/ui-guidelines.md)                                      | 画面構成・空状態・エラー表示                       |
+| [テスト戦略](./docs/testing.md)                                                        | 3つの project・カバレッジ方針・ロール別 e2e        |
+| [ADR](./docs/adr/README.md)                                                            | 設計判断の記録と、捨てた案の理由                   |
+| [デプロイ手順](./docs/deployment.md)                                                   | Vercel + Supabase Cloud                            |
 
 運用しているのは検証環境ひとつのみ。実ユーザーを持たないため環境を分ける利点が無いという判断で、
 本番運用する場合に何を変えるべきかはデプロイ手順に併記している。

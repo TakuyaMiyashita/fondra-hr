@@ -16,6 +16,19 @@ const eslintConfig = defineConfig([
           caughtErrorsIgnorePattern: '^_',
         },
       ],
+      // Base UI の Button に Link を差し込むと、既定（nativeButton = true）では
+      // `<a>` に無効な `type="button"` が付き、`nativeButton={false}` にすると
+      // 今度は `role="button"` がリンク本来の role を上書きする。
+      // 遷移する要素は ButtonLink（素の `<a>` + buttonVariants）を使う。
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'JSXElement[openingElement.name.name="Button"] > JSXOpeningElement > JSXAttribute[name.name="render"] JSXOpeningElement[name.name="Link"]',
+          message:
+            '<Button render={<Link />}> は使わず、@/components/shared/button-link の ButtonLink を使ってください。',
+        },
+      ],
     },
   },
   // Override default ignores of eslint-config-next.

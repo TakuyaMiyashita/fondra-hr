@@ -2,11 +2,11 @@
 'use no memo';
 
 import { Loader2, Mail, Shield, Trash2, UserPlus } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { ButtonLink } from '@/components/shared/button-link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -125,9 +125,9 @@ export function MembersClient({ members, invitations, role, currentUserId }: Pro
       </div>
 
       <div className="flex gap-2 border-b pb-2">
-        <Button variant="ghost" size="sm" render={<Link href="/settings" />}>
+        <ButtonLink variant="ghost" size="sm" href="/settings">
           一般
-        </Button>
+        </ButtonLink>
         <Button variant="ghost" size="sm" className="font-semibold">
           メンバー
         </Button>

@@ -4,9 +4,9 @@ import type { LegacyColumnDef } from '@tanstack/react-table/legacy';
 import { Eye } from 'lucide-react';
 import Link from 'next/link';
 
+import { ButtonLink } from '@/components/shared/button-link';
 import { DataTableColumnHeader } from '@/components/shared/data-table-column-header';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import type { Employee, EmployeeStatus } from '@/types/employee';
 
 const statusConfig: Record<
@@ -85,14 +85,15 @@ export const employeeColumns: LegacyColumnDef<Employee, unknown>[] = [
   {
     id: 'actions',
     cell: ({ row }) => (
-      <Button
+      <ButtonLink
         variant="ghost"
         size="icon"
         className="size-8"
-        render={<Link href={`/employees/${row.original.id}`} />}
+        href={`/employees/${row.original.id}`}
+        aria-label={`${row.original.fullName} の詳細を表示`}
       >
         <Eye className="size-4" />
-      </Button>
+      </ButtonLink>
     ),
   },
 ];

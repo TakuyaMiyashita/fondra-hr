@@ -1,10 +1,10 @@
 'use client';
 
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { ButtonLink } from '@/components/shared/button-link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,9 +39,9 @@ export function EmployeeDetailClient({ employee, departments }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" render={<Link href="/employees" />}>
+        <ButtonLink variant="ghost" size="icon-sm" href="/employees" aria-label="従業員一覧に戻る">
           <ArrowLeft />
-        </Button>
+        </ButtonLink>
         <h1 className="text-2xl font-bold tracking-tight">従業員詳細</h1>
       </div>
 

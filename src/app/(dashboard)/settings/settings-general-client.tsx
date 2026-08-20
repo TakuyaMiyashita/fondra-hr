@@ -3,12 +3,12 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { ButtonLink } from '@/components/shared/button-link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,9 +61,9 @@ export function SettingsGeneralClient({ org, role }: Props) {
         <Button variant="ghost" size="sm" className="font-semibold">
           一般
         </Button>
-        <Button variant="ghost" size="sm" render={<Link href="/settings/members" />}>
+        <ButtonLink variant="ghost" size="sm" href="/settings/members">
           メンバー
-        </Button>
+        </ButtonLink>
       </div>
 
       <Card>

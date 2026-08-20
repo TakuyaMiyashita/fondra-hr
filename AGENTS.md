@@ -140,6 +140,9 @@ supabase/
 
 - Server Component をデフォルト。`'use client'` は必要最小限
 - ミューテーションは必ず Service Layer 経由（Zod バリデーション + `authorize()` + 監査ログ）
+- 遷移する要素は `ButtonLink`（`@/components/shared/button-link`）を使う。
+  `<Button render={<Link />}>` は Base UI が `<a>` に無効な `type="button"` を
+  足すため禁止（ESLint で止めている）。詳細は `docs/design/ui-guidelines.md`
 
 ### エラーハンドリング
 

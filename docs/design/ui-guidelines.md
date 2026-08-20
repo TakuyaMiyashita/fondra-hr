@@ -62,6 +62,19 @@ shadcn/ui の `--radius: 0.625rem` を基準。個別指定は避け、shadcn/ui
 | `destructive` | 削除・破壊的操作                               |
 | `ghost`       | ナビゲーション・アイコンボタン                 |
 
+**遷移する要素は `Button` ではなく `ButtonLink`**（`@/components/shared/button-link`）
+を使う。`<Button render={<Link />}>` は Base UI が壊れた属性を足すため禁止で、
+ESLint の `no-restricted-syntax` で止めている。
+
+| 書き方                          | 生成される DOM               | 問題                                               |
+| ------------------------------- | ---------------------------- | -------------------------------------------------- |
+| `<Button render={<Link />}>`    | `<a type="button" href=...>` | `type` は `<a>` に無効な属性。dev で警告が出る     |
+| `<Button nativeButton={false}>` | `<a role="button" href=...>` | リンクの role を上書きし「ボタン」と読み上げられる |
+| `<ButtonLink href=...>`         | `<a class="..." href=...>`   | 正しい                                             |
+
+アイコンのみのボタン・リンクには `aria-label` で名前を与える。アイコンだけでは
+読み上げ時に名前が無い要素になる。
+
 ### フォーム
 
 - ラベルは必ず付ける。プレースホルダーのみの入力フィールドは禁止

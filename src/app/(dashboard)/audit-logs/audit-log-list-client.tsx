@@ -130,7 +130,7 @@ export function AuditLogListClient({ initialLogs, initialTotal, resourceTypes }:
             value={resourceTypeFilter || '__all__'}
             onValueChange={handleResourceTypeChange}
           >
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48" aria-label="リソース種別で絞り込み">
               <SelectValue placeholder="リソース種別" />
             </SelectTrigger>
             <SelectContent>

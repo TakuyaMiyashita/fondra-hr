@@ -178,7 +178,7 @@ export function MembersClient({ members, invitations, role, currentUserId }: Pro
                           }}
                           disabled={isPending}
                         >
-                          <SelectTrigger className="w-32">
+                          <SelectTrigger className="w-32" aria-label={`${m.email} のロール`}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>

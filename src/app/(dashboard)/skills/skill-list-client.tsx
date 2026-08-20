@@ -103,7 +103,7 @@ export function SkillListClient({ initialSkills, initialTotal, categories }: Pro
               value={categoryFilter || '__all__'}
               onValueChange={(val) => setCategoryFilter(!val || val === '__all__' ? '' : val)}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40" aria-label="カテゴリで絞り込み">
                 <SelectValue placeholder="カテゴリ" />
               </SelectTrigger>
               <SelectContent>

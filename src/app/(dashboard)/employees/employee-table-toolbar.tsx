@@ -102,7 +102,7 @@ export function EmployeeTableToolbar({
           value={status ?? '__all__'}
           onValueChange={(v) => onStatusChange(v === '__all__' ? undefined : (v as EmployeeStatus))}
         >
-          <SelectTrigger className="w-[120px]">
+          <SelectTrigger className="w-[120px]" aria-label="ステータスで絞り込み">
             <SelectValue placeholder="ステータス" />
           </SelectTrigger>
           <SelectContent>
@@ -122,7 +122,7 @@ export function EmployeeTableToolbar({
             value={departmentId ?? '__all__'}
             onValueChange={(v) => onDepartmentChange(v === '__all__' || v == null ? undefined : v)}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[160px]" aria-label="部署で絞り込み">
               <SelectValue placeholder="部署" />
             </SelectTrigger>
             <SelectContent>

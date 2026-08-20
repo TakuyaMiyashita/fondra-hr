@@ -120,7 +120,7 @@ export function OneOnOneListClient({ initialRecords, initialTotal, employees }: 
             value={employeeFilter || '__all__'}
             onValueChange={(val) => setEmployeeFilter(!val || val === '__all__' ? '' : val)}
           >
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48" aria-label="従業員で絞り込み">
               <SelectValue placeholder="従業員" />
             </SelectTrigger>
             <SelectContent>

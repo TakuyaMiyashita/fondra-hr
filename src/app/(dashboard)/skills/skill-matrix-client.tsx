@@ -106,7 +106,7 @@ export function SkillMatrixClient({ categories, departments }: Props) {
             value={departmentId || '__all__'}
             onValueChange={(val) => setDepartmentId(!val || val === '__all__' ? '' : val)}
           >
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-40" aria-label="部署で絞り込み">
               <SelectValue placeholder="部署" />
             </SelectTrigger>
             <SelectContent>
@@ -125,7 +125,7 @@ export function SkillMatrixClient({ categories, departments }: Props) {
             value={category || '__all__'}
             onValueChange={(val) => setCategory(!val || val === '__all__' ? '' : val)}
           >
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-40" aria-label="カテゴリで絞り込み">
               <SelectValue placeholder="カテゴリ" />
             </SelectTrigger>
             <SelectContent>

@@ -92,27 +92,35 @@ export function AiAssistantClient() {
           buffer = lines.pop() ?? '';
 
           for (const line of lines) {
-            if (!line.startsWith('0:')) continue;
+            // AI SDK の UI message stream は SSE で流れてくる。
+            // 本文は `data: {"type":"text-delta","delta":"..."} ` の行にだけ入る。
+            if (!line.startsWith('data:')) continue;
+
+            const payload = line.slice('data:'.length).trim();
+            if (!payload || payload === '[DONE]') continue;
+
+            let chunk: { type?: string; delta?: unknown };
             try {
-              const text = JSON.parse(line.slice(2));
-              if (typeof text === 'string') {
-                accumulated += text;
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  const last = updated[updated.length - 1];
-                  if (last.role === 'assistant') {
-                    updated[updated.length - 1] = {
-                      ...last,
-                      content: accumulated,
-                    };
-                  }
-                  return updated;
-                });
-                scrollToBottom();
-              }
+              chunk = JSON.parse(payload) as { type?: string; delta?: unknown };
             } catch {
-              // non-text chunk, skip
+              continue; // JSON でない行は読み飛ばす
             }
+            // start / finish / reasoning など本文以外のイベントは表示に使わない
+            if (chunk.type !== 'text-delta' || typeof chunk.delta !== 'string') continue;
+
+            accumulated += chunk.delta;
+            setMessages((prev) => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last.role === 'assistant') {
+                updated[updated.length - 1] = {
+                  ...last,
+                  content: accumulated,
+                };
+              }
+              return updated;
+            });
+            scrollToBottom();
           }
         }
       } catch (err) {

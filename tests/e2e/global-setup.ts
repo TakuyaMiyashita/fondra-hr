@@ -1,5 +1,6 @@
 import { test as setup, expect, type Page } from '@playwright/test';
 
+import { adminInsert, adminSelect, ensureAuthUser, ensureMembership } from './admin-api';
 import {
   AUTH_FILES,
   E2E_PASSWORD,
@@ -12,10 +13,6 @@ import {
 } from './authorization-fixtures';
 
 const TEST_ORG = 'E2Eテスト組織';
-
-const SUPABASE_URL = 'http://127.0.0.1:54321';
-const SERVICE_ROLE_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
 
 /**
  * e2e の前提を用意する。
@@ -30,82 +27,28 @@ const SERVICE_ROLE_KEY =
  * マスク漏れの検出に強い。
  */
 
-function headers(extra: Record<string, string> = {}) {
-  return {
-    Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-    apikey: SERVICE_ROLE_KEY,
-    ...extra,
-  };
-}
-
-async function rest<T>(path: string): Promise<T> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: headers() });
-  return res.json() as Promise<T>;
-}
-
-async function insert<T>(table: string, body: unknown): Promise<T> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-    method: 'POST',
-    headers: headers({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(`Failed to insert into ${table}: ${JSON.stringify(json)}`);
-  return json as T;
-}
-
-async function ensureUser(email: string): Promise<string> {
-  const listRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, { headers: headers() });
-  const listData = await listRes.json();
-  const existing = listData.users?.find((u: { email: string }) => u.email === email);
-  if (existing) return existing.id;
-
-  const createRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-    method: 'POST',
-    headers: headers({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ email, password: E2E_PASSWORD, email_confirm: true }),
-  });
-  const created = await createRes.json();
-  if (!createRes.ok) throw new Error(`Failed to create user: ${JSON.stringify(created)}`);
-  return created.id;
-}
-
 async function ensureOrg(ownerId: string): Promise<string> {
-  const memberships = await rest<{ org_id: string }[]>(
+  const memberships = await adminSelect<{ org_id: string }[]>(
     `memberships?user_id=eq.${ownerId}&select=org_id`,
   );
   if (memberships.length > 0) return memberships[0].org_id;
 
   const slug = `e2e-test-${Date.now().toString(36)}`;
-  const orgs = await insert<{ id: string }[]>('organizations', { name: TEST_ORG, slug });
+  const orgs = await adminInsert<{ id: string }[]>('organizations', { name: TEST_ORG, slug });
   await ensureMembership(ownerId, orgs[0].id, 'owner');
   return orgs[0].id;
-}
-
-/**
- * メンバーシップだけ作れば JWT の claim は入る。
- * custom_access_token_hook は app_metadata に org_id が無ければ
- * 最初のメンバーシップにフォールバックするため、app_metadata の
- * 事前設定は要らない（supabase/migrations の同関数を参照）。
- */
-async function ensureMembership(userId: string, orgId: string, role: string): Promise<void> {
-  const existing = await rest<unknown[]>(
-    `memberships?user_id=eq.${userId}&org_id=eq.${orgId}&select=user_id`,
-  );
-  if (existing.length > 0) return;
-  await insert('memberships', { user_id: userId, org_id: orgId, role });
 }
 
 async function ensureEmployee(
   orgId: string,
   employee: Record<string, unknown> & { employee_code: string },
 ): Promise<string> {
-  const existing = await rest<{ id: string }[]>(
+  const existing = await adminSelect<{ id: string }[]>(
     `employees?org_id=eq.${orgId}&employee_code=eq.${employee.employee_code}&select=id`,
   );
   if (existing.length > 0) return existing[0].id;
 
-  const rows = await insert<{ id: string }[]>('employees', { org_id: orgId, ...employee });
+  const rows = await adminInsert<{ id: string }[]>('employees', { org_id: orgId, ...employee });
   return rows[0].id;
 }
 
@@ -141,14 +84,14 @@ async function seedFixtures(orgId: string, memberUserId: string): Promise<Fixtur
     status: 'active',
   });
 
-  const existingOneOnOnes = await rest<{ notes: string | null }[]>(
+  const existingOneOnOnes = await adminSelect<{ notes: string | null }[]>(
     `one_on_ones?org_id=eq.${orgId}&select=notes`,
   );
   const notes = existingOneOnOnes.map((r) => r.notes);
 
   if (!notes.includes(MARKERS.othersNotes)) {
     // 当事者に member を含まない記録。member からは一覧にも出てはならない。
-    await insert('one_on_ones', {
+    await adminInsert('one_on_ones', {
       org_id: orgId,
       employee_id: othersEmployeeId,
       interviewer_id: thirdEmployeeId,
@@ -157,7 +100,7 @@ async function seedFixtures(orgId: string, memberUserId: string): Promise<Fixtur
     });
   }
   if (!notes.includes(MARKERS.selfNotes)) {
-    await insert('one_on_ones', {
+    await adminInsert('one_on_ones', {
       org_id: orgId,
       employee_id: selfEmployeeId,
       interviewer_id: othersEmployeeId,
@@ -166,14 +109,14 @@ async function seedFixtures(orgId: string, memberUserId: string): Promise<Fixtur
     });
   }
 
-  const cycles = await rest<{ id: string }[]>(
+  const cycles = await adminSelect<{ id: string }[]>(
     `evaluation_cycles?org_id=eq.${orgId}&name=eq.${encodeURIComponent(MARKERS.cycleName)}&select=id`,
   );
   const cycleId =
     cycles.length > 0
       ? cycles[0].id
       : (
-          await insert<{ id: string }[]>('evaluation_cycles', {
+          await adminInsert<{ id: string }[]>('evaluation_cycles', {
             org_id: orgId,
             name: MARKERS.cycleName,
             period_start: '2026-04-01',
@@ -182,14 +125,14 @@ async function seedFixtures(orgId: string, memberUserId: string): Promise<Fixtur
           })
         )[0].id;
 
-  const existingEvals = await rest<{ comment: string | null }[]>(
+  const existingEvals = await adminSelect<{ comment: string | null }[]>(
     `evaluations?cycle_id=eq.${cycleId}&select=comment`,
   );
   const comments = existingEvals.map((r) => r.comment);
 
   if (!comments.includes(MARKERS.othersComment)) {
     // 評価者が member でない評価。コメントは member から見えてはならない。
-    await insert('evaluations', {
+    await adminInsert('evaluations', {
       org_id: orgId,
       cycle_id: cycleId,
       employee_id: othersEmployeeId,
@@ -198,7 +141,7 @@ async function seedFixtures(orgId: string, memberUserId: string): Promise<Fixtur
     });
   }
   if (!comments.includes(MARKERS.selfComment)) {
-    await insert('evaluations', {
+    await adminInsert('evaluations', {
       org_id: orgId,
       cycle_id: cycleId,
       employee_id: othersEmployeeId,
@@ -246,13 +189,13 @@ async function login(page: Page, email: string): Promise<void> {
 }
 
 setup('authenticate', async ({ page, browser }) => {
-  const ownerId = await ensureUser(OWNER_EMAIL);
+  const ownerId = await ensureAuthUser(OWNER_EMAIL, E2E_PASSWORD);
   const orgId = await ensureOrg(ownerId);
 
-  const memberId = await ensureUser(MEMBER_EMAIL);
+  const memberId = await ensureAuthUser(MEMBER_EMAIL, E2E_PASSWORD);
   await ensureMembership(memberId, orgId, 'member');
 
-  const viewerId = await ensureUser(VIEWER_EMAIL);
+  const viewerId = await ensureAuthUser(VIEWER_EMAIL, E2E_PASSWORD);
   await ensureMembership(viewerId, orgId, 'viewer');
 
   const fixtures = await seedFixtures(orgId, memberId);

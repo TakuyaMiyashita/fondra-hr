@@ -1,7 +1,6 @@
 import { UserX } from 'lucide-react';
-import Link from 'next/link';
 
-import { Button } from '@/components/ui/button';
+import { ButtonLink } from '@/components/shared/button-link';
 
 export default function EmployeeNotFound() {
   return (
@@ -11,9 +10,9 @@ export default function EmployeeNotFound() {
       <p className="text-muted-foreground mt-2 text-sm">
         指定された従業員は存在しないか、アクセス権がありません。
       </p>
-      <Button className="mt-6" render={<Link href="/employees" />}>
+      <ButtonLink className="mt-6" href="/employees">
         従業員一覧に戻る
-      </Button>
+      </ButtonLink>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-import { Button } from '@/components/ui/button';
+import { ButtonLink } from '@/components/shared/button-link';
 
 const features = [
   {
@@ -56,12 +56,12 @@ export function LandingPage() {
             <span className="text-lg font-bold tracking-tight">FondraHR</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" render={<Link href="/login" />}>
+            <ButtonLink variant="ghost" size="sm" href="/login">
               ログイン
-            </Button>
-            <Button size="sm" render={<Link href="/signup" />}>
+            </ButtonLink>
+            <ButtonLink size="sm" href="/signup">
               無料で始める
-            </Button>
+            </ButtonLink>
           </div>
         </div>
       </header>
@@ -78,12 +78,12 @@ export function LandingPage() {
             中小〜中堅企業のHR部門・マネージャーのための タレントマネジメントSaaS。
           </p>
           <div className="mt-10 flex items-center justify-center gap-4">
-            <Button size="lg" render={<Link href="/signup" />}>
+            <ButtonLink size="lg" href="/signup">
               無料で始める
-            </Button>
-            <Button variant="outline" size="lg" render={<Link href="/login" />}>
+            </ButtonLink>
+            <ButtonLink variant="outline" size="lg" href="/login">
               ログイン
-            </Button>
+            </ButtonLink>
           </div>
         </section>
 
@@ -120,9 +120,9 @@ export function LandingPage() {
             <p className="text-muted-foreground mx-auto mt-3 max-w-md">
               アカウントを作成するだけで、すべての機能を無料でお試しいただけます
             </p>
-            <Button size="lg" className="mt-8" render={<Link href="/signup" />}>
+            <ButtonLink size="lg" className="mt-8" href="/signup">
               無料で始める
-            </Button>
+            </ButtonLink>
           </div>
         </section>
       </main>

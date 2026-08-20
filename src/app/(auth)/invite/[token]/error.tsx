@@ -1,8 +1,8 @@
 'use client';
 
 import { AlertTriangle } from 'lucide-react';
-import Link from 'next/link';
 
+import { ButtonLink } from '@/components/shared/button-link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -27,9 +27,9 @@ export default function InviteAcceptError({
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         <Button onClick={retry}>再試行</Button>
-        <Button variant="ghost" render={<Link href="/login" />}>
+        <ButtonLink variant="ghost" href="/login">
           ログイン画面へ
-        </Button>
+        </ButtonLink>
       </CardContent>
     </Card>
   );

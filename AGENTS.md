@@ -113,8 +113,9 @@ supabase/
 ├── seed.sql                # デモデータ（db reset で自動適用）
 └── migrations/             # SQLマイグレーション
 .claude/
-├── settings.json           # フック定義（コミットする）
-└── hooks/                  # テスト更新を促す/強制するフック（→ テスト の節参照）
+├── settings.json           # フック定義・権限（コミットする）
+├── hooks/                  # テスト更新を促す/強制するフック（→ テスト の節参照）
+└── skills/                 # スラッシュコマンド（`/ship` = マージまでの手順）
 ```
 
 ## 開発ルール

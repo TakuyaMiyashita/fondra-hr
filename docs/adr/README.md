@@ -30,4 +30,5 @@
 | [0005](./0005-single-environment.md)                              | 本番環境を作らず検証環境ひとつで運用する                 | 採用 |
 | [0006](./0006-defer-org-creation-until-email-confirmed.md)        | 組織作成をメール確認後まで遅らせる                       | 採用 |
 | [0007](./0007-keep-email-confirmation-disabled.md)                | 検証環境ではメール確認を有効化しない                     | 採用 |
+| [0008](./0008-skill-presets-live-in-code-not-in-db.md)            | スキルの入力候補は DB ではなくコードに置く               | 採用 |
 | [0009](./0009-form-a11y-wiring-lives-in-base-ui-field.md)         | フォームの a11y 配線は Base UI の Field に任せる         | 採用 |

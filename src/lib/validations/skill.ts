@@ -2,13 +2,18 @@ import { z } from 'zod';
 
 import { pageField, perPageField, uuidField } from './common';
 
+// 候補を打ちかけて選ばずに確定すると末尾に空白が残りやすい。
+// skills の unique(org_id, name) は 'React' と 'React ' を別物として通すため、
+// 保存前に trim しないと見た目が同じスキルを2件作れてしまう。
 export const createSkillSchema = z.object({
   name: z
     .string()
+    .trim()
     .min(1, 'スキル名を入力してください')
     .max(100, 'スキル名は100文字以内で入力してください'),
   category: z
     .string()
+    .trim()
     .max(100, 'カテゴリは100文字以内で入力してください')
     .optional()
     .or(z.literal('')),

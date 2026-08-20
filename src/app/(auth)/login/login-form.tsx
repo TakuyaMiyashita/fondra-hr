@@ -8,9 +8,9 @@ import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { type SignInInput, signInSchema } from '@/lib/validations/auth';
 
 import { signIn } from '../actions';
@@ -45,8 +45,8 @@ export function LoginForm() {
         </p>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="email">メールアドレス</Label>
+      <FormField invalid={!!errors.email}>
+        <FormLabel htmlFor="email">メールアドレス</FormLabel>
         <Input
           id="email"
           type="email"
@@ -55,12 +55,12 @@ export function LoginForm() {
           disabled={isPending}
           {...register('email')}
         />
-        {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
-      </div>
+        <FormError>{errors.email?.message}</FormError>
+      </FormField>
 
-      <div className="space-y-2">
+      <FormField invalid={!!errors.password}>
         <div className="flex items-center justify-between">
-          <Label htmlFor="password">パスワード</Label>
+          <FormLabel htmlFor="password">パスワード</FormLabel>
           <Link
             href="/reset-password"
             className="text-muted-foreground hover:text-foreground text-xs"
@@ -75,8 +75,8 @@ export function LoginForm() {
           disabled={isPending}
           {...register('password')}
         />
-        {errors.password && <p className="text-destructive text-xs">{errors.password.message}</p>}
-      </div>
+        <FormError>{errors.password?.message}</FormError>
+      </FormField>
 
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

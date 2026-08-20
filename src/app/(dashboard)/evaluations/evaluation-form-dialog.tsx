@@ -7,6 +7,7 @@ import { useEffect, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,7 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -95,8 +95,8 @@ export function EvaluationFormDialog({ open, onOpenChange, cycleId, employees, o
           <DialogDescription>評価対象の従業員と評価者を選択します。</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label>対象従業員 *</Label>
+          <FormField invalid={!!errors.employeeId}>
+            <FormLabel>対象従業員 *</FormLabel>
             <Select
               items={employeeItems}
               value={employeeId || '__none__'}
@@ -115,13 +115,11 @@ export function EvaluationFormDialog({ open, onOpenChange, cycleId, employees, o
                 ))}
               </SelectContent>
             </Select>
-            {errors.employeeId && (
-              <p className="text-destructive text-xs">{errors.employeeId.message}</p>
-            )}
-          </div>
+            <FormError>{errors.employeeId?.message}</FormError>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label>評価者 *</Label>
+          <FormField invalid={!!errors.evaluatorId}>
+            <FormLabel>評価者 *</FormLabel>
             <Select
               items={employeeItems}
               value={evaluatorId || '__none__'}
@@ -142,10 +140,8 @@ export function EvaluationFormDialog({ open, onOpenChange, cycleId, employees, o
                 ))}
               </SelectContent>
             </Select>
-            {errors.evaluatorId && (
-              <p className="text-destructive text-xs">{errors.evaluatorId.message}</p>
-            )}
-          </div>
+            <FormError>{errors.evaluatorId?.message}</FormError>
+          </FormField>
 
           <DialogFooter>
             <DialogClose render={<Button variant="outline" type="button" />}>

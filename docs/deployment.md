@@ -179,6 +179,29 @@ Vercel で GitHub リポジトリをインポートし、以下の環境変数�
 Authentication → Providers → Email → Confirm email を有効にすれば足りる
 （`config push` する場合は `supabase/config.toml` の値も併せて変更する）。
 
+**ただし先に redirect の許可リストを確認すること。**
+確認メールのリンクの戻り先 `<ドメイン>/auth/callback` が
+`site_url` または `additional_redirect_urls` に載っている必要がある。
+
+許可リストに無い `redirect_to` は **エラーにならず site_url に差し替えられる**。
+その結果リンクが `/` に飛び、`/auth/callback` を通らないため保留中の
+組織作成・招待受諾（`completePendingSignUp`）が消化されず、
+**「確認済みだが組織が無い」ユーザー**が生まれる。有効化前にこの状態を
+作らないための前提条件になる。
+
+確認方法（ローカル / 該当プロジェクトの URL とキーに読み替える）:
+
+```bash
+curl -s -X POST "$SUPABASE_URL/auth/v1/admin/generate_link" \
+  -H "Authorization: Bearer $SERVICE_ROLE_KEY" -H "apikey: $SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"signup","email":"probe@example.com","password":"password123",
+       "redirect_to":"http://localhost:3000/auth/callback"}'
+```
+
+返ってくる `action_link` の `redirect_to` が指定どおりなら許可されている。
+site_url に化けていれば許可リストへの追加が要る。
+
 `supabase/config.toml` は `false` のままにしてある。ローカル開発と e2e は
 サインアップから画面表示までを一続きで通すため、確認メールを挟むと
 テストが成立しない。

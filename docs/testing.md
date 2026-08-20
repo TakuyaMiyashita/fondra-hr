@@ -47,9 +47,15 @@ DB / ブラウザを要する層は Supabase 起動後の別ジョブで実行�
 pnpm test:coverage
 ```
 
-対象は `src/services/` `src/lib/` `src/app/**/actions.ts` に限定している。
+対象は `src/services/` `src/lib/` `src/app/**/actions.ts` に加え、
+認証の配線である `src/app/auth/callback/route.ts` と `src/proxy.ts` に限定している。
 UI コンポーネントや自動生成物まで含めると数値が薄まり、
 本当に検証すべき認可・分岐が見えなくなるため。
+
+`src/lib/supabase/` のうち Supabase クライアントの初期化（`client` / `server` /
+`admin`）は薄いラッパなので除外しているが、`middleware.ts` だけは未認証
+リダイレクトの判定を持つため計測対象に含める。`src/proxy.ts` はここへ
+委譲しているだけで、判定そのものは `middleware.ts` 側にある。
 
 閾値は `vitest.config.ts` の `coverage.thresholds` で定義しており、
 下回ると CI が落ちる。**達成した水準は下げない**という回帰防止のための下限である。

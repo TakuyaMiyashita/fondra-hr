@@ -172,7 +172,8 @@ supabase/
 カバレッジ閾値は `vitest.config.ts` の `coverage.thresholds` で定義しており、
 下回ると CI が落ちる。**達成した水準は下げない**（現状: statements / functions /
 lines 100%、branches 99）。計測対象は `src/services/` `src/lib/`
-`src/app/**/actions.ts` に限定している。
+`src/app/**/actions.ts` と、認証の配線（`src/app/auth/callback/route.ts` /
+`src/proxy.ts`）に限定している。
 
 `src/` のプロダクトコードを変更したら、対応するテストも同じ変更に含める。
 `.claude/hooks/` の2つのフックがこれを補助する。

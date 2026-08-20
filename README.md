@@ -9,9 +9,6 @@
 
 [![CI](https://github.com/TakuyaMiyashita/fondra-hr/actions/workflows/ci.yml/badge.svg)](https://github.com/TakuyaMiyashita/fondra-hr/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#ライセンス)
-![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3FCF8E?logo=supabase&logoColor=white)
 
 **[デモ環境](https://fondra-hr-staging.vercel.app)** ・ [設計ドキュメント](./docs/)
 
@@ -21,8 +18,12 @@
 
 ## アーキテクチャ
 
-SaaS で壊してはいけないのは、**他社のデータが見えること**と**権限を越えた操作ができること**の2つ。
+SaaS で壊してはいけないのは、他社のデータが見えることと、権限を越えた操作ができることの2つ。
 機能の数ではなく、この2点をどう設計し、壊れていないことをどう示すかに時間を使っている。
+
+テナント分離は二重に持つ。Service Layer の `WHERE org_id` と RLS のどちらか一方が漏れても
+データは守られる。ただし RLS に持たせるのは `org_id` の一致だけにしている。
+複雑な条件を SQL に書くと、壊れたときに気付けない。
 
 ```mermaid
 flowchart LR
@@ -46,18 +47,9 @@ flowchart LR
     style RLS fill:#fdf2f8,stroke:#db2777
 ```
 
-**テナント分離は二重に持つ。** Service Layer の `WHERE org_id` と RLS の
-どちらか一方が漏れてもデータは守られる。RSC / Server Action から直接 Drizzle を呼ばず、
-必ず Service Layer を経由して `authorize()` → DB操作 → 監査ログの順で処理する。
-DB アクセスは Drizzle に一本化し、Supabase JS Client は Auth と Storage にのみ使う。
-
-RLS には `org_id` の単純チェックしか持たせない。複雑な条件を SQL で書くと壊れたときに
-気付けないため、ロール別の制御は TypeScript 側に寄せている。
+→ [テナント分離](./docs/architecture/multi-tenancy.md) ／ [レイヤードアーキテクチャ](./docs/architecture/layered-architecture.md)
 
 ### 認可の3段階
-
-**ロール表だけでは足りない。** 「自分が当事者のデータだけ」「確定後だけ本人に開示」といった
-制御を、行単位・列単位で重ねている。
 
 | 段階                 | 何を絞るか               | 例                                                |
 | -------------------- | ------------------------ | ------------------------------------------------- |
@@ -66,7 +58,7 @@ RLS には `org_id` の単純チェックしか持たせない。複雑な条件
 | フィールド制御（列） | 権限の無いカラム         | 生年月日は admin 以上と本人のみ。他は null で返る |
 
 「本人」の判定はログインユーザーと従業員レコードの紐付け（`employees.user_id`）で行い、
-**未紐付けは「何も見えない」に倒す**。ここを「チェック不要」と解釈すると、
+未紐付けは「何も見えない」に倒している。ここを「チェック不要」と解釈すると、
 紐付け前のユーザーに全社のデータが開く。
 
 → [認可マトリクス](./docs/database/authorization-matrix.md) ／ [認証・認可モデル](./docs/architecture/auth-and-authorization.md)
@@ -75,8 +67,7 @@ RLS には `org_id` の単純チェックしか持たせない。複雑な条件
 
 **<https://fondra-hr-staging.vercel.app>** にデモ組織「株式会社フォンドラ」
 （従業員30名 / 部署12件 / 1on1 108件 / 評価2サイクル）を用意している。
-
-**同じ画面を別のロールで開くと、認可の効き方がそのまま見える。**
+同じ画面を別のロールで開くと、認可の効き方がそのまま見える。
 
 | メールアドレス               | ロール | 見え方                                            |
 | ---------------------------- | ------ | ------------------------------------------------- |
@@ -101,11 +92,13 @@ npx supabase db reset   # マイグレーション適用 + デモデータ投入
 pnpm dev
 ```
 
-`db reset` でデモ環境と同じデータが入り、**同じ3アカウントでログインできる**。
-日付は実行日からの相対で生成されるため、いつ reset しても
-「直近90日の1on1」「進行中の評価サイクル」が成立する。
+`db reset` で入るのはデモ環境と同じデータ。日付は実行日からの相対で生成されるため、
+いつ reset しても「直近90日の1on1」「進行中の評価サイクル」が成立する。
 
 ### テスト
+
+unit 1456件 / e2e 131件。カバレッジは statements / functions / lines 100%、branches 99% を
+閾値として CI で強制している。
 
 ```bash
 pnpm test:coverage      # unit + カバレッジ（DB 不要）
@@ -113,12 +106,9 @@ pnpm check:conventions  # 規約の機械検査（DB 不要）
 pnpm test:e2e           # Playwright（ローカル Supabase 必要）
 ```
 
-unit 1400件超・e2e 100件超。カバレッジは statements / functions / lines 100%、branches 99% を
-閾値として CI で強制している。e2e は owner / member / viewer の3セッションを用意し、
-機微な値がページのどこにも現れないことを検証する。
-
-**「見えないこと」は対照群とセットで確認する。** 同じ値が owner では見えることを
-確認しないと、データが無いだけで検証が素通りする。
+e2e は owner / member / viewer の3セッションで同じ画面を開き、member に見えてはいけない値が
+ページのどこにも無いことを確認する。このとき owner では見えることも併せて確認している。
+片方だけだと、データが無いだけでテストが通る。
 
 → [テスト戦略](./docs/testing.md)
 
@@ -154,6 +144,8 @@ Next.js 16（App Router / RSC）・TypeScript strict・Supabase（Postgres + Aut
 Drizzle ORM・Tailwind CSS + shadcn/ui・TanStack Table / Query・nuqs・Recharts・
 React Hook Form + Zod・Vercel AI SDK・Vitest + Testing Library + Playwright
 
+DB アクセスは Drizzle に一本化し、Supabase JS Client は Auth と Storage にだけ使っている。
+
 ## ドキュメント
 
 実装コードだけでなく設計書も成果物として [`docs/`](./docs/) に置いている。
@@ -174,8 +166,7 @@ React Hook Form + Zod・Vercel AI SDK・Vitest + Testing Library + Playwright
 | [ADR](./docs/adr/README.md)                                                            | 設計判断の記録と、捨てた案の理由                   |
 | [デプロイ手順](./docs/deployment.md)                                                   | Vercel + Supabase Cloud                            |
 
-運用しているのは検証環境ひとつのみ。実ユーザーを持たないため環境を分ける利点が無いという判断で、
-本番運用する場合に何を変えるべきかはデプロイ手順に併記している。
+運用しているのは検証環境ひとつだけ。実ユーザーがいないので分ける利点が無い。
 
 ## ライセンス
 

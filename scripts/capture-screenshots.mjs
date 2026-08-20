@@ -42,7 +42,11 @@ await page.waitForURL('**/employees', { timeout: 20_000 });
 for (const shot of shots) {
   await page.goto(`${BASE}${shot.path}`);
   await page.waitForLoadState('networkidle');
-  await page.locator(shot.wait).first().waitFor({ timeout: 15_000 }).catch(() => {});
+  await page
+    .locator(shot.wait)
+    .first()
+    .waitFor({ timeout: 15_000 })
+    .catch(() => {});
   // チャートのアニメーション待ち
   await page.waitForTimeout(1200);
   await page.screenshot({ path: `${OUT}/${shot.name}.png` });

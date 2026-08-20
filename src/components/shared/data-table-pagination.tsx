@@ -44,7 +44,7 @@ export function DataTablePagination({
               onPageChange(1);
             }}
           >
-            <SelectTrigger className="w-[70px]">
+            <SelectTrigger className="w-[70px]" aria-label="1ページあたりの表示件数">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

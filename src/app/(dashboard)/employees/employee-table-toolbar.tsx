@@ -91,6 +91,7 @@ export function EmployeeTableToolbar({
           <Search className="text-muted-foreground absolute top-2.5 left-2.5 size-4" />
           <Input
             placeholder="名前・社員番号で検索..."
+            aria-label="名前・社員番号で検索"
             value={localSearch}
             onChange={(e) => handleLocalSearch(e.target.value)}
             className="pl-9"

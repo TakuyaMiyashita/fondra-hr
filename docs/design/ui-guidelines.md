@@ -88,6 +88,31 @@ ESLint の `no-restricted-syntax` で止めている。
 操作要素があれば落とす。**ユニットテストを持たない画面（nuqs + debounce の
 一覧、Recharts、dnd-kit）もここで拾える。**
 
+### キーボードで到達できること
+
+- **クリックできるものはキーボードでも操作できること。** `<div onClick>` は
+  マウスでは動くので画面を触っている限り正常に見えるが、Tab で辿り着けず
+  Enter でも反応しない
+- カード全体をクリック可能にしたいときは、**カードを `<button>` にしない**。
+  中にメニューなどの操作要素があると入れ子（`nested-interactive`）になり、
+  読み上げ名もカード全文になる。見出しだけを `<button>` にして
+  `after:inset-0` の疑似要素でカード全体を覆い、他の操作要素は
+  `relative z-10` で上に出す。クリック伝播を止める必要も無くなる
+- ツールバーの検索入力には `aria-label` を付ける。**placeholder は名前に
+  ならない**（フォーカスすると消えるうえ、名前として扱わない実装が多い）
+
+`tests/e2e/a11y-keyboard.spec.ts` が到達性を検証する。
+
+### トグルボタン群
+
+相互排他のボタン群には `role="group"` + `aria-labelledby` でグループ名を与え、
+各ボタンに `aria-pressed` と**対象を含む `aria-label`** を付ける。
+一覧の行内と同じ理屈で、「1」〜「5」が並ぶだけでは何の点数か分からない。
+
+**`role="radio"` は使わない。** APG 上 roving tabindex と矢印キーが期待され、
+実装しないと「ロールだけ正しく挙動が嘘」という悪化になる。RadioGroup 化は
+非目標とする。
+
 ### フォーム
 
 **1項目は `FormField` で囲む**（`@/components/shared/form-field`）。素の `<div>` +

@@ -7,8 +7,7 @@ import { useEffect, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
-import { FormDescription, FormError, FormField, FormLabel } from '@/components/shared/form-field';
-import { Label } from '@/components/ui/label';
+import { FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -122,12 +121,22 @@ export function EvaluationEditDialog({ open, onOpenChange, evaluation, onSuccess
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-3">
-            {/* フィールドではなくボタン群の見出し。グループ化は次の PR で行う */}
-            <Label>評価項目</Label>
+          {/* 5項目 × 5段階。名前を与えないと「1」〜「5」のボタンが25個並ぶだけになり、
+              どの項目の何点なのか読み上げで判別できない。 */}
+          <div role="group" aria-labelledby="eval-ratings-label" className="space-y-3">
+            <span id="eval-ratings-label" className="text-sm leading-none font-medium select-none">
+              評価項目
+            </span>
             {RATING_CATEGORIES.map((cat) => (
-              <div key={cat.key} className="flex items-center gap-3">
-                <span className="w-16 text-sm">{cat.label}</span>
+              <div
+                key={cat.key}
+                role="group"
+                aria-labelledby={`eval-cat-${cat.key}`}
+                className="flex items-center gap-3"
+              >
+                <span id={`eval-cat-${cat.key}`} className="w-16 text-sm">
+                  {cat.label}
+                </span>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map((score) => (
                     <Button
@@ -137,6 +146,8 @@ export function EvaluationEditDialog({ open, onOpenChange, evaluation, onSuccess
                       size="sm"
                       className="h-8 w-10"
                       disabled={isPending}
+                      aria-pressed={ratings[cat.key] === score}
+                      aria-label={`${cat.label} ${score}`}
                       onClick={() => setRating(cat.key, score)}
                     >
                       {score}
@@ -145,7 +156,7 @@ export function EvaluationEditDialog({ open, onOpenChange, evaluation, onSuccess
                 </div>
               </div>
             ))}
-            <FormDescription>1（低い）〜 5（高い）</FormDescription>
+            <p className="text-muted-foreground text-xs">1（低い）〜 5（高い）</p>
           </div>
 
           <FormField invalid={!!errors.comment}>

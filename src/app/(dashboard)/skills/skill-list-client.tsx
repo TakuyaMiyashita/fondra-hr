@@ -92,6 +92,7 @@ export function SkillListClient({ initialSkills, initialTotal, categories }: Pro
             </InputGroupAddon>
             <InputGroupInput
               placeholder="スキル名で検索"
+              aria-label="スキル名で検索"
               value={search}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             />

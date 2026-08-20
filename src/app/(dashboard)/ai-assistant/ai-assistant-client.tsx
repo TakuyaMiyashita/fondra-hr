@@ -227,6 +227,7 @@ export function AiAssistantClient() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="メッセージを入力..."
+            aria-label="AIアシスタントへのメッセージ"
             className="min-h-10 resize-none"
             rows={1}
             disabled={isLoading}

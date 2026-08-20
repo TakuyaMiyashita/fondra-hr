@@ -88,6 +88,18 @@ ESLint の `no-restricted-syntax` で止めている。
 操作要素があれば落とす。**ユニットテストを持たない画面（nuqs + debounce の
 一覧、Recharts、dnd-kit）もここで拾える。**
 
+### コントラスト
+
+**テキストは 4.5:1、非テキスト（フォーカスリング・グラフの系列色）は 3:1 以上。**
+
+- `--chart-*` は **light / dark で別の値**にする。共通にすると、片方のモードで
+  必ずどれかの系列が背景に沈む
+- フォーカスリングは不透明で使う。`globals.css` のレイヤー外規則で
+  `--tw-ring-color` を戻している（詳細は
+  [ADR 0010](../adr/0010-color-contrast-is-in-scope.md)）
+- 色を足すときは `tests/e2e/a11y-contrast.spec.ts` に検査を足す。
+  **axe の `color-contrast` はテキストしか見ない**ので代わりにならない
+
 ### キーボードで到達できること
 
 - **クリックできるものはキーボードでも操作できること。** `<div onClick>` は

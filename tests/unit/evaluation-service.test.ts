@@ -1278,6 +1278,49 @@ describe('updateEvaluation — 差分更新の詳細', () => {
     expect(result).toEqual({ success: false, error: '自分が評価者の評価のみ編集できます' });
     expect(updateChain.set).not.toHaveBeenCalled();
   });
+
+  /**
+   * 確定（confirmed）は被評価者本人への開示スイッチそのもの
+   * （canReadEvaluationComment）。評価者が自分で倒せると、開示のタイミングを
+   * 評価者が握ることになるため admin 以上に限定する。
+   */
+  it('member は評価を確定できない', async () => {
+    const { updateEvaluation } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSelectSequence([[current], [{ id: 'e2' }]]));
+
+    const result = await updateEvaluation(memberCtx, { id: 'ev1', status: 'confirmed' });
+
+    expect(result).toEqual({ success: false, error: '評価の確定は管理者のみ行えます' });
+    expect(updateChain.set).not.toHaveBeenCalled();
+  });
+
+  it('member は確定済みの評価を編集できない', async () => {
+    // 本人が読んだ内容を評価者が後から差し替えられると、確定の意味が無くなる。
+    const { updateEvaluation } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    db.select.mockImplementation(
+      createSelectSequence([[{ ...current, status: 'confirmed' }], [{ id: 'e2' }]]),
+    );
+
+    const result = await updateEvaluation(memberCtx, { id: 'ev1', comment: '書き換え' });
+
+    expect(result).toEqual({ success: false, error: '確定済みの評価は管理者のみ編集できます' });
+    expect(updateChain.set).not.toHaveBeenCalled();
+  });
+
+  it('admin は確定も確定済みの編集もできる', async () => {
+    const { updateEvaluation } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSelectSequence([[{ ...current, status: 'confirmed' }]]));
+
+    await expect(
+      updateEvaluation(adminCtx, { id: 'ev1', comment: '管理者による修正' }),
+    ).resolves.toMatchObject({ success: true });
+  });
 });
 
 describe('deleteEvaluation — 監査ログとテナント分離', () => {

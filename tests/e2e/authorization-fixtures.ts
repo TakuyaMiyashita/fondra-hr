@@ -30,6 +30,8 @@ export const MARKERS = {
   othersComment: 'E2E-SECRET-COMMENT-OTHERS',
   selfNotes: 'E2E-VISIBLE-NOTES-SELF',
   othersNotes: 'E2E-SECRET-NOTES-OTHERS',
+  confirmedComment: 'E2E-CONFIRMED-COMMENT-FOR-SELF',
+  unconfirmedComment: 'E2E-UNCONFIRMED-COMMENT-FOR-SELF',
   cycleName: 'E2E認可テストサイクル',
 } as const;
 

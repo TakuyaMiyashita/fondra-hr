@@ -30,19 +30,33 @@ export function canReadBirthDate(ctx: AuthContext, employeeUserId: string | null
 }
 
 /**
- * 評価コメントを見せてよいか。admin 以上、または自分が評価者の評価。
+ * 評価コメントを見せてよいか。
  *
- * 被評価者本人にも見せない。評価の確定・開示フロー（status の遷移に応じた
- * 本人開示）が未実装のため、下書き段階のコメントが本人に流れる方が事故が大きい。
- * 開示フローを実装するときにここを緩める。
+ * - admin 以上 … 無条件
+ * - 自分が評価者の評価 … 無条件（書いた本人なので）
+ * - 自分が被評価者の評価 … **確定（confirmed）後のみ**
  *
- * `ownEmployeeId` が null（未紐付け）なら `evaluatorId` とは一致しないので、
+ * 被評価者への開示を確定後に限るのは、下書き・入力中・差戻しの段階の
+ * コメントが本人に流れると、書き手が推敲できないまま評価が伝わるため。
+ * 確定は開示のスイッチそのものなので、そこへの遷移は admin 以上に限定して
+ * ある（`updateEvaluation`）。評価者が自分で倒せると、開示のタイミングを
+ * 評価者が握ることになる。
+ *
+ * `ownEmployeeId` が null（未紐付け）ならどの id とも一致しないので、
  * 「自分の評価が無い」＝見えない、と安全側に倒れる。
  */
 export function canReadEvaluationComment(
   ctx: AuthContext,
-  evaluatorId: string,
+  evaluation: { evaluatorId: string; employeeId: string; status: string },
   ownEmployeeId: string | null,
 ): boolean {
-  return canReadPersonalData(ctx) || evaluatorId === ownEmployeeId;
+  if (canReadPersonalData(ctx)) {
+    return true;
+  }
+
+  if (evaluation.evaluatorId === ownEmployeeId) {
+    return true;
+  }
+
+  return evaluation.employeeId === ownEmployeeId && evaluation.status === 'confirmed';
 }

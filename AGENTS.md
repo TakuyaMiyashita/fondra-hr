@@ -114,8 +114,8 @@ supabase/
 └── migrations/             # SQLマイグレーション
 .claude/
 ├── settings.json           # フック定義・権限（コミットする）
-├── hooks/                  # テスト更新を促す/強制するフック（→ テスト の節参照）
-└── skills/                 # スラッシュコマンド（`/ship` = マージまでの手順）
+├── hooks/                  # テスト・設計書の更新を促す/強制するフック
+└── skills/                 # スラッシュコマンド（`/ship` `/audit`）
 ```
 
 ## 開発ルール
@@ -215,12 +215,30 @@ lines 100%、branches 99）。計測対象は `src/services/` `src/lib/` `src/ap
 - **Stop**（`verify-tests.sh`）— ターン終了前に `pnpm test:coverage` を実行し、
   失敗していればブロックする。`src/` と `tests/` に変更が無ければ即終了する
 
+### 規約の機械検査
+
+`pnpm check:conventions`（`scripts/audit.mjs`）が、このファイルに文章でしか
+書いていない規約を機械的に検査する。**lint も typecheck もテストも見ない領域**
+が対象で、CI の quality ジョブに入っている。
+
+| 検査              | 内容                                                                            |
+| ----------------- | ------------------------------------------------------------------------------- |
+| loading-error     | `@/services/` を import する `page.tsx` に `loading.tsx` / `error.tsx` があるか |
+| rls               | 全テーブルで RLS が有効化され、ポリシーが1つ以上あるか                          |
+| org-id            | ドメインテーブルが `org_id uuid not null` を持つか                              |
+| drizzle-sync      | マイグレーションのテーブルに対応する Drizzle 定義があるか                       |
+| action-validation | `actions.ts` が `@/lib/validations` を通しているか                              |
+| doc-link          | ドキュメントの相対リンクが実在するか                                            |
+| screen-inventory  | 実ルートが `docs/design/screen-inventory.md` に載っているか                     |
+
+**落ちたら検査ではなく実装を直す。** 検査を消して通すのは本末転倒。
+
 ### 品質チェック
 
 作業完了時は必ず以下を通してから報告する：
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e
+pnpm lint && pnpm check:conventions && pnpm typecheck && pnpm test && pnpm test:e2e
 ```
 
 `pnpm test` は integration / rls を含むため、ローカル Supabase の起動
@@ -235,7 +253,7 @@ unit のみ回し、残りは CI に任せる。
 - [ ] 新規 Server Action に Zod バリデーションが実装されているか
 - [ ] データ取得を行う新規ページに `loading.tsx` / `error.tsx` が配置されているか
 - [ ] 新規テーブルに RLS ポリシーが定義されているか
-- [ ] 設計ドキュメント（`docs/`）が更新されているか
+- [ ] 設計ドキュメント（`docs/`）が更新されているか（`pnpm check:conventions` で機械的に検査できる分は自動）
 - [ ] 変更した `src/` のコードに対応するテストが更新されているか
 - [ ] カバレッジ閾値を下回っていないか（`pnpm test:coverage`）
 - [ ] 機密情報（`.env`、APIキー、社名等）がコミットに含まれていないか

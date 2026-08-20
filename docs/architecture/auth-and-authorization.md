@@ -67,6 +67,48 @@ service_role は RLS を丸ごとバイパスするため、**Server Action 側�
 権限昇格になる。JWT Hook 側の再検証（上記ロジックの 2〜3）は最後の安全網であって、
 アプリ側の検証を省略してよい理由にはならない。
 
+### メール確認と保留サインアップ
+
+メール確認（`enable_confirmations`）を有効にすると `signUp()` はセッションを
+返さない。その状態で組織・メンバーシップを作ると、確認されなかった登録の
+ぶんだけ**誰も入れない組織**が残り、招待経路では `accepted_at` だけが立って
+**招待が消費される**。そのため作成内容を `user_metadata` に預け、確認後に消化する。
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant App as Next.js App
+    participant Auth as Supabase Auth
+    participant Service as Service Layer
+
+    User->>App: サインアップ（組織名を入力）
+    App->>Auth: signUp({ options: { data: { pending_org_name } } })
+    alt メール確認が有効
+        Auth-->>App: user のみ（session なし）
+        Note over App: 組織は作らずログイン画面へ
+        User->>Auth: 確認メールのリンクを開く
+        Auth-->>App: /auth/callback?code=...
+        App->>Auth: exchangeCodeForSession(code)
+        App->>Service: completePendingSignUp(userId, email, user_metadata)
+        Note over Service: 招待はトークンで引き直し、<br/>確認済みメールとの一致と未所属を検証
+        Service-->>App: created = true
+        App->>Auth: refreshSession()
+        Note over Auth: Hook が再実行され claim が入る
+    else メール確認が無効
+        Auth-->>App: user + session
+        App->>Service: createOrganizationWithOwner()
+        App->>Auth: refreshSession()
+    end
+    App-->>User: アプリへ
+```
+
+どちらの設定でも動く。`refreshSession()` を省くと、メンバーシップ作成前の
+JWT（`app_metadata.org_id` が null）のまま画面に入り、リダイレクトループになる。
+
+**確認メールのリンク先は redirect 許可リストに載せる必要がある。**
+許可リストに無い `redirect_to` は**エラーにならず `site_url` に差し替えられる**
+ため、載せ忘れると `/auth/callback` を通らず保留分が消化されない。
+
 ## 認可（Authorization）
 
 ### ロール定義
@@ -78,7 +120,7 @@ service_role は RLS を丸ごとバイパスするため、**Server Action 側�
 | `member` | 一般メンバー。参照 + 自分に紐づくデータの編集 |
 | `viewer` | 閲覧のみ。デモログイン用途                    |
 
-### 認可の二層構造
+### RLS と Service Layer の二層防御
 
 ```
 リクエスト
@@ -95,6 +137,31 @@ service_role は RLS を丸ごとバイパスするため、**Server Action 側�
 
 どちらか一方が漏れてもデータは守られる。
 
+### Service Layer 内部の3段階
+
+ロール × リソースの表だけでは表現できない制御が2種類あり、Service Layer は
+authorize() の後にさらに2段階の絞り込みを行う。
+
+**本人限定（行単位）** — member は自分が当事者の 1on1・自分が評価者の評価だけを
+作成・編集でき、1on1 は閲覧も同じ範囲に絞る。判定はログインユーザーと従業員
+レコードの紐付け（`employees.user_id`）で行う。未紐付けは「何も見えない・
+何もできない」に倒す。
+
+**フィールド単位（列単位）** — 従業員・評価サイクルの read は全ロールに
+開いているため、行単位では機微な列を守れない。生年月日と評価コメントは
+読み取り時に null へ潰す。
+
+```
+[Service Layer] authorize()   → ロール × リソース × 操作
+  ↓
+[Service Layer] 本人限定       → 当事者でない「行」を除外
+  ↓
+[Service Layer] フィールド制御 → 権限の無い「列」を null に潰す
+```
+
+実装は `src/services/self.ts` と `src/services/field-visibility.ts`。
+詳細は [`docs/api/service-layer.md`](../api/service-layer.md)。
+
 ### 認可マトリクス
 
 詳細は [`docs/database/authorization-matrix.md`](../database/authorization-matrix.md) を参照。
@@ -103,5 +170,5 @@ service_role は RLS を丸ごとバイパスするため、**Server Action 側�
 
 - JWT 有効期限: 1時間（`config.toml` の `jwt_expiry = 3600`）
 - リフレッシュトークンローテーション有効
-- `middleware.ts` で全リクエスト時にセッション更新
+- `src/proxy.ts` で全リクエスト時にセッション更新（Next.js 16 で `middleware.ts` から改名）
 - 未認証ユーザーは `/login` にリダイレクト

@@ -175,9 +175,24 @@ Vercel で GitHub リポジトリをインポートし、以下の環境変数�
 
 #### enable_confirmations の有効化手順
 
-**実装は対応済み。** ホスティング先の Supabase プロジェクトで
-Authentication → Providers → Email → Confirm email を有効にすれば足りる
-（`config push` する場合は `supabase/config.toml` の値も併せて変更する）。
+**現状は有効化しない判断になっている**
+（[ADR 0007](./adr/0007-keep-email-confirmation-disabled.md)）。
+実装は有効・無効のどちらでも動くので、以下はその判断を覆すときの手順。
+
+**メール送信の上限が先に問題になる。** 組み込みのメール送信は **2通/時**で、
+サインアップ・招待・マジックリンク・パスワードリセットで共有する。
+サインアップと招待を一度ずつ試すだけで上限に達するため、実質カスタム SMTP が
+前提になる（カスタム SMTP なら 30通/時から、ダッシュボードで引き上げ可）。
+
+カスタム SMTP を入れる場合、Resend のテスト用ドメインは**自分のアカウントの
+アドレス宛にしか送れない**。任意の宛先に送るには独自ドメインの検証が要り、
+`vercel.app` は DNS が管理下に無いため使えない。詳細と却下した案は ADR 0007。
+
+トグル自体は、ホスティング先の Supabase プロジェクトで
+Authentication → Providers → Email → Confirm email を有効にすれば足りる。
+**`config push` では行わないこと** —— `supabase/config.toml` はローカル開発と
+e2e のため `false` である必要があり、push すると `site_url` と
+リダイレクト許可リストも同時にローカルの値へ戻る。
 
 **ただし先に redirect の許可リストを確認すること。**
 確認メールのリンクの戻り先 `<ドメイン>/auth/callback` が

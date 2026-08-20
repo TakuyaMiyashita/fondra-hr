@@ -66,12 +66,14 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* 白背景で 3.95:1。0.708 では 2.59:1 で WCAG 2.2 SC 1.4.11（3:1）に届かない。 */
+  --ring: oklch(0.6 0 0);
+  /* light は暗い側へ振る。旧値の 0.87 は白背景比 1.48:1 で系列が消えていた。 */
+  --chart-1: oklch(0.62 0 0);
+  --chart-2: oklch(0.52 0 0);
+  --chart-3: oklch(0.43 0 0);
+  --chart-4: oklch(0.34 0 0);
+  --chart-5: oklch(0.25 0 0);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -80,7 +82,8 @@
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* --ring と揃える。上書き規則を外しても単体で 3:1 を満たすようにしておく。 */
+  --sidebar-ring: oklch(0.6 0 0);
 }
 
 .dark {
@@ -101,12 +104,14 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
+  /* 暗背景で 4.18:1、カード上で 3.79:1。light と違い値の変更は要らない。 */
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* dark は明るい側へ振る。旧値は light と共通で、0.439 以下が背景に沈んでいた。 */
+  --chart-1: oklch(0.95 0 0);
+  --chart-2: oklch(0.85 0 0);
+  --chart-3: oklch(0.75 0 0);
+  --chart-4: oklch(0.65 0 0);
+  --chart-5: oklch(0.55 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -127,4 +132,24 @@
   html {
     @apply font-sans;
   }
+}
+
+/*
+ * フォーカスリングを不透明にする。
+ *
+ * shadcn の各コンポーネントは `focus-visible:ring-ring/50` を使うが、
+ * 50% 不透明を白背景に重ねると **--ring を純黒にしても 3:1 にぎりぎり**で、
+ * トークンの値だけでは WCAG 2.2 SC 1.4.11 を満たせない。
+ * 50% のまま満たすには L <= 0.288 が要り、同じトークンを使う
+ * `focus-visible:border-ring` まで真っ黒になって見た目が壊れる。
+ *
+ * `src/components/ui/` は shadcn 自動生成で手を入れない方針のため、
+ * ここで不透明度だけを戻す。
+ *
+ * **レイヤーの外に置いているのは意図的。** Tailwind のユーティリティは
+ * すべて @layer utilities の中にあり、レイヤー付き規則はレイヤー無し規則に
+ * 必ず負ける。!important を使わずに上書きするための書き方。
+ */
+*:focus-visible {
+  --tw-ring-color: var(--ring);
 }

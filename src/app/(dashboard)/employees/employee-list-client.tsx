@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PaginationState, SortingState } from '@tanstack/react-table';
 import { Plus } from 'lucide-react';
 import { parseAsInteger, parseAsString, parseAsStringEnum, useQueryState } from 'nuqs';
@@ -72,6 +72,12 @@ export function EmployeeListClient({ initialData, departments }: EmployeeListCli
     [page, perPage, sort, order, search, status, departmentId],
   );
 
+  // 初回レンダー時のキー。useMemo は依存が同じ間は同じ参照を返すので、
+  // 参照比較で「まだ絞り込みが変わっていない」を判定できる。
+  // useRef ではなく useState を使うのは、レンダー中に ref を読むと
+  // react-hooks/refs に引っかかるため。
+  const [initialQueryKey] = useState(queryKey);
+
   const { data } = useQuery({
     queryKey,
     queryFn: async () => {
@@ -87,7 +93,15 @@ export function EmployeeListClient({ initialData, departments }: EmployeeListCli
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
-    initialData,
+    // initialData は「渡した瞬間のキーに対する取得済みデータ」として扱われる。
+    // 毎回渡すと、絞り込みでキーが変わっても新しいキーに同じ初期データが入り、
+    // 常に新鮮とみなされて Server Action が一度も呼ばれない。URL だけ変わって
+    // 一覧が更新されず、リロードすると直る、という症状になる。
+    // RSC が渡してくれるのは最初のキーのぶんだけなので、そこに限定する。
+    initialData: queryKey === initialQueryKey ? initialData : undefined,
+    // 新しいキーの取得中は直前の結果を出しておく。undefined を挟むと
+    // 一覧が一瞬消える。
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
@@ -179,8 +193,8 @@ export function EmployeeListClient({ initialData, departments }: EmployeeListCli
       </div>
       <DataTable
         columns={employeeColumns}
-        data={data.employees}
-        total={data.total}
+        data={data?.employees ?? []}
+        total={data?.total ?? 0}
         pagination={pagination}
         sorting={sorting}
         columnVisibility={columnVisibility}
@@ -195,7 +209,7 @@ export function EmployeeListClient({ initialData, departments }: EmployeeListCli
       <DataTablePagination
         page={page}
         perPage={perPage}
-        total={data.total}
+        total={data?.total ?? 0}
         onPageChange={(p) => void setPage(p)}
         onPerPageChange={(pp) => {
           void setPerPage(pp);

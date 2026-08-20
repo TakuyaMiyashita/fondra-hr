@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -35,17 +36,19 @@ export function UserMenu({ email }: UserMenuProps) {
         }
       />
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            <span className="text-muted-foreground truncate text-xs font-normal">{email}</span>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem disabled={isPending} onClick={() => startTransition(() => signOut())}>
-          <LogOut className="mr-2 h-4 w-4" />
-          ログアウト
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              <span className="text-muted-foreground truncate text-xs font-normal">{email}</span>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled={isPending} onClick={() => startTransition(() => signOut())}>
+            <LogOut className="mr-2 h-4 w-4" />
+            ログアウト
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

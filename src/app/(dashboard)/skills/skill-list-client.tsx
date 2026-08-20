@@ -198,6 +198,7 @@ export function SkillListClient({ initialSkills, initialTotal, categories }: Pro
         mode="create"
         open={createOpen}
         onOpenChange={setCreateOpen}
+        categories={categories}
         onSuccess={handleSuccess}
       />
 
@@ -205,6 +206,7 @@ export function SkillListClient({ initialSkills, initialTotal, categories }: Pro
         <SkillFormDialog
           mode="edit"
           open={true}
+          categories={categories}
           onOpenChange={(open) => {
             if (!open) setEditSkill(null);
           }}

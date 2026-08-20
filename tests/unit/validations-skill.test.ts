@@ -24,6 +24,21 @@ const OTHER_UUID = 'b1c2d3e4-f5a6-4b7c-8d9e-0f1a2b3c4d5e';
 
 describe('skill validations', () => {
   describe('createSkillSchema', () => {
+    // 候補を打ちかけて選ばずに確定すると末尾に空白が残る。unique(org_id, name) は
+    // 'React' と 'React ' を別物として通すため、trim しないと重複を作れてしまう。
+    it('前後の空白を落として保存する', () => {
+      const parsed = createSkillSchema.parse({ name: '  React  ', category: '  インフラ  ' });
+
+      expect(parsed.name).toBe('React');
+      expect(parsed.category).toBe('インフラ');
+    });
+
+    it('空白だけの名前は必須エラーにする', () => {
+      const result = createSkillSchema.safeParse({ name: '   ' });
+
+      expect(result.success).toBe(false);
+    });
+
     it('スキル名だけで通る（カテゴリは任意）', () => {
       const result = createSkillSchema.safeParse({ name: 'TypeScript' });
 

@@ -34,6 +34,30 @@ test.describe('スキル管理', () => {
     await expect(page.getByText(name)).toBeVisible();
   });
 
+  /**
+   * 候補から選ぶとカテゴリが自動で入る。
+   * 直前の「creates a new skill」は候補に無い名前を打って作成するので、
+   * 自由入力が候補に飲み込まれないことの回帰テストとして機能している。
+   */
+  test('候補を選ぶとカテゴリが自動で入る', async ({ page }) => {
+    await page.goto('/skills');
+    const addButton = page.getByRole('button', { name: 'スキルを追加', exact: true });
+    const emptyAddButton = page.getByRole('button', { name: '最初のスキルを追加' });
+
+    if (await emptyAddButton.isVisible()) {
+      await emptyAddButton.click();
+    } else {
+      await addButton.click();
+    }
+    await expect(page.getByRole('heading', { name: 'スキルを追加' })).toBeVisible();
+
+    await page.locator('#skill-name').fill('Terra');
+    await page.getByRole('option', { name: 'Terraform' }).click();
+
+    await expect(page.locator('#skill-name')).toHaveValue('Terraform');
+    await expect(page.locator('#skill-category')).toHaveValue('インフラ');
+  });
+
   test('validates required skill name', async ({ page }) => {
     await page.goto('/skills');
     const addButton = page.getByRole('button', { name: 'スキルを追加', exact: true });

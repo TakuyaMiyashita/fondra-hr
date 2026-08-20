@@ -77,11 +77,7 @@ export async function ensureAuthUser(email: string, password: string): Promise<s
  * 最初のメンバーシップにフォールバックするため、app_metadata の
  * 事前設定は要らない（supabase/migrations の同関数を参照）。
  */
-export async function ensureMembership(
-  userId: string,
-  orgId: string,
-  role: string,
-): Promise<void> {
+export async function ensureMembership(userId: string, orgId: string, role: string): Promise<void> {
   const existing = await adminSelect<unknown[]>(
     `memberships?user_id=eq.${userId}&org_id=eq.${orgId}&select=user_id`,
   );

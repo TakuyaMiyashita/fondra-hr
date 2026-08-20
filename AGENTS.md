@@ -150,6 +150,9 @@ supabase/
 
 - `docs/design/ui-guidelines.md` に従う
 - データ取得を行う画面には `loading.tsx`（Skeleton）と `error.tsx` を必ず配置する
+- `error.tsx` の復帰ボタンは **`reset` ではなく `retry`** を呼ぶ。Next.js 16.3 で
+  stable 化した prop で、`reset` は再フェッチせず子を再レンダリングするだけ。
+  学習データに引きずられて `reset` を書きやすいので注意
 - 空状態（アイコン + 説明 + CTA）は全画面で設計する
 - プレースホルダーページ（実データ取得未実装）には loading/error は不要。実データ取得の実装時に追加する
 

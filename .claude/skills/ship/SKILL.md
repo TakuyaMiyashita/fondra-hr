@@ -18,13 +18,47 @@ git branch --show-current && git status --short && gh pr list --state open
 - 既にオープンな PR があれば、今の作業がそれと同じ話かを判断する。別の話なら別ブランチ
 - 作業ツリーに無関係な変更が混ざっていないか見る
 
-## 1. 品質ゲート
+## 1. 設計書を実装に追随させる
+
+**コードだけ直して終わりにしない。** 設計書は更新を忘れても何も落ちないので、
+意識しないと必ず遅れる。そして**古い図は無いより悪い**——エージェントが
+それを仕様として読み、正しい実装を壊す。
+
+`.claude/hooks/docs-reminder.sh` が `src/` の編集時に対になる設計書を
+名指しで出す。それを見て以下を判断する。
+
+| 変えたもの               | 追随させる設計書                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| 画面の追加・削除・状態   | `docs/design/screen-inventory.md`                                                          |
+| 認証・招待・組織のフロー | `docs/design/user-flows.md`（**フロー図**）、`docs/architecture/auth-and-authorization.md` |
+| Service Layer            | `docs/api/service-layer.md`、`docs/database/authorization-matrix.md`                       |
+| DB スキーマ              | `docs/database/er-diagram.md`、`docs/database/rls-policy.md`                               |
+| 共有 UI の作法           | `docs/design/ui-guidelines.md`                                                             |
+| ディレクトリ構成・規約   | `AGENTS.md`（`CLAUDE.md` は `@AGENTS.md` で取り込むだけ。触らない）                        |
+
+**後から変えるのが高くつく判断・選択肢を捨てた判断は `docs/adr/` に ADR を残す。**
+判断が変わったときは既存の ADR を書き換えず、新しい ADR で上書きする
+（却下の理由も履歴として残る）。
+
+mermaid の図を書き換えたら**実際に描画して確認する**。構文を間違えても
+GitHub 上で図が出ないだけでエラーにはならず、壊れたまま気付けない。
+
+```bash
+npx -y @mermaid-js/mermaid-cli -i docs/design/user-flows.md -o /tmp/out.md
+```
+
+## 2. 品質ゲート
 
 **コミット前に通す。** CI で落ちてから直すと PR のノイズになる。
 
 ```bash
-pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage
+pnpm format:check && pnpm lint && pnpm check:conventions && pnpm typecheck && pnpm test:coverage
 ```
+
+`pnpm check:conventions`（`scripts/audit.mjs`）は AGENTS.md に文章で
+書いてあるだけの規約を機械的に検査する。lint もテストも見ない領域が対象:
+RLS 未設定のテーブル、loading/error の欠落、Drizzle とマイグレーションの
+ズレ、Zod を通さない Server Action、画面一覧の遅れ、ドキュメントのリンク切れ。
 
 `src/` にルートやコンポーネントを足したときは `pnpm build` も通す。
 ファイル配置の誤り（`not-found.tsx` の置き場所など）は typecheck では出ず build で初めて出る。
@@ -48,7 +82,7 @@ prettier はリポジトリの `.gitignore` は読むが、ユーザーのグロ
 branches 99）を下回ると落ちる。**達成した水準は下げない。** 閾値を緩めるのではなく
 テストを足す。
 
-## 2. コミット
+## 3. コミット
 
 Conventional Commits、**本文は日本語**（prefix は英語）。
 
@@ -69,7 +103,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 EOF
 ```
 
-## 3. PR を作る
+## 4. PR を作る
 
 ```bash
 git push -u origin "$(git branch --show-current)"
@@ -88,7 +122,7 @@ PR 本文に入れるもの:
 
 末尾に `🤖 Generated with [Claude Code](https://claude.com/claude-code)`。
 
-## 4. CI を待つ
+## 5. CI を待つ
 
 ```bash
 gh pr checks <番号> --watch --interval 20
@@ -111,7 +145,7 @@ git fetch origin && git rebase origin/main
 git push --force-with-lease origin "$(git branch --show-current)"
 ```
 
-## 5. マージ
+## 6. マージ
 
 ```bash
 gh pr merge <番号> --squash
@@ -129,7 +163,7 @@ git switch main && git pull
 スタックさせるなら、親をマージする前に子を rebase して base を main に
 付け替えておくこと。
 
-## 6. 後始末
+## 7. 後始末
 
 ```bash
 git log --oneline -3 && git status --short && gh pr list --state open

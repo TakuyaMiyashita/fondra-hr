@@ -45,6 +45,12 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # AGENTS.md に文章で書いてある規約と、設計書と実装の同期を機械的に検査する。
+      # lint / typecheck / テストのどれも見ない領域（RLS 未設定、loading/error の
+      # 欠落、画面一覧の遅れ、ドキュメントのリンク切れ等）が対象。
+      - name: Convention audit
+        run: pnpm check:conventions
+
       - name: Typecheck
         run: pnpm typecheck
 

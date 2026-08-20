@@ -308,15 +308,43 @@ postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.co
 このキーが無いとサーバー側でエラーになる（`src/lib/supabase/admin.ts`）。
 フックの疎通と service_role の疎通を一度に確認できるので、必ず通しておく。
 
-## 補足: 検証環境でのデモデータ
+## 検証環境へのデモデータ投入
 
-`supabase/seed.sql` はローカル専用（`supabase db reset` 時にのみ実行される）。
-検証環境でデモ組織を見せたい場合は、アプリ上でサインアップして手動で作成するか、
-seed.sql の内容をリモート DB に対して明示的に実行する。
+`supabase/seed.sql` はローカル専用で、`supabase db reset` のときにしか実行されない
+（`supabase db push` が適用するのは `migrations/` のみ）。
+**README がデモ環境のログイン情報として案内している3アカウントは、
+この手順を実行して初めて検証環境に存在する。**
 
-いずれの場合も `purge_organization()` で組織ごと完全に削除できる
+### 手順
+
+`seed.sql` はそのままリモートに流せる。冒頭で `purge_organization()` を呼んで
+既存のデモ組織を消してから入れ直すため、**何度実行してもよい**。
+
+```bash
+# 接続文字列は Supabase ダッシュボード → Project Settings → Database
+# （Session pooler ではなく Direct connection を使う。seed.sql は
+#   トランザクション内で複数ステートメントを流すため）
+psql "$DIRECT_DATABASE_URL" -f supabase/seed.sql
+```
+
+投入後の確認:
+
+```bash
+psql "$DIRECT_DATABASE_URL" -c \
+  "select email from auth.users where email like '%@fondra.example.com' order by email;"
+```
+
+3件（`hr@` / `manager@` / `owner@`）が返れば成功。
+アプリ側で `owner@fondra.example.com` / `demo-password123` でログインできることまで見る。
+
+### 荒れたときの作り直し
+
+デモ環境の認証情報は README で公開しており、**誰でも書き込み・削除ができる**。
+データが壊れたら上の `psql -f` を再実行すれば元に戻る。
+
+組織単位で消したいだけなら `purge_organization()` を使う
 （`docs/architecture/multi-tenancy.md` 参照）。監査ログは追記専用トリガーで
-保護されているため通常の `DELETE` では消えず、この関数を使う必要がある。
+保護されているため通常の `DELETE` では消えず、この関数が必要になる。
 
-検証環境は壊れても作り直せる前提なので、デモデータの投入は気軽に行ってよい。
-再構築は `link` → `db push` → `config push` の3コマンドで完了する。
+検証環境そのものは壊れても作り直せる前提で、再構築は
+`link` → `db push` → `config push` の3コマンドで完了する。

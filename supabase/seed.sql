@@ -2,7 +2,12 @@
 -- FondraHR デモシードデータ
 --
 -- `supabase db reset` 時に自動実行される（supabase/config.toml の [db.seed]）。
--- ローカル開発・デモ・スクリーンショット用。本番環境では実行しない。
+-- ローカル開発・デモ・スクリーンショット用。
+--
+-- 検証環境（README がデモ環境として案内している先）にも psql で明示的に流す。
+-- `supabase db push` は migrations/ しか適用しないため、この手順を踏まないと
+-- README 記載のアカウントが存在しない。手順は docs/deployment.md。
+-- 冒頭で purge_organization を呼ぶので何度実行してもよい。
 --
 -- 生成されるもの:
 --   - 組織 1件（株式会社フォンドラ）

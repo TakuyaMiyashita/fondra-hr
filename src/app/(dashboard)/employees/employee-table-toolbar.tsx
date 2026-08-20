@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -149,19 +150,21 @@ export function EmployeeTableToolbar({
             }
           />
           <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuLabel>表示/非表示</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {Object.entries(columnLabels).map(([key, label]) => (
-              <DropdownMenuCheckboxItem
-                key={key}
-                checked={columnVisibility[key] !== false}
-                onCheckedChange={(checked) =>
-                  onColumnVisibilityChange({ ...columnVisibility, [key]: checked })
-                }
-              >
-                {label}
-              </DropdownMenuCheckboxItem>
-            ))}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>表示/非表示</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {Object.entries(columnLabels).map(([key, label]) => (
+                <DropdownMenuCheckboxItem
+                  key={key}
+                  checked={columnVisibility[key] !== false}
+                  onCheckedChange={(checked) =>
+                    onColumnVisibilityChange({ ...columnVisibility, [key]: checked })
+                  }
+                >
+                  {label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

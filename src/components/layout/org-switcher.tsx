@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -53,23 +54,25 @@ export function OrgSwitcher({ currentOrgId, orgs }: OrgSwitcherProps) {
         }
       />
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>組織を切り替え</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {orgs.map((org) => (
-          <DropdownMenuItem
-            key={org.orgId}
-            onClick={() => handleSwitch(org.orgId)}
-            className="flex items-center justify-between"
-          >
-            <div className="flex items-center gap-2">
-              <span className="truncate">{org.orgName}</span>
-              <Badge variant="secondary" className="text-[10px]">
-                {org.orgPlan}
-              </Badge>
-            </div>
-            {org.orgId === currentOrgId && <Check className="h-4 w-4" />}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>組織を切り替え</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {orgs.map((org) => (
+            <DropdownMenuItem
+              key={org.orgId}
+              onClick={() => handleSwitch(org.orgId)}
+              className="flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <span className="truncate">{org.orgName}</span>
+                <Badge variant="secondary" className="text-[10px]">
+                  {org.orgPlan}
+                </Badge>
+              </div>
+              {org.orgId === currentOrgId && <Check className="h-4 w-4" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

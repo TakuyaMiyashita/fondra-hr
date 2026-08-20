@@ -106,6 +106,40 @@ Claude Code のフックを `.claude/settings.json` に設定している。
 | `PostToolUse` (`Write`/`Edit`/`MultiEdit`) | `src/` を編集した直後 | 対応するテストファイルを**名指しで**提示する                    |
 | `Stop`                                     | ターンを終える前      | `pnpm test:coverage` を実行し、失敗すれば完了を**ブロック**する |
 
+## e2e のロール別セッション
+
+`tests/e2e/global-setup.ts` は同一組織に **owner / member / viewer** の3ユーザーを
+用意し、それぞれの `storageState` を `tests/e2e/.auth/` に保存する。
+スペック側は `test.use({ storageState: AUTH_FILES.member })` でロールを選ぶ。
+
+owner だけでログインしていた頃は、ロール別の認可（生年月日のマスク、
+評価コメントのマスク、1on1 の当事者限定）が**画面まで効いているかを一切
+検証できていなかった**。Service Layer のユニットテストは値がマスクされる
+ことを保証するが、その値が実際に画面へ渡っていないことまでは示せない。
+
+### マーカー文字列で検証する
+
+判定には `E2E-SECRET-COMMENT-OTHERS` のようなマーカー文字列を使い、
+**ページ全体のテキストに含まれないこと**を見る（`tests/e2e/authorization.spec.ts`）。
+セレクタに依存しないため、表示箇所が変わってもマスク漏れを検出できる。
+共有の定数は `tests/e2e/authorization-fixtures.ts` に置く
+（Playwright はテストファイル同士の import を禁止しているため)。
+
+### 対照群を必ず置く
+
+「見えないこと」の検証は、**データが存在しないだけでも成立してしまう**。
+そのため同じ値を owner では見えることを確認する対照群を必ず併記する。
+これが無いとテストが素通りしていることに気付けない。
+
+### 固定データ
+
+`seedFixtures()` が service_role で直接投入する。同じ組織を使い回すため
+すべて「存在しなければ作る」で書く。member 本人の従業員レコードには
+`user_id` を入れること（入れないと本人判定が効かず、検証したい経路を通らない）。
+
+viewer はあえて従業員レコードと紐付けていない。未紐付けのときに
+「何も見えない」側へ倒れることの検証を兼ねている。
+
 ### 対応表（`.claude/hooks/test-reminder.sh`）
 
 | 編集したファイル           | 提示されるテスト                      |

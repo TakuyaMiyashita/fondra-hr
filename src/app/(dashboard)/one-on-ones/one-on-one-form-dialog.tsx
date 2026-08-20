@@ -7,6 +7,7 @@ import { useEffect, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FormDescription, FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,7 +19,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -145,8 +145,8 @@ export function OneOnOneFormDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label>対象従業員 *</Label>
+          <FormField invalid={!!errors.employeeId}>
+            <FormLabel>対象従業員 *</FormLabel>
             <Select
               items={employeeItems}
               value={employeeId || '__none__'}
@@ -165,13 +165,11 @@ export function OneOnOneFormDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.employeeId && (
-              <p className="text-destructive text-xs">{errors.employeeId.message}</p>
-            )}
-          </div>
+            <FormError>{errors.employeeId?.message}</FormError>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label>面談者 *</Label>
+          <FormField invalid={!!errors.interviewerId}>
+            <FormLabel>面談者 *</FormLabel>
             <Select
               items={employeeItems}
               value={interviewerId || '__none__'}
@@ -192,19 +190,17 @@ export function OneOnOneFormDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.interviewerId && (
-              <p className="text-destructive text-xs">{errors.interviewerId.message}</p>
-            )}
-          </div>
+            <FormError>{errors.interviewerId?.message}</FormError>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="oo-held-on">実施日 *</Label>
+          <FormField invalid={!!errors.heldOn}>
+            <FormLabel htmlFor="oo-held-on">実施日 *</FormLabel>
             <Input id="oo-held-on" type="date" disabled={isPending} {...register('heldOn')} />
-            {errors.heldOn && <p className="text-destructive text-xs">{errors.heldOn.message}</p>}
-          </div>
+            <FormError>{errors.heldOn?.message}</FormError>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label>コンディション</Label>
+          <FormField>
+            <FormLabel>コンディション</FormLabel>
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map((score) => (
                 <Button
@@ -220,11 +216,11 @@ export function OneOnOneFormDialog({
                 </Button>
               ))}
             </div>
-            <p className="text-muted-foreground text-xs">1（低い）〜 5（高い）</p>
-          </div>
+            <FormDescription>1（低い）〜 5（高い）</FormDescription>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="oo-notes">メモ</Label>
+          <FormField invalid={!!errors.notes}>
+            <FormLabel htmlFor="oo-notes">メモ</FormLabel>
             <Textarea
               id="oo-notes"
               placeholder="面談内容や所感を記録..."
@@ -232,8 +228,8 @@ export function OneOnOneFormDialog({
               disabled={isPending}
               {...register('notes')}
             />
-            {errors.notes && <p className="text-destructive text-xs">{errors.notes.message}</p>}
-          </div>
+            <FormError>{errors.notes?.message}</FormError>
+          </FormField>
 
           <DialogFooter>
             <DialogClose render={<Button variant="outline" type="button" />}>

@@ -7,9 +7,9 @@ import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FormDescription, FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { type SignUpInput, signUpSchema } from '@/lib/validations/auth';
 
 import { signUp } from '../actions';
@@ -35,19 +35,19 @@ export function SignupForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="orgName">組織名</Label>
+      <FormField invalid={!!errors.orgName}>
+        <FormLabel htmlFor="orgName">組織名</FormLabel>
         <Input
           id="orgName"
           placeholder="株式会社○○"
           disabled={isPending}
           {...register('orgName')}
         />
-        {errors.orgName && <p className="text-destructive text-xs">{errors.orgName.message}</p>}
-      </div>
+        <FormError>{errors.orgName?.message}</FormError>
+      </FormField>
 
-      <div className="space-y-2">
-        <Label htmlFor="email">メールアドレス</Label>
+      <FormField invalid={!!errors.email}>
+        <FormLabel htmlFor="email">メールアドレス</FormLabel>
         <Input
           id="email"
           type="email"
@@ -56,11 +56,11 @@ export function SignupForm() {
           disabled={isPending}
           {...register('email')}
         />
-        {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
-      </div>
+        <FormError>{errors.email?.message}</FormError>
+      </FormField>
 
-      <div className="space-y-2">
-        <Label htmlFor="password">パスワード</Label>
+      <FormField invalid={!!errors.password}>
+        <FormLabel htmlFor="password">パスワード</FormLabel>
         <Input
           id="password"
           type="password"
@@ -69,11 +69,11 @@ export function SignupForm() {
           {...register('password')}
         />
         {errors.password ? (
-          <p className="text-destructive text-xs">{errors.password.message}</p>
+          <FormError>{errors.password.message}</FormError>
         ) : (
-          <p className="text-muted-foreground text-xs">8文字以上で入力してください</p>
+          <FormDescription>8文字以上で入力してください</FormDescription>
         )}
-      </div>
+      </FormField>
 
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

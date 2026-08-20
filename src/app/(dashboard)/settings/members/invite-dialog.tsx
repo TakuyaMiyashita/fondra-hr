@@ -7,6 +7,7 @@ import { useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,7 +18,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -87,8 +87,8 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: Props) {
           <DialogDescription>メールアドレスとロールを指定して招待します</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="invite-email">メールアドレス</Label>
+          <FormField invalid={!!errors.email}>
+            <FormLabel htmlFor="invite-email">メールアドレス</FormLabel>
             <Input
               id="invite-email"
               type="email"
@@ -96,10 +96,10 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: Props) {
               disabled={isPending}
               {...register('email')}
             />
-            {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
-          </div>
-          <div className="space-y-2">
-            <Label>ロール</Label>
+            <FormError>{errors.email?.message}</FormError>
+          </FormField>
+          <FormField invalid={!!errors.role}>
+            <FormLabel>ロール</FormLabel>
             <Select
               items={ROLE_ITEMS}
               value={selectedRole}
@@ -119,8 +119,8 @@ export function InviteDialog({ open, onOpenChange, onSuccess }: Props) {
                 ))}
               </SelectContent>
             </Select>
-            {errors.role && <p className="text-destructive text-xs">{errors.role.message}</p>}
-          </div>
+            <FormError>{errors.role?.message}</FormError>
+          </FormField>
           <DialogFooter>
             <Button
               variant="outline"

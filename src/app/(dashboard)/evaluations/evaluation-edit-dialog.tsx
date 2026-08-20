@@ -7,6 +7,8 @@ import { useEffect, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FormDescription, FormError, FormField, FormLabel } from '@/components/shared/form-field';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,7 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -122,6 +123,7 @@ export function EvaluationEditDialog({ open, onOpenChange, evaluation, onSuccess
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-3">
+            {/* フィールドではなくボタン群の見出し。グループ化は次の PR で行う */}
             <Label>評価項目</Label>
             {RATING_CATEGORIES.map((cat) => (
               <div key={cat.key} className="flex items-center gap-3">
@@ -143,11 +145,11 @@ export function EvaluationEditDialog({ open, onOpenChange, evaluation, onSuccess
                 </div>
               </div>
             ))}
-            <p className="text-muted-foreground text-xs">1（低い）〜 5（高い）</p>
+            <FormDescription>1（低い）〜 5（高い）</FormDescription>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="eval-comment">コメント</Label>
+          <FormField invalid={!!errors.comment}>
+            <FormLabel htmlFor="eval-comment">コメント</FormLabel>
             <Textarea
               id="eval-comment"
               placeholder="評価コメントを入力..."
@@ -155,11 +157,11 @@ export function EvaluationEditDialog({ open, onOpenChange, evaluation, onSuccess
               disabled={isPending}
               {...register('comment')}
             />
-            {errors.comment && <p className="text-destructive text-xs">{errors.comment.message}</p>}
-          </div>
+            <FormError>{errors.comment?.message}</FormError>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label>ステータス</Label>
+          <FormField>
+            <FormLabel>ステータス</FormLabel>
             <Select
               items={STATUS_ITEMS}
               value={status || evaluation.status}
@@ -179,7 +181,7 @@ export function EvaluationEditDialog({ open, onOpenChange, evaluation, onSuccess
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
 
           <DialogFooter>
             <DialogClose render={<Button variant="outline" type="button" />}>

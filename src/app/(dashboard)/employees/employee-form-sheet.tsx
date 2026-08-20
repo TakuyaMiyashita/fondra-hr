@@ -7,9 +7,9 @@ import { useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -125,47 +125,41 @@ export function EmployeeFormSheet({
           className="flex flex-1 flex-col overflow-y-auto px-4"
         >
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="employeeCode">社員番号 *</Label>
+            <FormField invalid={!!errors.employeeCode}>
+              <FormLabel htmlFor="employeeCode">社員番号 *</FormLabel>
               <Input
                 id="employeeCode"
                 placeholder="EMP-001"
                 disabled={isPending}
                 {...register('employeeCode')}
               />
-              {errors.employeeCode && (
-                <p className="text-destructive text-xs">{errors.employeeCode.message}</p>
-              )}
-            </div>
+              <FormError>{errors.employeeCode?.message}</FormError>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="fullName">氏名 *</Label>
+            <FormField invalid={!!errors.fullName}>
+              <FormLabel htmlFor="fullName">氏名 *</FormLabel>
               <Input
                 id="fullName"
                 placeholder="田中 太郎"
                 disabled={isPending}
                 {...register('fullName')}
               />
-              {errors.fullName && (
-                <p className="text-destructive text-xs">{errors.fullName.message}</p>
-              )}
-            </div>
+              <FormError>{errors.fullName?.message}</FormError>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="fullNameKana">フリガナ</Label>
+            <FormField invalid={!!errors.fullNameKana}>
+              <FormLabel htmlFor="fullNameKana">フリガナ</FormLabel>
               <Input
                 id="fullNameKana"
                 placeholder="タナカ タロウ"
                 disabled={isPending}
                 {...register('fullNameKana')}
               />
-              {errors.fullNameKana && (
-                <p className="text-destructive text-xs">{errors.fullNameKana.message}</p>
-              )}
-            </div>
+              <FormError>{errors.fullNameKana?.message}</FormError>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">メールアドレス</Label>
+            <FormField invalid={!!errors.email}>
+              <FormLabel htmlFor="email">メールアドレス</FormLabel>
               <Input
                 id="email"
                 type="email"
@@ -173,11 +167,11 @@ export function EmployeeFormSheet({
                 disabled={isPending}
                 {...register('email')}
               />
-              {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
-            </div>
+              <FormError>{errors.email?.message}</FormError>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label>部署</Label>
+            <FormField invalid={!!errors.departmentId}>
+              <FormLabel>部署</FormLabel>
               <Select
                 items={Object.fromEntries(departments.map((d) => [d.id, d.name]))}
                 value={departmentId || undefined}
@@ -195,42 +189,34 @@ export function EmployeeFormSheet({
                   ))}
                 </SelectContent>
               </Select>
-              {errors.departmentId && (
-                <p className="text-destructive text-xs">{errors.departmentId.message}</p>
-              )}
-            </div>
+              <FormError>{errors.departmentId?.message}</FormError>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="position">役職</Label>
+            <FormField invalid={!!errors.position}>
+              <FormLabel htmlFor="position">役職</FormLabel>
               <Input
                 id="position"
                 placeholder="マネージャー"
                 disabled={isPending}
                 {...register('position')}
               />
-              {errors.position && (
-                <p className="text-destructive text-xs">{errors.position.message}</p>
-              )}
-            </div>
+              <FormError>{errors.position?.message}</FormError>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="hiredOn">入社日</Label>
+            <FormField invalid={!!errors.hiredOn}>
+              <FormLabel htmlFor="hiredOn">入社日</FormLabel>
               <Input id="hiredOn" type="date" disabled={isPending} {...register('hiredOn')} />
-              {errors.hiredOn && (
-                <p className="text-destructive text-xs">{errors.hiredOn.message}</p>
-              )}
-            </div>
+              <FormError>{errors.hiredOn?.message}</FormError>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label htmlFor="birthDate">生年月日</Label>
+            <FormField invalid={!!errors.birthDate}>
+              <FormLabel htmlFor="birthDate">生年月日</FormLabel>
               <Input id="birthDate" type="date" disabled={isPending} {...register('birthDate')} />
-              {errors.birthDate && (
-                <p className="text-destructive text-xs">{errors.birthDate.message}</p>
-              )}
-            </div>
+              <FormError>{errors.birthDate?.message}</FormError>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label>ステータス</Label>
+            <FormField>
+              <FormLabel>ステータス</FormLabel>
               <Select
                 items={STATUS_ITEMS}
                 value={status}
@@ -248,7 +234,7 @@ export function EmployeeFormSheet({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
           </div>
 
           <SheetFooter className="mt-6">

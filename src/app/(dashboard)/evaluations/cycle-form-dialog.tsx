@@ -7,6 +7,7 @@ import { useEffect, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,7 +19,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -131,42 +131,38 @@ export function CycleFormDialog({ mode, open, onOpenChange, defaultValues, onSuc
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="cycle-name">サイクル名 *</Label>
+          <FormField invalid={!!errors.name}>
+            <FormLabel htmlFor="cycle-name">サイクル名 *</FormLabel>
             <Input
               id="cycle-name"
               placeholder="例: 2026年上期評価"
               disabled={isPending}
               {...register('name')}
             />
-            {errors.name && <p className="text-destructive text-xs">{errors.name.message}</p>}
-          </div>
+            <FormError>{errors.name?.message}</FormError>
+          </FormField>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="cycle-start">開始日 *</Label>
+            <FormField invalid={!!errors.periodStart}>
+              <FormLabel htmlFor="cycle-start">開始日 *</FormLabel>
               <Input
                 id="cycle-start"
                 type="date"
                 disabled={isPending}
                 {...register('periodStart')}
               />
-              {errors.periodStart && (
-                <p className="text-destructive text-xs">{errors.periodStart.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cycle-end">終了日 *</Label>
+              <FormError>{errors.periodStart?.message}</FormError>
+            </FormField>
+            <FormField invalid={!!errors.periodEnd}>
+              <FormLabel htmlFor="cycle-end">終了日 *</FormLabel>
               <Input id="cycle-end" type="date" disabled={isPending} {...register('periodEnd')} />
-              {errors.periodEnd && (
-                <p className="text-destructive text-xs">{errors.periodEnd.message}</p>
-              )}
-            </div>
+              <FormError>{errors.periodEnd?.message}</FormError>
+            </FormField>
           </div>
 
           {isEdit && (
-            <div className="space-y-2">
-              <Label>ステータス</Label>
+            <FormField>
+              <FormLabel>ステータス</FormLabel>
               <Select
                 items={STATUS_ITEMS}
                 value={status || defaultValues?.status || 'draft'}
@@ -186,7 +182,7 @@ export function CycleFormDialog({ mode, open, onOpenChange, defaultValues, onSuc
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
           )}
 
           <DialogFooter>

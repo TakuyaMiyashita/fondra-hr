@@ -8,12 +8,12 @@ import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { ButtonLink } from '@/components/shared/button-link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { updateOrgSchema, type UpdateOrgInput } from '@/lib/validations/settings';
 import type { Role } from '@/services/auth-context';
 import type { OrgInfo } from '@/types/settings';
@@ -73,11 +73,11 @@ export function SettingsGeneralClient({ org, role }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="org-name">組織名</Label>
+            <FormField invalid={!!errors.name}>
+              <FormLabel htmlFor="org-name">組織名</FormLabel>
               <Input id="org-name" disabled={isPending || !isAdmin} {...register('name')} />
-              {errors.name && <p className="text-destructive text-xs">{errors.name.message}</p>}
-            </div>
+              <FormError>{errors.name?.message}</FormError>
+            </FormField>
             {isAdmin && (
               <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -86,16 +86,19 @@ export function SettingsGeneralClient({ org, role }: Props) {
             )}
           </form>
 
-          <div className="space-y-2 border-t pt-4">
+          {/* 入力ではなく「名前と値」の組。<Label> は入力に紐づくものなので使わない */}
+          <dl className="space-y-2 border-t pt-4">
             <div className="flex items-center gap-2">
-              <Label className="text-muted-foreground">スラッグ</Label>
-              <span className="text-sm">{org.slug}</span>
+              <dt className="text-muted-foreground text-sm leading-none font-medium">スラッグ</dt>
+              <dd className="text-sm">{org.slug}</dd>
             </div>
             <div className="flex items-center gap-2">
-              <Label className="text-muted-foreground">プラン</Label>
-              <Badge variant="secondary">{org.plan}</Badge>
+              <dt className="text-muted-foreground text-sm leading-none font-medium">プラン</dt>
+              <dd>
+                <Badge variant="secondary">{org.plan}</Badge>
+              </dd>
             </div>
-          </div>
+          </dl>
         </CardContent>
       </Card>
     </div>

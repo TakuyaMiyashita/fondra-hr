@@ -7,6 +7,7 @@ import { useEffect, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,7 +19,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -131,14 +131,14 @@ export function DepartmentFormDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="dept-name">部署名 *</Label>
+          <FormField invalid={!!errors.name}>
+            <FormLabel htmlFor="dept-name">部署名 *</FormLabel>
             <Input id="dept-name" placeholder="営業部" disabled={isPending} {...register('name')} />
-            {errors.name && <p className="text-destructive text-xs">{errors.name.message}</p>}
-          </div>
+            <FormError>{errors.name?.message}</FormError>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label>親部署</Label>
+          <FormField invalid={!!errors.parentId}>
+            <FormLabel>親部署</FormLabel>
             <Select
               items={{
                 __none__: 'なし（トップレベル）',
@@ -160,10 +160,8 @@ export function DepartmentFormDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.parentId && (
-              <p className="text-destructive text-xs">{errors.parentId.message}</p>
-            )}
-          </div>
+            <FormError>{errors.parentId?.message}</FormError>
+          </FormField>
 
           <DialogFooter>
             <DialogClose render={<Button variant="outline" type="button" />}>

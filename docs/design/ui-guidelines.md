@@ -90,9 +90,30 @@ ESLint の `no-restricted-syntax` で止めている。
 
 ### フォーム
 
+**1項目は `FormField` で囲む**（`@/components/shared/form-field`）。素の `<div>` +
+`<Label>` + `{errors.x && <p>}` は使わない。
+
+```tsx
+<FormField invalid={!!errors.name}>
+  <FormLabel htmlFor="skill-name">スキル名 *</FormLabel>
+  <Input id="skill-name" disabled={isPending} {...register('name')} />
+  <FormError>{errors.name?.message}</FormError>
+</FormField>
+```
+
+- **`id` は必ず明示する。** Base UI の自動生成に任せると e2e が全滅する
+  （`tests/e2e/global-setup.ts` の `#email` / `#password` をはじめ、各スペックが
+  `#id` セレクタでフォームを操作している）
+- **Select には `htmlFor` が要らない。** `SelectTrigger` が Field から
+  `aria-labelledby` を読むため、`<FormLabel>` を置くだけで名前が付く
+- 補足文は `<FormDescription>`。エラーと同じく `aria-describedby` に入る
+- **入力ではないものに `<Label>` を使わない。** 「名前と値」の組は `<dl>/<dt>/<dd>`
 - ラベルは必ず付ける。プレースホルダーのみの入力フィールドは禁止
-- バリデーションエラーはフィールド直下にインラインで `text-destructive text-xs` で表示
 - 送信中はボタンに `disabled` + ローディングインジケーター
+
+`register` のままでよく、`Controller` への書き換えは不要。
+なぜ手で `aria-invalid` / `aria-describedby` を書かないかは
+[ADR 0009](../adr/0009-form-a11y-wiring-lives-in-base-ui-field.md)。
 
 ### テーブル（TanStack Table）
 

@@ -7,6 +7,7 @@ import { useEffect, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { FormError, FormField, FormLabel } from '@/components/shared/form-field';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,7 +19,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { createSkillSchema, type CreateSkillInput } from '@/lib/validations/skill';
 import type { SkillWithCount } from '@/types/skill';
 
@@ -84,24 +84,22 @@ export function SkillFormDialog({ mode, open, onOpenChange, defaultValues, onSuc
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="skill-name">スキル名 *</Label>
+          <FormField invalid={!!errors.name}>
+            <FormLabel htmlFor="skill-name">スキル名 *</FormLabel>
             <Input id="skill-name" placeholder="React" disabled={isPending} {...register('name')} />
-            {errors.name && <p className="text-destructive text-xs">{errors.name.message}</p>}
-          </div>
+            <FormError>{errors.name?.message}</FormError>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="skill-category">カテゴリ</Label>
+          <FormField invalid={!!errors.category}>
+            <FormLabel htmlFor="skill-category">カテゴリ</FormLabel>
             <Input
               id="skill-category"
               placeholder="フロントエンド"
               disabled={isPending}
               {...register('category')}
             />
-            {errors.category && (
-              <p className="text-destructive text-xs">{errors.category.message}</p>
-            )}
-          </div>
+            <FormError>{errors.category?.message}</FormError>
+          </FormField>
 
           <DialogFooter>
             <DialogClose render={<Button variant="outline" type="button" />}>

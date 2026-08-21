@@ -17,12 +17,27 @@ const EMAIL = 'owner@fondra.example.com';
 const PASSWORD = 'demo-password123';
 const OUT = 'docs/images';
 
+// click: 撮る前に押すタブ。スキル画面は既定が「スキル一覧」なので、
+// 見せたいマトリクス側に切り替えてから撮る。
+// waitAfter: クリック後に描画を待つ要素。マトリクスは TanStack Query で
+// クライアント取得するため、待たずに撮ると Skeleton が写る。
 const shots = [
   { path: '/dashboard', name: 'dashboard', wait: 'svg' },
   { path: '/employees', name: 'employees', wait: 'tbody tr' },
   { path: '/departments', name: 'departments', wait: 'main' },
-  { path: '/skills', name: 'skills', wait: 'main' },
+  {
+    path: '/skills',
+    name: 'skills',
+    wait: 'main',
+    click: 'スキルマトリクス',
+    waitAfter: 'table tbody tr',
+  },
 ];
+
+// Next.js の開発オーバーレイ（左下の丸いインジケータ）はスクリーンショットに
+// 写り込むので隠す。dev サーバーに対して撮る以上どうしても出るため、
+// devIndicators を切るのではなく撮影時だけ CSS で消す。
+const HIDE_DEV_OVERLAY = 'nextjs-portal, #__next-build-watcher { display: none !important; }';
 
 const browser = await chromium.launch();
 const context = await browser.newContext({
@@ -47,6 +62,13 @@ for (const shot of shots) {
     .first()
     .waitFor({ timeout: 15_000 })
     .catch(() => {});
+  if (shot.click) {
+    await page.getByRole('tab', { name: shot.click }).click();
+  }
+  if (shot.waitAfter) {
+    await page.locator(shot.waitAfter).first().waitFor({ timeout: 15_000 });
+  }
+  await page.addStyleTag({ content: HIDE_DEV_OVERLAY });
   // チャートのアニメーション待ち
   await page.waitForTimeout(1200);
   await page.screenshot({ path: `${OUT}/${shot.name}.png` });

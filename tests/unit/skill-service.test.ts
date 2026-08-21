@@ -1067,6 +1067,25 @@ describe('getSkillMatrix — 絞り込みと端のケース', () => {
     expect(db.select).toHaveBeenCalledTimes(2);
   });
 
+  it('セル取得の絞り込みは inArray で組み立てる', async () => {
+    // sql`= any(${配列})` だと Drizzle が配列を $1, $2, ... に展開してしまい、
+    // any() が要求する配列にならず Postgres が 42809 で落ちる。
+    // 型もテストも通ってしまい、実行して初めて 500 になる種類の不具合なので、
+    // 生成される SQL の形をここで固定する。
+    const { getSkillMatrix } = await import('@/services/skill');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([emps, skls, []]));
+
+    await getSkillMatrix(adminCtx, {});
+
+    const where = selectCallAt(db, 2).where.mock.calls[0][0];
+    expect(sqlText(where)).toContain('employee_id in');
+    expect(sqlText(where)).toContain('skill_id in');
+    expect(sqlText(where)).not.toContain('any(');
+    expect(collectParams(where)).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
   it('カテゴリ未設定のスキルは categories に含めない', async () => {
     // null をそのまま並べるとフィルタ UI に空欄が出る。
     const { getSkillMatrix } = await import('@/services/skill');

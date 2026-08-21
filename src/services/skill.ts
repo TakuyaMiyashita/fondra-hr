@@ -1,4 +1,4 @@
-import { and, asc, count, eq, ilike, sql } from 'drizzle-orm';
+import { and, asc, count, eq, ilike, inArray, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
 import { departments } from '@/db/schema/departments';
@@ -275,8 +275,11 @@ export async function getSkillMatrix(
       .where(
         and(
           eq(employeeSkills.orgId, ctx.orgId),
-          sql`${employeeSkills.employeeId} = any(${employeeIds})`,
-          sql`${employeeSkills.skillId} = any(${skillIds})`,
+          // inArray を使う。sql`= any(${配列})` は Drizzle が配列を $1, $2, ... と
+          // 個別のパラメータに展開するため any() が要求する配列にならず、
+          // Postgres が 42809（op ANY/ALL (array) requires array on right side）で落ちる。
+          inArray(employeeSkills.employeeId, employeeIds),
+          inArray(employeeSkills.skillId, skillIds),
         ),
       );
   }

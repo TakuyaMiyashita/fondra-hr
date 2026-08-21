@@ -173,6 +173,35 @@ async function seedFixtures(orgId: string, memberUserId: string): Promise<Fixtur
     });
   }
 
+  // スキルマトリクス用。従業員とスキルが両方1件以上あって初めて
+  // セル取得のクエリが実行される（どちらかが0件だと空状態で素通りする）。
+  // 割当まで入れないと、レベル付きセルの描画経路を通らない。
+  const existingSkills = await adminSelect<{ id: string; name: string }[]>(
+    `skills?org_id=eq.${orgId}&select=id,name`,
+  );
+  const matrixSkill = existingSkills.find((s) => s.name === MARKERS.skillName);
+  const skillId =
+    matrixSkill?.id ??
+    (
+      await adminInsert<{ id: string }[]>('skills', {
+        org_id: orgId,
+        name: MARKERS.skillName,
+        category: 'バックエンド',
+      })
+    )[0].id;
+
+  const assigned = await adminSelect<{ id: string }[]>(
+    `employee_skills?org_id=eq.${orgId}&employee_id=eq.${selfEmployeeId}&skill_id=eq.${skillId}&select=id`,
+  );
+  if (assigned.length === 0) {
+    await adminInsert('employee_skills', {
+      org_id: orgId,
+      employee_id: selfEmployeeId,
+      skill_id: skillId,
+      level: 3,
+    });
+  }
+
   return { orgId, selfEmployeeId, othersEmployeeId };
 }
 

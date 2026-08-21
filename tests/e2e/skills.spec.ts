@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+import { MARKERS } from './authorization-fixtures';
+
 test.describe('スキル管理', () => {
   test('displays skill page with tabs', async ({ page }) => {
     await page.goto('/skills');
@@ -80,5 +82,22 @@ test.describe('スキル管理', () => {
       'aria-selected',
       'true',
     );
+  });
+
+  // タブが選択されたことだけを見ていると、セル取得が 500 で落ちていても
+  // Skeleton のまま素通りする（実際にそれで不具合が漏れた）。
+  // 描画された表と、割り当てたレベルまで確認する。
+  test('renders the matrix grid with assigned levels', async ({ page }) => {
+    await page.goto('/skills');
+    await page.getByRole('tab', { name: 'スキルマトリクス' }).click();
+
+    const grid = page.locator('table');
+    await expect(grid).toBeVisible();
+    await expect(grid.getByRole('columnheader', { name: MARKERS.skillName })).toBeVisible();
+
+    const selfRow = grid.locator('tr', { hasText: 'E2E本人' }).first();
+    await expect(selfRow).toBeVisible();
+    // global-setup で level 3 を割り当てている。未割当は「-」になる。
+    await expect(selfRow.getByText('3', { exact: true })).toBeVisible();
   });
 });

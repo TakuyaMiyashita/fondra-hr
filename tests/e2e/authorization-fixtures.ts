@@ -33,6 +33,11 @@ export const MARKERS = {
   confirmedComment: 'E2E-CONFIRMED-COMMENT-FOR-SELF',
   unconfirmedComment: 'E2E-UNCONFIRMED-COMMENT-FOR-SELF',
   cycleName: 'E2E認可テストサイクル',
+  /**
+   * スキルマトリクスの検証用。従業員とスキルが両方1件以上ないと
+   * マトリクスは空状態になり、セル取得のクエリ自体が実行されない。
+   */
+  skillName: 'E2Eマトリクス検証スキル',
 } as const;
 
 export interface Fixtures {

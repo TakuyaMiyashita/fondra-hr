@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { AiAssistantClient } from './ai-assistant-client';
 
 export const metadata: Metadata = {
-  title: 'AIアシスタント',
+  title: 'AI アシスタント',
 };
 
 export default function AiAssistantPage() {

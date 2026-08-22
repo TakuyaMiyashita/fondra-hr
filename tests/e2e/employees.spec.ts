@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('従業員一覧', () => {
   test('displays employee list page', async ({ page }) => {
     await page.goto('/employees');
-    await expect(page.getByRole('heading', { name: '従業員管理' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '従業員一覧' })).toBeVisible();
   });
 
   test('shows table or empty state', async ({ page }) => {

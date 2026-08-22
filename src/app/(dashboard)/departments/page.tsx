@@ -6,7 +6,7 @@ import { getDepartmentTree, listDepartments } from '@/services/department';
 import { DepartmentPageClient } from './department-page-client';
 
 export const metadata: Metadata = {
-  title: '部署管理',
+  title: '組織図',
 };
 
 export default async function DepartmentsPage() {

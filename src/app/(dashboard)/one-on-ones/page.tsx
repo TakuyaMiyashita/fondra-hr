@@ -6,7 +6,7 @@ import { getEmployeesForOrg, listOneOnOnes } from '@/services/one-on-one';
 import { OneOnOneListClient } from './one-on-one-list-client';
 
 export const metadata: Metadata = {
-  title: '1on1',
+  title: '1on1記録',
 };
 
 export default async function OneOnOnesPage() {

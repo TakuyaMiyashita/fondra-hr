@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('部署管理', () => {
+test.describe('組織図', () => {
   test('displays department page', async ({ page }) => {
     await page.goto('/departments');
     await expect(page.getByRole('heading', { name: '組織図' })).toBeVisible();

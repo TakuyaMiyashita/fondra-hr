@@ -78,9 +78,12 @@ flowchart LR
 パスワードは全て `demo-password123`。自由に触ってよい。書き込みも削除もできるので、
 データが荒れていたら作り直している最中かもしれない。
 
+運用しているのはこの検証環境ひとつだけ。実ユーザーがいないので、環境を分ける利点がない。
+本番として運用する場合に何を変えるべきかは[デプロイ手順](./docs/deployment.md)に併記している。
+
 ## 動かす
 
-Node.js 22 / pnpm 9+ / Docker が必要。
+Node.js 22 / pnpm 11 / Docker が必要。pnpm は `packageManager` で固定している。
 
 ```bash
 pnpm install
@@ -97,7 +100,7 @@ pnpm dev
 
 ### テスト
 
-unit 1456件 / e2e 131件。カバレッジは statements / functions / lines 100%、branches 99% を
+unit 1457件 / e2e 132件。カバレッジは statements / functions / lines 100%、branches 99% を
 閾値として CI で強制している。
 
 ```bash
@@ -165,8 +168,6 @@ DB アクセスは Drizzle に一本化し、Supabase JS Client は Auth と Sto
 | [テスト戦略](./docs/testing.md)                                                        | 3つの project・カバレッジ方針・ロール別 e2e        |
 | [ADR](./docs/adr/README.md)                                                            | 設計判断の記録と、捨てた案の理由                   |
 | [デプロイ手順](./docs/deployment.md)                                                   | Vercel + Supabase Cloud                            |
-
-運用しているのは検証環境ひとつだけ。実ユーザーがいないので分ける利点が無い。
 
 ## ライセンス
 

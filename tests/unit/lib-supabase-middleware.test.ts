@@ -76,6 +76,11 @@ describe('updateSession', () => {
       ['/employees', 'アプリ画面'],
       ['/dashboard', 'ダッシュボード'],
       ['/settings/members', 'ネストした画面'],
+      // 公開パスの判定はセグメント単位。前方一致だと、公開パスに似た名前の
+      // ルートを将来足したときに認証を素通りしてしまう。
+      ['/loginish', '公開パスに似た別ルート'],
+      ['/signupx', '公開パスに似た別ルート（接尾辞つき）'],
+      ['/invitations', '公開パス /invite の前方一致に引っかかる別ルート'],
     ])('%s は /login へリダイレクトする（%s）', async (pathname) => {
       const res = await updateSession(pathname);
 
@@ -97,8 +102,8 @@ describe('updateSession', () => {
       ['/reset-password', 'パスワード再設定'],
       ['/auth/callback', 'メール確認コールバック'],
       ['/invite', '招待受諾'],
-      ['/invite/abc-token', '前方一致（トークン付き招待 URL）'],
-      ['/loginish', '前方一致なので公開パスに似た名前も通る'],
+      ['/invite/abc-token', '子パス（トークン付き招待 URL）'],
+      ['/auth/callback/nested', '子パス'],
       ['/', 'ルート（ランディング）'],
     ])('%s は素通りさせる（%s）', async (pathname) => {
       const res = await updateSession(pathname);

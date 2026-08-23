@@ -18,7 +18,8 @@
 
 ## 注記
 
-- `audit_logs` は全ロールで INSERT のみ（自動記録）。UPDATE / DELETE は DB レベルで禁止
+- `audit_logs` の記録は Service Layer の `writeAuditLog()` に一本化されている。
+  UPDATE / DELETE は DB レベルで禁止（追記専用）
 - **削除は原則 admin 以上**。employees / skills / departments / evaluation_cycles /
   evaluations / one_on_ones のいずれも member は削除できない
   （`employee_skills` の割当解除のみ member 可）
@@ -45,8 +46,8 @@
 「見つかりません」で返す（存在の有無を伝えると、誰と誰が 1on1 をしたかが
 ID の総当たりで分かる）。
 
-評価は閲覧を絞らない。評価の**存在**は人事運用上オープンでよく、機微なのは
-コメント本文なので、そちらは下記のフィールド単位の制御で落とす。
+評価は閲覧を絞らない。評価の**存在**（誰が誰を評価するか）は人事運用上
+オープンでよく、機微なのは中身なので、そちらは下記のフィールド単位の制御で落とす。
 
 **いずれも「ログインユーザーと従業員レコードの紐付け」が前提**。
 `employees.user_id` はメールアドレスで自動的に設定される（実装済み）。
@@ -69,10 +70,14 @@ ID の総当たりで分かる）。
 | ---------------------- | -------------------------------------------- | ------------------------------------- |
 | `employees.birth_date` | admin 以上 / 本人                            | `getEmployee`                         |
 | `evaluations.comment`  | admin 以上 / 評価者 / 被評価者（確定後のみ） | `getCycle` / `getEmployeeEvaluations` |
+| `evaluations.ratings`  | admin 以上 / 評価者 / 被評価者（確定後のみ） | `getCycle`                            |
 
 - **「本人」の判定は `employees.user_id`**。未紐付け（null）のレコードは
   誰の本人でもない扱いにする。ここを緩めると、マスタ登録直後で user_id が
   空の全従業員が member に開く
+- **評点（`ratings`）はコメントと同じ条件で落とす**（`canReadEvaluationDetail`）。
+  「何点を付けられたか」は「何と書かれたか」と同じだけ機微で、
+  コメントだけ伏せて評点が素通しでは隠す意味が無い
 - **評価コメントの被評価者への開示は確定（`confirmed`）後のみ**。
   下書き・入力中・提出・差戻しの段階では本人に返さない。書き手が推敲できない
   まま評価が伝わるのを避けるため。評価者自身は状態に関わらず読める
@@ -85,16 +90,37 @@ ID の総当たりで分かる）。
   nullable）と UI（null は「—」表示）をそのまま使える
 - `listEmployees` は元から `birth_date` を SELECT していない。一覧に
   個人情報を載せない方針を維持すること
+- **監査ログにも値を残さない**。`audit_logs` は全ロールが読めるため、
+  変更内容を素通しで記録すると、viewer が監査ログ画面を開くだけで
+  ここでの制御が丸ごと打ち消される。`writeAuditLog`
+  （`src/services/audit-log.ts`）が `birthDate` / `notes` / `comment` /
+  `aiSummary` / `ratings` の値を伏せる。フィールド名と変更があった事実は残す。
+  **機微なフィールドを増やしたら、この伏せ字リストにも足すこと**
 
 admin 以上は無条件に見えるため、紐付けの解決クエリ（`getOwnEmployeeId`）は
 member / viewer のときだけ発行する。
 
 ## 認可の実装場所
 
-| レイヤー          | 責務                                                |
-| ----------------- | --------------------------------------------------- |
-| **RLS**           | テナント分離のみ（`org_id = current_org_id()`）     |
-| **Service Layer** | ロール別 CRUD 制御 + 個人情報のフィールド単位の制御 |
-| **UI**            | ロールに応じたナビ項目・ボタンの表示/非表示         |
+| レイヤー             | 責務                                                        |
+| -------------------- | ----------------------------------------------------------- |
+| **Service Layer**    | ロール別 CRUD 制御 + 個人情報のフィールド単位の制御         |
+| **UI**               | ロールに応じたナビ項目・ボタンの表示/非表示                 |
+| **RLS（テーブル）**  | テナント分離のみ（`org_id = current_org_id()`）             |
+| **Storage ポリシー** | テナント分離 + **書き込みのロール制御**（下記の例外を参照） |
+
+**Storage だけはポリシーにロール制御を持たせている。** アバターは
+ブラウザから Supabase Storage API を直接叩けるため Service Layer が経路上に無く、
+ポリシーが唯一の実行地点になる。参照は全ロールに開き、書き込み（作成・更新・削除）は
+admin 以上に限定する（`supabase/migrations/20260823000001_restrict_avatar_writes_to_admins.sql`）。
+アップロードは Service Layer の外で起きるため、Server Action 側でも
+`assertCanUpdateAvatar()` を**アップロードより先に**通すこと。
 
 認可チェックは Service Layer と UI の二重で行う。Service Layer が主、UI は UX 目的。
+
+**この表のロール制御を持っているのは Service Layer だけ**である。RLS は
+`org_id` しか見ないため、Service Layer を通らない経路が開いていると
+この表は丸ごと迂回される。実際 Data API（PostgREST）が開いていた間は、
+`viewer` が自分のロールを `owner` に書き換えられた。
+経路は閉じてあるが（[ADR 0011](../adr/0011-data-api-is-closed.md)）、
+**DB への新しい到達経路を足すときは、この表をどう守るかを必ず設計に含めること。**

@@ -22,6 +22,7 @@ import {
   getEmployeeSkills as getSkillsSvc,
   listEmployees as listEmployeesSvc,
   updateEmployee as updateEmployeeSvc,
+  assertCanUpdateAvatar as assertCanUpdateAvatarSvc,
   updateEmployeeAvatar as updateEmployeeAvatarSvc,
 } from '@/services/employee';
 import { AuthorizationError } from '@/services/authorize';
@@ -138,6 +139,13 @@ export async function uploadAvatarAction(
 ): Promise<Result<{ path: string }>> {
   try {
     const ctx = await getAuthContext();
+
+    // Storage への書き込みは Service Layer の外で起きるため、
+    // 先に権限を確かめる。updateEmployeeAvatarSvc は後段にあり、
+    // そこまで待つとファイルだけ書き換わってしまう。
+    const allowed = await assertCanUpdateAvatarSvc(ctx, employeeId);
+    if (!allowed.success) return allowed;
+
     const file = formData.get('file') as File | null;
     if (!file) return err('ファイルが選択されていません');
 

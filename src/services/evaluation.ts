@@ -14,7 +14,7 @@ import type {
 import { writeAuditLog } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
-import { canReadEvaluationComment, canReadPersonalData } from '@/services/field-visibility';
+import { canReadEvaluationDetail, canReadPersonalData } from '@/services/field-visibility';
 import { getOwnEmployeeId } from '@/services/self';
 import type {
   CycleWithEvaluations,
@@ -107,14 +107,20 @@ export async function getCycle(
     .where(and(eq(evaluations.cycleId, id), eq(evaluations.orgId, ctx.orgId)))
     .orderBy(asc(sql`${emp.employeeCode}`));
 
-  // 評価コメントは admin 以上と、自分が評価者の評価にだけ返す。
+  // 評価の中身（コメント・評点）は admin 以上と、自分が評価者の評価にだけ返す。
   // admin 以上は無条件に見えるので、紐付けの解決（追加クエリ）を省く。
   const ownEmployeeId = canReadPersonalData(ctx) ? null : await getOwnEmployeeId(ctx);
 
-  const masked = evalRows.map((row) => ({
-    ...row,
-    comment: canReadEvaluationComment(ctx, row, ownEmployeeId) ? row.comment : null,
-  }));
+  // コメントと評点は同じ条件で落とす。評点だけ残すと、
+  // 「何点を付けられたか」が誰にでも見えてコメントを伏せる意味が無くなる。
+  const masked = evalRows.map((row) => {
+    const visible = canReadEvaluationDetail(ctx, row, ownEmployeeId);
+    return {
+      ...row,
+      comment: visible ? row.comment : null,
+      ratings: visible ? row.ratings : null,
+    };
+  });
 
   return ok({
     cycle: cycleRow as EvaluationCycleDetail,
@@ -335,7 +341,7 @@ export async function updateEvaluation(
       return err('自分が評価者の評価のみ編集できます');
     }
 
-    // 確定は被評価者本人への開示スイッチ（canReadEvaluationComment）。
+    // 確定は被評価者本人への開示スイッチ（canReadEvaluationDetail）。
     // 評価者が自分で倒せると開示のタイミングを評価者が握ることになる。
     if (input.status === 'confirmed') {
       return err('評価の確定は管理者のみ行えます');

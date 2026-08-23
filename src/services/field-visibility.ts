@@ -30,22 +30,27 @@ export function canReadBirthDate(ctx: AuthContext, employeeUserId: string | null
 }
 
 /**
- * 評価コメントを見せてよいか。
+ * 評価の中身（コメント本文と評点）を見せてよいか。
  *
  * - admin 以上 … 無条件
  * - 自分が評価者の評価 … 無条件（書いた本人なので）
  * - 自分が被評価者の評価 … **確定（confirmed）後のみ**
  *
  * 被評価者への開示を確定後に限るのは、下書き・入力中・差戻しの段階の
- * コメントが本人に流れると、書き手が推敲できないまま評価が伝わるため。
+ * 内容が本人に流れると、書き手が推敲できないまま評価が伝わるため。
  * 確定は開示のスイッチそのものなので、そこへの遷移は admin 以上に限定して
  * ある（`updateEvaluation`）。評価者が自分で倒せると、開示のタイミングを
  * 評価者が握ることになる。
  *
+ * **評点（`ratings`）もコメントと同じ扱いにする。** 「何点を付けられたか」は
+ * 「何と書かれたか」と同じだけ機微で、コメントだけ伏せて評点が素通しでは
+ * 隠す意味が無い。評価の *存在*（誰が誰を評価するか）は人事運用上オープンで
+ * よいので、そちらは絞らない。
+ *
  * `ownEmployeeId` が null（未紐付け）ならどの id とも一致しないので、
  * 「自分の評価が無い」＝見えない、と安全側に倒れる。
  */
-export function canReadEvaluationComment(
+export function canReadEvaluationDetail(
   ctx: AuthContext,
   evaluation: { evaluatorId: string; employeeId: string; status: string },
   ownEmployeeId: string | null,

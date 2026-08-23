@@ -1453,6 +1453,78 @@ describe('getEmployeeEvaluations — 評価コメントのフィールド制御'
   });
 });
 
+describe('assertCanUpdateAvatar', () => {
+  /**
+   * Storage へのアップロードは Service Layer の外で起きるため、
+   * 「書き込んでよいか」だけを先に答えられる必要がある。
+   * ここが緩むと、権限の無いユーザーでもファイルだけ書き換わる。
+   */
+  it('admin なら許可し、書き込みは一切行わない', async () => {
+    const { assertCanUpdateAvatar } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'emp-1' }]]));
+
+    await expect(assertCanUpdateAvatar(adminCtx, 'emp-1')).resolves.toEqual({
+      success: true,
+      data: undefined,
+    });
+
+    // 判定だけの関数。UPDATE も監査ログも走らせない。
+    expect(db.update).not.toHaveBeenCalled();
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it('存在確認を org_id で絞る', async () => {
+    // Storage のパスは推測できるため、org_id が無いと
+    // 他テナントの従業員 ID でアップロードを通せてしまう。
+    const { assertCanUpdateAvatar } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'emp-1' }]]));
+
+    await assertCanUpdateAvatar(adminCtx, 'emp-1');
+
+    const params = collectParams(selectCallAt(db, 0).where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'id', value: 'emp-1' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
+  it('従業員が見つからなければ拒否する', async () => {
+    const { assertCanUpdateAvatar } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+
+    await expect(assertCanUpdateAvatar(adminCtx, 'missing')).resolves.toEqual({
+      success: false,
+      error: '従業員が見つかりません',
+    });
+  });
+
+  it.each(rolesAtLeast('admin'))('%s ロールは許可される', async (role) => {
+    const { assertCanUpdateAvatar } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'emp-1' }]]));
+
+    await expect(assertCanUpdateAvatar(CTX_BY_ROLE[role], 'emp-1')).resolves.toMatchObject({
+      success: true,
+    });
+  });
+
+  it.each(rolesBelow('admin'))('%s ロールは DB を引く前に弾かれる', async (role) => {
+    const { assertCanUpdateAvatar } = await import('@/services/employee');
+
+    await expect(assertCanUpdateAvatar(CTX_BY_ROLE[role], 'emp-1')).rejects.toThrow(
+      AuthorizationError,
+    );
+
+    const db = await getDb();
+    expect(db.select).not.toHaveBeenCalled();
+  });
+});
+
 describe('updateEmployeeAvatar', () => {
   it('avatarPath を更新し、監査ログを残す', async () => {
     const { updateEmployeeAvatar } = await import('@/services/employee');

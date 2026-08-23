@@ -16,7 +16,7 @@ import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
 import {
   canReadBirthDate,
-  canReadEvaluationComment,
+  canReadEvaluationDetail,
   canReadPersonalData,
 } from '@/services/field-visibility';
 import { getOneOnOneScope, getOwnEmployeeId } from '@/services/self';
@@ -409,7 +409,7 @@ export async function getEmployeeEvaluations(
     cycleName: row.cycleName,
     evaluatorName: row.evaluatorName,
     status: row.status,
-    comment: canReadEvaluationComment(
+    comment: canReadEvaluationDetail(
       ctx,
       { evaluatorId: row.evaluatorId, employeeId, status: row.status },
       ownEmployeeId,
@@ -420,10 +420,17 @@ export async function getEmployeeEvaluations(
   }));
 }
 
-export async function updateEmployeeAvatar(
+/**
+ * アバターを差し替えてよいかだけを判定する（書き込みはしない）。
+ *
+ * Storage へのアップロードは Service Layer の外（Supabase Storage API）で
+ * 起きる。`updateEmployeeAvatar` を呼ぶ前にここで弾かないと、権限の無い
+ * ユーザーでも「ファイルだけは書き換わって DB は更新されない」状態を作れる。
+ * 呼び出し順は「判定 → アップロード → DB 更新」であること。
+ */
+export async function assertCanUpdateAvatar(
   ctx: AuthContext,
   employeeId: string,
-  avatarPath: string,
 ): Promise<Result<void>> {
   // アバターも従業員マスタの一部。更新権限は他のフィールドと揃える。
   authorize(ctx, 'update', 'employee', (c) => hasMinRole(c, 'admin'));
@@ -436,6 +443,21 @@ export async function updateEmployeeAvatar(
 
   if (!target) {
     return err('従業員が見つかりません');
+  }
+
+  return ok(undefined);
+}
+
+export async function updateEmployeeAvatar(
+  ctx: AuthContext,
+  employeeId: string,
+  avatarPath: string,
+): Promise<Result<void>> {
+  // アップロード前にも同じ判定を通しているが、ここでも独立に確かめる。
+  // この関数だけを別経路から呼ばれても権限が漏れないようにするため。
+  const allowed = await assertCanUpdateAvatar(ctx, employeeId);
+  if (!allowed.success) {
+    return allowed;
   }
 
   await db

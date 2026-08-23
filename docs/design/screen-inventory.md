@@ -47,7 +47,7 @@
 | 従業員作成 | Sheet（右開き）   | React Hook Form + zodResolver。フィールド: 社員番号(必須)/氏名(必須)/フリガナ/メール/部署(Select)/役職/入社日/生年月日/ステータス(Select)。送信中: ボタン disabled + Loader。成功: toast + Sheet 閉じ + 一覧再取得。エラー: toast / インラインバリデーション                                                                                  |
 | 従業員編集 | Sheet（右開き）   | 作成と同じ Sheet を edit モードで使用。既存値をデフォルトとして表示。更新成功時: toast + 詳細・一覧を revalidate                                                                                                                                                                                                                              |
 | 従業員削除 | Dialog            | 確認ダイアログ（従業員名を表示）。Destructive ボタン。成功: toast + 一覧へ遷移                                                                                                                                                                                                                                                                |
-| アバター   | 詳細画面内        | クリックでファイル選択。5MB 制限、image/jpeg,png,webp のみ。プレビュー表示。アップロードは Server Action（`uploadAvatarAction`）経由で Supabase Storage に保存                                                                                                                                                                                |
+| アバター   | 詳細画面内        | クリックでファイル選択。5MB 制限、image/jpeg,png,webp のみ。プレビュー表示。アップロードは Server Action（`uploadAvatarAction`）経由で Supabase Storage に保存。**書き込みは admin 以上**（Storage ポリシーと `assertCanUpdateAvatar()` の両方で制限）。現状ボタン自体はロールで出し分けておらず、member / viewer が押すとエラー toast になる |
 
 ## 組織図
 

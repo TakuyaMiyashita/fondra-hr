@@ -5,7 +5,14 @@
 - 全テーブルで RLS を有効化
 - ポリシーは **テナント分離（org_id チェック）のみ**
 - ロール別の細かな制御は Service Layer で実装
-- RLS はあくまで安全網（defense-in-depth の第2レイヤー）
+
+> **RLS はアプリの経路では評価されない。**
+> Drizzle は `postgres`（テーブル所有者）として接続しており、所有者に RLS は
+> 適用されない。RLS が効くのは Data API（PostgREST / GraphQL）経由だけだが、
+> そちらは GRANT を剥がして閉じてある。
+> したがってここに書くポリシーは「将来 Data API を開けたときのための保険」で
+> あって、稼働中の安全網ではない。経緯は
+> [ADR 0011](../adr/0011-data-api-is-closed.md) を参照。
 
 ## テナント判定方式
 
@@ -106,5 +113,6 @@ Custom Access Token Hook が `memberships` テーブルを参照し、ユーザ�
 - SELECT / INSERT / UPDATE / DELETE の全操作でテナント分離が機能すること
 - Custom Access Token Hook が JWT に正しく `org_id` / `role` を埋め込むこと
 - `audit_logs` の UPDATE / DELETE が DB レベルで拒否されること
-- 監査ログの自動記録が動作すること
 - `employee_risk_scores` ビューのテナント分離とスコア計算
+- Data API が `anon` / `authenticated` から閉じていること
+  （`tests/rls/data-api-closed.test.ts`。組織内のロール昇格を含む）

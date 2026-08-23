@@ -47,18 +47,40 @@
 RSC / Server Actions
   → Service Layer (認可 + ビジネスロジック + 監査ログ)
     → Drizzle ORM (型安全クエリ、org_id 自動付与)
-      → Supabase Postgres (RLS = テナント分離の安全網)
+      → Supabase Postgres
 ```
 
-- RSC / Server Action から直接 Drizzle を呼ばない。必ず Service Layer を経由する
+- RSC / Server Action / Route Handler から直接 Drizzle を呼ばない。必ず Service Layer を経由する
 - Service Layer の各メソッドは `ctx: AuthContext` を受け取り、`authorize()` → DB操作 → 監査ログの順で処理
   - 例外: 認証ブートストラップ関数（`createOrganizationWithOwner`, `getUserMemberships` 等）は AuthContext 未確定時に呼ばれるため、個別パラメータで受け取る
 
-### テナント分離の防御多層化
+### テナント分離と認可
 
-- **Service Layer（主）**: 全クエリに `WHERE org_id = ctx.orgId` を必ず付与
-- **RLS（安全網）**: `org_id` の単純チェックのみ。ロール別の細かな制御はRLSに持たせない
-- どちらか一方が漏れてもデータは守られる設計
+- **Service Layer が唯一の経路であり、唯一の防御**。全クエリに
+  `WHERE org_id = ctx.orgId` を必ず付与し、ロール別の制御も全部ここに置く
+- **Data API（PostgREST / GraphQL）は閉じてある**。`public` の全テーブルから
+  `anon` / `authenticated` の GRANT を剥がしている。ここが開くと、
+  Service Layer にしか無い認可が丸ごと迂回される（[ADR 0011](docs/adr/0011-data-api-is-closed.md)）
+- **RLS はアプリの経路では効いていない**。Drizzle は `postgres`
+  （テーブル所有者）で接続しており、所有者に RLS は適用されない。
+  ポリシーは「将来 Data API を開けたときの保険」として残してあるだけで、
+  稼働中の安全網ではない
+
+**DB への到達経路を新しく足すとき（Data API の再開、別サービスからの接続、
+Storage の新バケット等）は、認可マトリクスをどう守るかを必ず設計に含めること。**
+`org_id` だけ合っていれば通る経路を作ると、ロール制御が消える。
+
+### Storage は例外的にポリシーがロールを見る
+
+Storage はブラウザから Supabase Storage API を直接叩けるため、
+Service Layer が経路上に無い。ポリシーが唯一の実行地点なので、
+**書き込み（作成・更新・削除）のロール制御はポリシーに持たせる**
+（`avatars` は admin 以上。参照は全ロール）。テーブルとは前提が違う。
+
+アップロード自体は Service Layer の外で起きる。Server Action では
+**アップロードより先に**権限を確かめること（`assertCanUpdateAvatar()`）。
+後段の `updateEmployeeAvatar()` まで待つと、権限の無いユーザーでも
+ファイルだけ書き換わる。
 
 ### Supabase Client の使い分け
 
@@ -129,6 +151,8 @@ supabase/
 
 - 変更は必ず `supabase/migrations/` のマイグレーションファイル経由。Supabase ダッシュボードでの直接変更は禁止
 - 新規テーブルには `org_id uuid not null` を持たせ、RLSを有効化し、ポリシーを定義する。RLS未設定のテーブルをマージしてはならない
+- **新規テーブルに `anon` / `authenticated` への GRANT を書かない**。
+  Data API は閉じてある（ADR 0011）。GRANT を足すと認可を迂回する経路が開く
   - 例外: テナントインフラテーブル（`organizations`, `memberships`, `invitations`）は org_id を外部キーとして持つか、テーブル自体がテナントの定義であるため、このルールの対象外
 - Drizzle スキーマ定義を `src/db/schema/` に配置し、マイグレーションと同期を保つ
 
@@ -235,6 +259,8 @@ lines 100%、branches 99）。計測対象は `src/services/` `src/lib/` `src/ap
 | action-validation | `actions.ts` が `@/lib/validations` を通しているか                              |
 | doc-link          | ドキュメントの相対リンクが実在するか                                            |
 | screen-inventory  | 実ルートが `docs/design/screen-inventory.md` に載っているか                     |
+| data-api-grant    | `anon` / `authenticated` にテーブル権限が残っていないか（ADR 0011）             |
+| db-access         | `@/db` を直接 import しているのが Service Layer だけか                          |
 
 **落ちたら検査ではなく実装を直す。** 検査を消して通すのは本末転倒。
 

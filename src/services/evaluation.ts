@@ -12,6 +12,7 @@ import type {
   UpdateEvaluationInput,
 } from '@/lib/validations/evaluation';
 import { writeAuditLog } from '@/services/audit-log';
+import { isUniqueViolation } from '@/services/db-errors';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
 import { canReadEvaluationDetail, canReadPersonalData } from '@/services/field-visibility';
@@ -22,6 +23,9 @@ import type {
   EvaluationCycle,
   EvaluationCycleDetail,
 } from '@/types/evaluation';
+
+/** 事前チェックと一意制約違反の両方で使う。 */
+const DUPLICATE_EVALUATION = 'この組み合わせの評価は既に存在します';
 
 export async function listCycles(ctx: AuthContext): Promise<EvaluationCycle[]> {
   authorize(ctx, 'read', 'evaluation_cycle');
@@ -295,18 +299,28 @@ export async function createEvaluation(
     .limit(1);
 
   if (existing.length > 0) {
-    return err('この組み合わせの評価は既に存在します');
+    return err(DUPLICATE_EVALUATION);
   }
 
-  const [created] = await db
-    .insert(evaluations)
-    .values({
-      orgId: ctx.orgId,
-      cycleId: input.cycleId,
-      employeeId: input.employeeId,
-      evaluatorId: input.evaluatorId,
-    })
-    .returning({ id: evaluations.id });
+  // 事前チェックだけでは同時実行を防げない。20260823000002 で入れた
+  // evaluations_unique_per_pair が最後の砦になる。
+  let created: { id: string };
+  try {
+    [created] = await db
+      .insert(evaluations)
+      .values({
+        orgId: ctx.orgId,
+        cycleId: input.cycleId,
+        employeeId: input.employeeId,
+        evaluatorId: input.evaluatorId,
+      })
+      .returning({ id: evaluations.id });
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      return err(DUPLICATE_EVALUATION);
+    }
+    throw e;
+  }
 
   await writeAuditLog(ctx, 'evaluation.create', 'evaluation', created.id, {
     cycleId: input.cycleId,

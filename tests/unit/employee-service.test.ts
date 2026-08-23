@@ -1453,6 +1453,93 @@ describe('getEmployeeEvaluations — 評価コメントのフィールド制御'
   });
 });
 
+describe('社員番号の競合（一意制約違反）', () => {
+  /**
+   * 「重複を SELECT で確かめてから INSERT」は、確認と書き込みの間に
+   * 別のリクエストが入ると壊れる。同時実行を止められるのは DB の
+   * 一意制約だけなので、違反を拾って事前チェックと同じ文言に揃える。
+   * ここが無いと、競合したときだけ生の Postgres エラーが画面まで出る。
+   */
+  const uniqueViolation = Object.assign(new Error('duplicate key value'), {
+    code: '23505',
+  });
+
+  const VALID_INPUT = {
+    employeeCode: 'EMP001',
+    fullName: '山田太郎',
+    status: 'active' as const,
+  };
+
+  it('createEmployee は INSERT が一意制約違反なら事前チェックと同じ文言を返す', async () => {
+    const { createEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    // 0: 重複チェック（空＝通過） / 1: 紐付けユーザー解決
+    db.select.mockImplementation(createSequentialSelect([[], []]));
+    db.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockRejectedValue(uniqueViolation),
+      }),
+    });
+
+    await expect(createEmployee(adminCtx, VALID_INPUT)).resolves.toEqual({
+      success: false,
+      error: 'この社員番号は既に使用されています',
+    });
+  });
+
+  it('updateEmployee も UPDATE の一意制約違反を同じ文言に変換する', async () => {
+    // 社員番号の付け替えでも競合しうる。create 側だけ直すと片手落ち。
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(
+      createSequentialSelect([[{ id: 'emp-1', employeeCode: 'E001', fullName: '旧名' }]]),
+    );
+    updateChain.then = vi
+      .fn()
+      .mockImplementation((_ok, onRejected) => Promise.reject(uniqueViolation).catch(onRejected));
+
+    await expect(updateEmployee(adminCtx, 'emp-1', { fullName: '新名' })).resolves.toEqual({
+      success: false,
+      error: 'この社員番号は既に使用されています',
+    });
+  });
+
+  it('updateEmployee も一意制約違反以外は握り潰さない', async () => {
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(
+      createSequentialSelect([[{ id: 'emp-1', employeeCode: 'E001', fullName: '旧名' }]]),
+    );
+    updateChain.then = vi
+      .fn()
+      .mockImplementation((_ok, onRejected) =>
+        Promise.reject(new Error('connection terminated')).catch(onRejected),
+      );
+
+    await expect(updateEmployee(adminCtx, 'emp-1', { fullName: '新名' })).rejects.toThrow(
+      'connection terminated',
+    );
+  });
+
+  it('createEmployee は一意制約違反以外の DB エラーは握り潰さない', async () => {
+    // 握り潰すと、接続断や制約違反の別種が「重複」として表示され原因を見失う。
+    const { createEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[], []]));
+    db.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockRejectedValue(new Error('connection terminated')),
+      }),
+    });
+
+    await expect(createEmployee(adminCtx, VALID_INPUT)).rejects.toThrow('connection terminated');
+  });
+});
+
 describe('assertCanUpdateAvatar', () => {
   /**
    * Storage へのアップロードは Service Layer の外で起きるため、

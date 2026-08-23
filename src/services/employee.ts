@@ -12,6 +12,7 @@ import { skills } from '@/db/schema/skills';
 import { type Result, err, ok } from '@/lib/result';
 import type { CreateEmployeeInput, EmployeeListQuery } from '@/lib/validations/employee';
 import { writeAuditLog } from '@/services/audit-log';
+import { isUniqueViolation } from '@/services/db-errors';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
 import {
@@ -159,6 +160,9 @@ export async function getEmployee(ctx: AuthContext, id: string): Promise<Result<
  * 大文字小文字は無視する（ログイン時のメールは正規化されるが、
  * 従業員マスタ側は管理者の手入力で表記が揺れるため）。
  */
+/** 事前チェックと一意制約違反の両方で使う。文言がずれると原因が同じでも別物に見える。 */
+const DUPLICATE_EMPLOYEE_CODE = 'この社員番号は既に使用されています';
+
 async function resolveLinkedUserId(orgId: string, email: string | null): Promise<string | null> {
   if (!email) return null;
 
@@ -205,15 +209,26 @@ export async function createEmployee(
     .limit(1);
 
   if (existing.length > 0) {
-    return err('この社員番号は既に使用されています');
+    return err(DUPLICATE_EMPLOYEE_CODE);
   }
 
   const userId = await resolveLinkedUserId(ctx.orgId, data.email);
 
-  const [created] = await db
-    .insert(employees)
-    .values({ ...data, orgId: ctx.orgId, userId })
-    .returning({ id: employees.id });
+  // 上の存在チェックと INSERT の間に別のリクエストが同じ社員番号を
+  // 入れることがある。同時実行を止められるのは DB の一意制約だけなので、
+  // 違反を拾って事前チェックと同じメッセージに揃える。
+  let created: { id: string };
+  try {
+    [created] = await db
+      .insert(employees)
+      .values({ ...data, orgId: ctx.orgId, userId })
+      .returning({ id: employees.id });
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      return err(DUPLICATE_EMPLOYEE_CODE);
+    }
+    throw e;
+  }
 
   await writeAuditLog(ctx, 'employee.create', 'employee', created.id, data);
 
@@ -246,7 +261,7 @@ export async function updateEmployee(
       .limit(1);
 
     if (dup.length > 0) {
-      return err('この社員番号は既に使用されています');
+      return err(DUPLICATE_EMPLOYEE_CODE);
     }
   }
 
@@ -278,10 +293,17 @@ export async function updateEmployee(
     return ok(undefined);
   }
 
-  await db
-    .update(employees)
-    .set(updateData)
-    .where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
+  try {
+    await db
+      .update(employees)
+      .set(updateData)
+      .where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      return err(DUPLICATE_EMPLOYEE_CODE);
+    }
+    throw e;
+  }
 
   await writeAuditLog(ctx, 'employee.update', 'employee', id, changes);
 

@@ -289,6 +289,27 @@ describe('RLS: domain tables tenant isolation', () => {
       const { data } = await clientB.from('evaluations').select().eq('org_id', orgAId);
       expect(data).toHaveLength(0);
     });
+
+    it('同じサイクル・同じ被評価者×評価者の評価は2件作れない', async () => {
+      // createEvaluation() は事前に SELECT で重複を見ているが、確認と INSERT の
+      // 間に別のリクエストが入ると通り抜ける。同時実行を実際に止めるのは
+      // この一意制約なので、DB 側で効いていることを直接確かめる。
+      //
+      // 既存の1件と同じ組み合わせを狙って入れる。自前で1件目を作ると
+      // フィクスチャと衝突して「1件目が失敗する」テストになってしまう。
+      const { data: existing } = await admin
+        .from('evaluations')
+        .select('org_id,cycle_id,employee_id,evaluator_id')
+        .eq('org_id', orgAId)
+        .limit(1);
+
+      expect(existing).toHaveLength(1);
+
+      const { error } = await admin.from('evaluations').insert(existing![0]);
+
+      expect(error).not.toBeNull();
+      expect(error!.message).toContain('evaluations_unique_per_pair');
+    });
   });
 
   // ---------------------------------------------------------------------------

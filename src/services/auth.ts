@@ -21,18 +21,26 @@ export async function createOrganizationWithOwner(
   const uniqueSlug = `${slug}-${Date.now().toString(36)}`;
 
   try {
-    const [org] = await db
-      .insert(organizations)
-      .values({ name: orgName, slug: uniqueSlug })
-      .returning({ id: organizations.id });
+    // 組織とオーナーのメンバーシップは1つの単位。片方だけ残ると
+    // 「誰も入れない組織」ができ、アプリからは削除も参加もできなくなる
+    // （purge_organization は service_role 専用）。
+    // しかも呼び出し側はエラーを見て作り直すため、孤児が積み上がる。
+    const orgId = await db.transaction(async (tx) => {
+      const [org] = await tx
+        .insert(organizations)
+        .values({ name: orgName, slug: uniqueSlug })
+        .returning({ id: organizations.id });
 
-    await db.insert(memberships).values({
-      userId,
-      orgId: org.id,
-      role: 'owner',
+      await tx.insert(memberships).values({
+        userId,
+        orgId: org.id,
+        role: 'owner',
+      });
+
+      return org.id;
     });
 
-    return ok({ orgId: org.id });
+    return ok({ orgId });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Unknown error';
     return err(`組織の作成に失敗しました: ${message}`);
@@ -121,29 +129,35 @@ export async function acceptInvitation(
   email: string,
 ): Promise<Result<void>> {
   try {
-    await db.insert(memberships).values({ userId, orgId, role });
+    // 3つの書き込みは1つの単位。途中で落ちると、メンバーにはなったのに
+    // 招待が未消費のまま残る（別のアカウントで再受諾できる）、
+    // あるいは従業員レコードと紐付かず本人限定の操作ができない、
+    // といった中途半端な状態になる。
+    await db.transaction(async (tx) => {
+      await tx.insert(memberships).values({ userId, orgId, role });
 
-    await db
-      .update(invitations)
-      .set({ acceptedAt: new Date() })
-      .where(eq(invitations.id, invitationId));
+      await tx
+        .update(invitations)
+        .set({ acceptedAt: new Date() })
+        .where(eq(invitations.id, invitationId));
 
-    // 招待より先に従業員レコードが作られているのが実務上は普通なので
-    // （入社手続きで登録し、後からアカウントを発行する）、ここでも紐付ける。
-    // 従業員側からの紐付け（createEmployee）だけでは、この順序で漏れる。
-    //
-    // 既に紐付け済みのレコードは触らない。管理者が意図して別ユーザーに
-    // 紐付けたものを、後から来た招待が奪わないようにするため。
-    await db
-      .update(employees)
-      .set({ userId, updatedAt: new Date() })
-      .where(
-        and(
-          eq(employees.orgId, orgId),
-          isNull(employees.userId),
-          sql`lower(${employees.email}) = lower(${email})`,
-        ),
-      );
+      // 招待より先に従業員レコードが作られているのが実務上は普通なので
+      // （入社手続きで登録し、後からアカウントを発行する）、ここでも紐付ける。
+      // 従業員側からの紐付け（createEmployee）だけでは、この順序で漏れる。
+      //
+      // 既に紐付け済みのレコードは触らない。管理者が意図して別ユーザーに
+      // 紐付けたものを、後から来た招待が奪わないようにするため。
+      await tx
+        .update(employees)
+        .set({ userId, updatedAt: new Date() })
+        .where(
+          and(
+            eq(employees.orgId, orgId),
+            isNull(employees.userId),
+            sql`lower(${employees.email}) = lower(${email})`,
+          ),
+        );
+    });
 
     return ok(undefined);
   } catch (e) {

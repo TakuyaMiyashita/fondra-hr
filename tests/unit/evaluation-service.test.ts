@@ -1174,6 +1174,57 @@ describe('createEvaluation — 存在確認の順序', () => {
   });
 });
 
+describe('評価の重複（一意制約違反）', () => {
+  /**
+   * 事前チェックと INSERT の間に別のリクエストが入ると、同じサイクル・
+   * 同じ被評価者×評価者の評価が2件できる。20260823000002 で入れた
+   * evaluations_unique_per_pair が最後の砦になる。
+   */
+  const uniqueViolation = Object.assign(new Error('duplicate key value'), {
+    code: '23505',
+  });
+
+  it('INSERT の一意制約違反を事前チェックと同じ文言に変換する', async () => {
+    const { createEvaluation } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    // 0: サイクル / 1: 従業員 / 2: 評価者 / 3: 既存の評価（無し）
+    db.select.mockImplementation(
+      createSelectSequence([[{ id: 'c1' }], [{ id: 'e1' }], [{ id: 'ev-er' }], []]),
+    );
+    db.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockRejectedValue(uniqueViolation),
+      }),
+    });
+
+    await expect(
+      createEvaluation(adminCtx, { cycleId: 'c1', employeeId: 'e1', evaluatorId: 'ev-er' }),
+    ).resolves.toEqual({
+      success: false,
+      error: 'この組み合わせの評価は既に存在します',
+    });
+  });
+
+  it('一意制約違反以外の DB エラーは握り潰さない', async () => {
+    const { createEvaluation } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    db.select.mockImplementation(
+      createSelectSequence([[{ id: 'c1' }], [{ id: 'e1' }], [{ id: 'ev-er' }], []]),
+    );
+    db.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockRejectedValue(new Error('connection terminated')),
+      }),
+    });
+
+    await expect(
+      createEvaluation(adminCtx, { cycleId: 'c1', employeeId: 'e1', evaluatorId: 'ev-er' }),
+    ).rejects.toThrow('connection terminated');
+  });
+});
+
 describe('updateEvaluation — 差分更新の詳細', () => {
   const current = {
     id: 'ev1',

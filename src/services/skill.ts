@@ -14,6 +14,7 @@ import type {
   UpdateSkillInput,
 } from '@/lib/validations/skill';
 import { writeAuditLog } from '@/services/audit-log';
+import { isUniqueViolation } from '@/services/db-errors';
 import type { AuthContext } from '@/services/auth-context';
 import { authorize, hasMinRole } from '@/services/authorize';
 import type {
@@ -24,6 +25,9 @@ import type {
   SkillMatrixEmployee,
   SkillWithCount,
 } from '@/types/skill';
+
+/** 事前チェックと一意制約違反の両方で使う。 */
+const DUPLICATE_SKILL_NAME = 'このスキル名は既に使用されています';
 
 export async function listSkills(
   ctx: AuthContext,
@@ -105,17 +109,26 @@ export async function createSkill(
     .limit(1);
 
   if (existing.length > 0) {
-    return err('このスキル名は既に使用されています');
+    return err(DUPLICATE_SKILL_NAME);
   }
 
-  const [created] = await db
-    .insert(skills)
-    .values({
-      orgId: ctx.orgId,
-      name: input.name,
-      category: input.category || null,
-    })
-    .returning({ id: skills.id });
+  // 事前チェックと INSERT の間の競合は DB の一意制約でしか止まらない。
+  let created: { id: string };
+  try {
+    [created] = await db
+      .insert(skills)
+      .values({
+        orgId: ctx.orgId,
+        name: input.name,
+        category: input.category || null,
+      })
+      .returning({ id: skills.id });
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      return err(DUPLICATE_SKILL_NAME);
+    }
+    throw e;
+  }
 
   await writeAuditLog(ctx, 'skill.create', 'skill', created.id, {
     name: input.name,
@@ -149,7 +162,7 @@ export async function updateSkill(
       .limit(1);
 
     if (dup.length > 0) {
-      return err('このスキル名は既に使用されています');
+      return err(DUPLICATE_SKILL_NAME);
     }
   }
 
@@ -167,10 +180,17 @@ export async function updateSkill(
     return ok(undefined);
   }
 
-  await db
-    .update(skills)
-    .set({ name: input.name, category, updatedAt: new Date() })
-    .where(and(eq(skills.id, input.id), eq(skills.orgId, ctx.orgId)));
+  try {
+    await db
+      .update(skills)
+      .set({ name: input.name, category, updatedAt: new Date() })
+      .where(and(eq(skills.id, input.id), eq(skills.orgId, ctx.orgId)));
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      return err(DUPLICATE_SKILL_NAME);
+    }
+    throw e;
+  }
 
   await writeAuditLog(ctx, 'skill.update', 'skill', input.id, changes);
 
@@ -350,16 +370,26 @@ export async function assignSkill(
       level: input.level,
     });
   } else {
-    const [created] = await db
-      .insert(employeeSkills)
-      .values({
-        orgId: ctx.orgId,
-        employeeId: input.employeeId,
-        skillId: input.skillId,
-        level: input.level,
-        certifiedAt,
-      })
-      .returning({ id: employeeSkills.id });
+    // 同じ従業員×スキルを同時に割り当てると unique(employee_id, skill_id) に
+    // ぶつかる。割り当ては冪等でよいので、競合したら「更新された」と見なす。
+    let created: { id: string };
+    try {
+      [created] = await db
+        .insert(employeeSkills)
+        .values({
+          orgId: ctx.orgId,
+          employeeId: input.employeeId,
+          skillId: input.skillId,
+          level: input.level,
+          certifiedAt,
+        })
+        .returning({ id: employeeSkills.id });
+    } catch (e) {
+      if (isUniqueViolation(e)) {
+        return err('このスキルは既に割り当てられています。画面を更新してからやり直してください');
+      }
+      throw e;
+    }
 
     await writeAuditLog(ctx, 'employee_skill.create', 'employee_skill', created.id, {
       employeeId: input.employeeId,

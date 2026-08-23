@@ -152,12 +152,18 @@ erDiagram
 
 ## ユニーク制約
 
-| テーブル          | カラム                    | 用途                             |
-| ----------------- | ------------------------- | -------------------------------- |
-| `memberships`     | `(user_id, org_id)`       | ユーザーは1組織に1メンバーシップ |
-| `employees`       | `(org_id, employee_code)` | 組織内で社員番号は一意           |
-| `skills`          | `(org_id, name)`          | 組織内でスキル名は一意           |
-| `employee_skills` | `(employee_id, skill_id)` | 1人1スキルにつき1レコード        |
+| テーブル          | カラム                                          | 用途                                         |
+| ----------------- | ----------------------------------------------- | -------------------------------------------- |
+| `memberships`     | `(user_id, org_id)`                             | ユーザーは1組織に1メンバーシップ             |
+| `employees`       | `(org_id, employee_code)`                       | 組織内で社員番号は一意                       |
+| `skills`          | `(org_id, name)`                                | 組織内でスキル名は一意                       |
+| `employee_skills` | `(employee_id, skill_id)`                       | 1人1スキルにつき1レコード                    |
+| `evaluations`     | `(org_id, cycle_id, employee_id, evaluator_id)` | 同一サイクルで同じ被評価者×評価者の評価は1件 |
+
+**「存在を確かめてから書く」処理は、DB の一意制約とセットにすること。**
+確認と書き込みの間に別のリクエストが入ると、アプリ側のチェックだけでは
+重複を防げない。Service Layer は一意制約違反（`23505`）を拾って、
+事前チェックと同じ文言に変換する（`src/services/db-errors.ts`）。
 
 ## ビュー
 

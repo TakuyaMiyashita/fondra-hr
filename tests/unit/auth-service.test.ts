@@ -15,6 +15,7 @@ vi.mock('@/db', () => ({
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    transaction: vi.fn(),
   },
 }));
 
@@ -25,6 +26,7 @@ async function getDb() {
     insert: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
+    transaction: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -69,10 +71,66 @@ beforeEach(async () => {
   db.select.mockImplementation(createSequentialSelect([[]]));
   db.insert.mockReturnValue(insertChain);
   db.update.mockReturnValue(updateChain);
+  // トランザクションには同じモックをそのまま渡す。こうすると
+  // 「トランザクションの中で何を書いたか」を既存の db.insert / db.update への
+  // アサーションでそのまま検証できる。
+  db.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb(db));
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe('複数書き込みのトランザクション', () => {
+  /**
+   * 組織作成も招待受諾も、複数テーブルへの書き込みが1つの単位。
+   * 途中で落ちて片方だけ残ると、アプリから復旧できない状態になる
+   * （誰も入れない組織 / メンバーなのに招待が未消費）。
+   */
+  it('createOrganizationWithOwner は組織とメンバーシップを同一トランザクションで書く', async () => {
+    const { createOrganizationWithOwner } = await import('@/services/auth');
+
+    const db = await getDb();
+    await createOrganizationWithOwner('user-1', 'テスト組織');
+
+    expect(db.transaction).toHaveBeenCalledTimes(1);
+    // 2件の INSERT がどちらもトランザクションのコールバックの中で走っている。
+    expect(db.insert).toHaveBeenCalledTimes(2);
+  });
+
+  it('メンバーシップ登録が落ちたら組織作成ごと失敗させる', async () => {
+    // ここで成功 Result を返すと、呼び出し側は「作れた」と思って先に進む。
+    const { createOrganizationWithOwner } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.transaction.mockRejectedValue(new Error('membership insert failed'));
+
+    const result = await createOrganizationWithOwner('user-1', 'テスト組織');
+
+    expect(result).toMatchObject({ success: false });
+  });
+
+  it('acceptInvitation は3つの書き込みを同一トランザクションで行う', async () => {
+    const { acceptInvitation } = await import('@/services/auth');
+
+    const db = await getDb();
+    await acceptInvitation('inv-1', 'user-1', 'org-1', 'member', 'a@example.com');
+
+    expect(db.transaction).toHaveBeenCalledTimes(1);
+    expect(db.insert).toHaveBeenCalledTimes(1); // memberships
+    expect(db.update).toHaveBeenCalledTimes(2); // invitations / employees
+  });
+
+  it('acceptInvitation は途中で落ちたら失敗 Result を返す', async () => {
+    const { acceptInvitation } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.transaction.mockRejectedValue(new Error('invitation update failed'));
+
+    const result = await acceptInvitation('inv-1', 'user-1', 'org-1', 'member', 'a@example.com');
+
+    expect(result).toMatchObject({ success: false });
+  });
 });
 
 describe('createOrganizationWithOwner', () => {

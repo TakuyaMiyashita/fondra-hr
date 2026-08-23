@@ -302,6 +302,129 @@ describe('updateSkill', () => {
   });
 });
 
+describe('スキル名・割り当ての競合（一意制約違反）', () => {
+  /**
+   * 事前チェックと書き込みの間に別のリクエストが入ると、
+   * DB の一意制約だけが最後の砦になる。違反を拾わないと
+   * 競合したときだけ生の Postgres エラーが画面まで出る。
+   */
+  const uniqueViolation = Object.assign(new Error('duplicate key value'), {
+    code: '23505',
+  });
+
+  it('createSkill は一意制約違反を事前チェックと同じ文言に変換する', async () => {
+    const { createSkill } = await import('@/services/skill');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+    db.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockRejectedValue(uniqueViolation),
+      }),
+    });
+
+    await expect(createSkill(adminCtx, { name: 'TypeScript' })).resolves.toEqual({
+      success: false,
+      error: 'このスキル名は既に使用されています',
+    });
+  });
+
+  it('updateSkill も UPDATE の一意制約違反を同じ文言に変換する', async () => {
+    const { updateSkill } = await import('@/services/skill');
+
+    const db = await getDb();
+    db.select.mockImplementation(
+      createSequentialSelect([[{ id: 'sk-1', name: 'TypeScript', category: '言語' }]]),
+    );
+    updateChain.then = vi
+      .fn()
+      .mockImplementation((_ok, onRejected) => Promise.reject(uniqueViolation).catch(onRejected));
+
+    // 名前は変えずカテゴリだけ変える（事前の重複チェックを通らない経路）。
+    await expect(
+      updateSkill(adminCtx, { id: 'sk-1', name: 'TypeScript', category: 'フロントエンド' }),
+    ).resolves.toEqual({
+      success: false,
+      error: 'このスキル名は既に使用されています',
+    });
+  });
+
+  it('assignSkill は割り当ての競合を案内付きのメッセージにする', async () => {
+    // 同じ従業員×スキルの同時割り当ては unique(employee_id, skill_id) に当たる。
+    const { assignSkill } = await import('@/services/skill');
+
+    const db = await getDb();
+    // 0: 従業員 / 1: スキル / 2: 既存の割り当て（無し）
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'emp-1' }], [{ id: 'sk-1' }], []]));
+    db.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockRejectedValue(uniqueViolation),
+      }),
+    });
+
+    const result = await assignSkill(adminCtx, {
+      employeeId: 'emp-1',
+      skillId: 'sk-1',
+      level: 3,
+    });
+
+    expect(result).toMatchObject({ success: false });
+    if (!result.success) {
+      expect(result.error).toContain('既に割り当てられています');
+    }
+  });
+
+  it('updateSkill も一意制約違反以外は握り潰さない', async () => {
+    const { updateSkill } = await import('@/services/skill');
+
+    const db = await getDb();
+    db.select.mockImplementation(
+      createSequentialSelect([[{ id: 'sk-1', name: 'TypeScript', category: '言語' }]]),
+    );
+    updateChain.then = vi
+      .fn()
+      .mockImplementation((_ok, onRejected) =>
+        Promise.reject(new Error('connection terminated')).catch(onRejected),
+      );
+
+    await expect(
+      updateSkill(adminCtx, { id: 'sk-1', name: 'TypeScript', category: 'フロントエンド' }),
+    ).rejects.toThrow('connection terminated');
+  });
+
+  it('assignSkill も一意制約違反以外は握り潰さない', async () => {
+    const { assignSkill } = await import('@/services/skill');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ id: 'emp-1' }], [{ id: 'sk-1' }], []]));
+    db.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockRejectedValue(new Error('connection terminated')),
+      }),
+    });
+
+    await expect(
+      assignSkill(adminCtx, { employeeId: 'emp-1', skillId: 'sk-1', level: 3 }),
+    ).rejects.toThrow('connection terminated');
+  });
+
+  it('createSkill は一意制約違反以外は握り潰さない', async () => {
+    const { createSkill } = await import('@/services/skill');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+    db.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockRejectedValue(new Error('connection terminated')),
+      }),
+    });
+
+    await expect(createSkill(adminCtx, { name: 'TypeScript' })).rejects.toThrow(
+      'connection terminated',
+    );
+  });
+});
+
 describe('deleteSkill', () => {
   it('deletes a skill for admin', async () => {
     const { deleteSkill } = await import('@/services/skill');

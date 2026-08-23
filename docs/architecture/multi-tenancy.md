@@ -1,38 +1,55 @@
-# テナント分離の防御多層化設計
+# テナント分離設計
 
 ## 設計方針
 
-テナント間のデータ漏洩を防ぐため、**2つのレイヤーで独立にテナント分離を保証**する。
+**DB に到達する経路をひとつに絞り、そこで分離を保証する。**
 
 ```mermaid
 graph LR
     REQ[Request] --> SVC[Service Layer]
     SVC -->|"WHERE org_id = ctx.orgId"| DRIZZLE[Drizzle ORM]
     DRIZZLE --> PG[(PostgreSQL)]
-    PG -->|"RLS: org_id check"| DATA[Data]
+    PG --> DATA[Data]
+
+    API["Data API<br/>(PostgREST / GraphQL)"] -.->|GRANT 剥奪済み| PG
 
     style SVC fill:#bbf,stroke:#333
-    style PG fill:#f9f,stroke:#333
+    style API stroke-dasharray: 5 5
 ```
 
-### Layer 1: Service Layer（主防御）
+### Layer 1: Service Layer（唯一の経路 / 主防御）
 
 - 全クエリに `WHERE org_id = ctx.orgId` を自動付与
 - `ctx.orgId` は JWT Custom Claims から取得した値のみ使用
 - Service Layer を経由しない DB アクセスは禁止
 
-### Layer 2: RLS（安全網）
+### Layer 2: Data API を閉じる
 
-- 全テーブルで RLS を有効化
-- ポリシーは `org_id = current_org_id()` のシンプルなチェックのみ
-- `current_org_id()` は JWT の `app_metadata.org_id` から取得
-- ロール別の制御はRLSに持たせない（Service Layer で担当）
+Supabase は Data API を既定で公開する。ここが開いていると、ログイン中の
+ユーザーが Service Layer を通さずにテーブルを直接叩けてしまい、
+**Service Layer にしか無い認可が丸ごと迂回される**。
 
-### なぜ二重にするのか
+`public` の全テーブル・ビューについて `anon` / `authenticated` の GRANT を
+剥がしてある（`supabase/migrations/20260822000001_revoke_data_api_grants.sql`）。
+詳しい経緯は [ADR 0011](../adr/0011-data-api-is-closed.md)。
 
-- Service Layer だけに頼ると、新しいクエリで `org_id` フィルタを付け忘れた場合にデータ漏洩
-- RLS だけに頼ると、ポリシーの設定漏れ・複雑なポリシーのバグでデータ漏洩
-- 二重にすることで、片方が漏れてももう片方がカバーする
+### RLS の位置づけ
+
+全テーブルで RLS を有効化し、`org_id = current_org_id()` のポリシーを定義して
+いるが、**アプリの経路では RLS は評価されない**。Drizzle は `DATABASE_URL` で
+`postgres`（テーブル所有者）として接続しており、所有者に RLS は適用されないため。
+
+| 経路                            | RLS が効くか | 認可を担うもの |
+| ------------------------------- | ------------ | -------------- |
+| アプリ（RSC / Server Action）   | **効かない** | Service Layer  |
+| Data API（PostgREST / GraphQL） | 効く         | —（閉鎖済み）  |
+
+つまり現状の RLS は「GRANT を戻したときのための保険」であって、
+稼働中の防御層ではない。ポリシーを残しているのは、将来 Data API を開ける
+判断をしたときに無防備にならないようにするため。
+
+**「二重防御があるから Service Layer は多少雑でもよい」とは考えないこと。**
+テナント分離は実質 Service Layer の単独責任である。
 
 ## org_id の強制
 

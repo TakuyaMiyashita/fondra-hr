@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { REDACTED } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 
 import { ctxOtherOrg } from '../helpers/auth-fixtures';
@@ -401,5 +402,65 @@ describe('writeAuditLog', () => {
       resourceId: null,
       changes: null,
     });
+  });
+});
+
+describe('writeAuditLog — 機微フィールドの伏せ字', () => {
+  async function write(changes: Record<string, unknown>) {
+    const { writeAuditLog } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    const insertChain = createSequentialSelect([[]])() as ChainMock;
+    db.insert.mockReturnValue(insertChain);
+
+    await writeAuditLog(adminCtx, 'x.update', 'x', 'id-1', changes);
+
+    return insertChain.values.mock.calls[0][0].changes as Record<string, unknown>;
+  }
+
+  // 監査ログは viewer も読める（認可マトリクス）。ここに値を素通しで書くと、
+  // field-visibility.ts と self.ts の可視制御が丸ごと打ち消される。
+  it.each([
+    ['birthDate', '1990-01-01'],
+    ['notes', 'キャリアの相談を受けた'],
+    ['comment', '目標を達成した'],
+    ['aiSummary', '前向きな面談だった'],
+    ['ratings', { technical: 5 }],
+  ])('%s は from / to の両方を伏せる', async (field, value) => {
+    const changes = await write({ [field]: { from: value, to: value } });
+
+    expect(changes[field]).toEqual({ from: REDACTED, to: REDACTED });
+    expect(JSON.stringify(changes)).not.toContain(JSON.stringify(value).slice(1, -1));
+  });
+
+  it('{ from, to } 形式でない素の値も伏せる', async () => {
+    // createEmployee は cleanInput の戻り値をそのまま渡すため、
+    // birthDate が入れ子ではなく素の値で来る経路がある。
+    const changes = await write({ birthDate: '1990-01-01', fullName: '山田太郎' });
+
+    expect(changes).toEqual({ birthDate: REDACTED, fullName: '山田太郎' });
+  });
+
+  it('機微でないフィールドは値をそのまま残す', async () => {
+    // 伏せ過ぎると監査ログとして役に立たなくなる。
+    const changes = await write({
+      employeeCode: { from: 'E001', to: 'E002' },
+      status: { from: 'active', to: 'retired' },
+    });
+
+    expect(changes).toEqual({
+      employeeCode: { from: 'E001', to: 'E002' },
+      status: { from: 'active', to: 'retired' },
+    });
+  });
+
+  it('伏せてもフィールド名と項目数は残る', async () => {
+    // 「誰がいつ何を変えたか」は監査ログの本体なので、そこは落とさない。
+    const changes = await write({
+      notes: { from: 'a', to: 'b' },
+      heldOn: { from: '2026-01-01', to: '2026-01-02' },
+    });
+
+    expect(Object.keys(changes)).toEqual(['notes', 'heldOn']);
   });
 });

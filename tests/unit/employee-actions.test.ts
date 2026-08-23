@@ -35,6 +35,7 @@ vi.mock('@/services/employee', () => ({
   createEmployee: vi.fn(),
   updateEmployee: vi.fn(),
   deleteEmployee: vi.fn(),
+  assertCanUpdateAvatar: vi.fn(),
   updateEmployeeAvatar: vi.fn(),
   getDepartmentsForOrg: vi.fn(),
   getEmployeeSkills: vi.fn(),
@@ -60,9 +61,10 @@ const validCreateInput = { employeeCode: 'E001', fullName: '山田太郎' };
 const storageUpload = vi.fn();
 const storageGetPublicUrl = vi.fn();
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   getAuthContext.mockResolvedValue(ctxAdmin);
+  (await svc()).assertCanUpdateAvatar.mockResolvedValue(ok(undefined));
   storageUpload.mockResolvedValue({ error: null });
   storageGetPublicUrl.mockReturnValue({
     data: { publicUrl: 'https://cdn.example.com/avatars/avatar.png' },
@@ -379,6 +381,34 @@ describe('uploadAvatarAction', () => {
     if (file) fd.append('file', file);
     return fd;
   }
+
+  it('権限が無ければ Storage に触れる前に落とす', async () => {
+    // Storage への書き込みは Service Layer の外で起きる。判定が後段だと、
+    // 権限の無いユーザーでもファイルだけ書き換わってしまう。
+    const { uploadAvatarAction } = await actions();
+    const s = await svc();
+    s.assertCanUpdateAvatar.mockResolvedValue(err('権限がありません'));
+
+    expect(await uploadAvatarAction(EMPLOYEE_ID, formOf(fileOf('avatar.png')))).toEqual(
+      err('権限がありません'),
+    );
+
+    expect(createClient).not.toHaveBeenCalled();
+    expect(storageUpload).not.toHaveBeenCalled();
+    expect(s.updateEmployeeAvatar).not.toHaveBeenCalled();
+  });
+
+  it('存在しない従業員でも Storage に触れる前に落とす', async () => {
+    const { uploadAvatarAction } = await actions();
+    const s = await svc();
+    s.assertCanUpdateAvatar.mockResolvedValue(err('従業員が見つかりません'));
+
+    expect(await uploadAvatarAction(EMPLOYEE_ID, formOf(fileOf('avatar.png')))).toEqual(
+      err('従業員が見つかりません'),
+    );
+
+    expect(storageUpload).not.toHaveBeenCalled();
+  });
 
   it('rejects a request with no file attached', async () => {
     const { uploadAvatarAction } = await actions();

@@ -167,6 +167,89 @@ if (existsSync(inventoryPath)) {
 }
 
 // ---------------------------------------------------------------------------
+// 8. Data API の GRANT が復活していないか
+//
+// 認可（ロール × リソース × 操作）は Service Layer にしか無い（ADR 0001）。
+// anon / authenticated にテーブル権限を与えると、ユーザーが Service Layer を
+// 通さずに直接テーブルを叩けるようになり、認可が丸ごと迂回される。
+// 実際、この GRANT が付いていた間は viewer が自分のロールを owner に
+// 書き換えられた（ADR 0011）。
+//
+// 過去のマイグレーションは書き換えられないので、個々の GRANT ではなく
+// **適用後の最終状態**を見る。後続の REVOKE で打ち消されていれば問題ない。
+//
+// tests/rls/data-api-closed.test.ts が実 DB で同じことを検証しているが、
+// あちらはローカル Supabase が要る。ここは静的に見るので CI の quality で止まる。
+// ---------------------------------------------------------------------------
+
+/** SQL からコメント・関数本体・文字列リテラルを落とす。散文中の grant を拾わないため。 */
+function stripSqlNoise(text) {
+  return text
+    .replace(/\$\$[\s\S]*?\$\$/g, ' ')
+    .replace(/--[^\n]*/g, ' ')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/'[^']*'/g, "''");
+}
+
+const EXPOSED_ROLES = ['anon', 'authenticated'];
+// `${role} ${target}` → それを与えたマイグレーション。REVOKE で消える。
+const dataApiGrants = new Map();
+
+// function / schema / sequence への権限は対象外。テーブルとビューだけを見る。
+const GRANT_RE =
+  /^(grant|revoke) (?:.+?) on (?!(?:all )?(?:function|schema|sequence|routine)\b)(?:table )?(.+?) (?:to|from) (.+)$/i;
+
+for (const migration of migrations) {
+  for (const raw of stripSqlNoise(read(migration)).split(';')) {
+    const statement = raw.replace(/\s+/g, ' ').trim();
+    const m = GRANT_RE.exec(statement);
+    if (!m) continue;
+
+    const [, verb, target, roleList] = m;
+    const roles = roleList.split(',').map((r) => r.trim().toLowerCase());
+
+    for (const role of EXPOSED_ROLES) {
+      if (!roles.includes(role)) continue;
+      const key = `${role} ${target.trim().toLowerCase()}`;
+      if (verb.toLowerCase() === 'grant') {
+        dataApiGrants.set(key, { migration, statement });
+      } else {
+        dataApiGrants.delete(key);
+      }
+    }
+  }
+}
+
+for (const [key, { migration, statement }] of dataApiGrants) {
+  const [role, target] = key.split(' ');
+  report(
+    'data-api-grant',
+    rel(migration),
+    `${role} が ${target} に到達できる状態のまま: ${statement}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 9. Drizzle を直接触ってよいのは Service Layer だけか
+//
+// AGENTS.md「RSC / Server Action / Route Handler から直接 Drizzle を呼ばない」
+// の機械化。ここを外れると authorize() も監査ログも通らない DB アクセス経路が
+// できる。実際 AI チャットの Route Handler が `@/db` を直接叩いており、
+// action-validation（actions.ts しか見ない）では捕まえられなかった。
+// ---------------------------------------------------------------------------
+const DB_IMPORT_RE = /from\s+['"]@\/db(?:\/[^'"]*)?['"]/;
+
+for (const file of walk(join(ROOT, 'src'), (p) => p.endsWith('.ts') || p.endsWith('.tsx'))) {
+  const path = rel(file);
+
+  // Service Layer 本体と、スキーマ定義そのものは対象外。
+  if (path.startsWith('src/services/') || path.startsWith('src/db/')) continue;
+  if (!DB_IMPORT_RE.test(read(file))) continue;
+
+  report('db-access', path, '@/db を直接 import している（Service Layer 経由にする）');
+}
+
+// ---------------------------------------------------------------------------
 // 出力
 // ---------------------------------------------------------------------------
 if (process.argv.includes('--json')) {

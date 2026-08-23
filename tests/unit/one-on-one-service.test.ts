@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { REDACTED } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { AuthorizationError } from '@/services/authorize';
 
@@ -748,11 +749,14 @@ describe('updateOneOnOne', () => {
     expect(setArg).not.toHaveProperty('moodScore');
     expect(setArg).not.toHaveProperty('employeeId');
 
+    // 面談メモの本文は監査ログでは伏せる（writeAuditLog）。
+    // 監査ログは全ロールが読めるため、ここに本文が残ると
+    // 当事者限定の閲覧制御（getOneOnOneScope）が打ち消される。
     expect(insertChain.values.mock.calls[0][0]).toMatchObject({
       action: 'one_on_one.update',
       resourceType: 'one_on_one',
       resourceId: 'oo1',
-      changes: { notes: { from: 'old notes', to: 'updated notes' } },
+      changes: { notes: { from: REDACTED, to: REDACTED } },
     });
   });
 

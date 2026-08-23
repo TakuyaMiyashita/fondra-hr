@@ -1,79 +1,31 @@
-import { count, eq, sql } from 'drizzle-orm';
-
-import { db } from '@/db';
-import { departments } from '@/db/schema/departments';
-import { employees } from '@/db/schema/employees';
-import { evaluationCycles } from '@/db/schema/evaluation-cycles';
-import { oneOnOnes } from '@/db/schema/one-on-ones';
-import { organizations } from '@/db/schema/organizations';
-import { skills } from '@/db/schema/skills';
 import type { AuthContext } from '@/services/auth-context';
+import { getOrgSummary } from '@/services/ai-context';
 
+/**
+ * AI アシスタントのシステムプロンプトを組み立てる。
+ *
+ * データ取得は Service Layer（`getOrgSummary`）に任せ、ここは整形だけを行う。
+ * Route Handler から Drizzle を直接叩かないため（AGENTS.md）。
+ */
 export async function buildSystemPrompt(ctx: AuthContext): Promise<string> {
-  const [orgRow, stats, deptStats, skillStats, cycleStats, oneOnOneStats, deptList] =
-    await Promise.all([
-      db
-        .select({ name: organizations.name })
-        .from(organizations)
-        .where(eq(organizations.id, ctx.orgId))
-        .limit(1)
-        .then((r) => r[0]),
-      db
-        .select({ employeeCount: count(employees.id) })
-        .from(employees)
-        .where(eq(employees.orgId, ctx.orgId))
-        .then((r) => r[0]),
-      db
-        .select({ departmentCount: count(departments.id) })
-        .from(departments)
-        .where(eq(departments.orgId, ctx.orgId))
-        .then((r) => r[0]),
-      db
-        .select({ skillCount: count(skills.id) })
-        .from(skills)
-        .where(eq(skills.orgId, ctx.orgId))
-        .then((r) => r[0]),
-      db
-        .select({ cycleCount: count(evaluationCycles.id) })
-        .from(evaluationCycles)
-        .where(eq(evaluationCycles.orgId, ctx.orgId))
-        .then((r) => r[0]),
-      db
-        .select({ oneOnOneCount: count(oneOnOnes.id) })
-        .from(oneOnOnes)
-        .where(eq(oneOnOnes.orgId, ctx.orgId))
-        .then((r) => r[0]),
-      db
-        .select({
-          name: departments.name,
-          memberCount: sql<number>`(
-            SELECT count(*) FROM employees
-            WHERE employees.department_id = ${departments.id}
-              AND employees.org_id = ${ctx.orgId}
-          )`,
-        })
-        .from(departments)
-        .where(eq(departments.orgId, ctx.orgId))
-        .limit(20),
-    ]);
+  const summary = await getOrgSummary(ctx);
 
-  const orgName = orgRow?.name ?? '不明';
   const deptSummary =
-    deptList.length > 0
-      ? deptList.map((d) => `  - ${d.name}（${d.memberCount}名）`).join('\n')
+    summary.departments.length > 0
+      ? summary.departments.map((d) => `  - ${d.name}（${d.memberCount}名）`).join('\n')
       : '  部署データなし';
 
-  return `あなたは「${orgName}」のHRアシスタントです。
+  return `あなたは「${summary.orgName}」のHRアシスタントです。
 組織の人材データについて質問に答え、分析を提供します。
 回答は日本語で、簡潔かつ具体的に行ってください。
 
 ## 組織の現在のデータ概要
 
-- 従業員数: ${stats.employeeCount}名
-- 部署数: ${deptStats.departmentCount}
-- 登録スキル数: ${skillStats.skillCount}
-- 評価サイクル数: ${cycleStats.cycleCount}
-- 1on1記録数: ${oneOnOneStats.oneOnOneCount}件
+- 従業員数: ${summary.employeeCount}名
+- 部署数: ${summary.departmentCount}
+- 登録スキル数: ${summary.skillCount}
+- 評価サイクル数: ${summary.cycleCount}
+- 1on1記録数: ${summary.oneOnOneCount}件
 
 ## 部署構成
 ${deptSummary}

@@ -59,10 +59,26 @@ async function writeAuditLog(
 
 **更新系（create / update / delete）** の Service メソッドの末尾で呼び出し、
 操作を `audit_logs` に記録する。参照系は記録しない。
+監査ログを書く経路はここだけ（DB トリガーによる自動記録は撤去済み）。
+
+`writeAuditLog()` は機微フィールド（`birthDate` / `notes` / `comment` /
+`aiSummary` / `ratings`）の**値を伏せる**。監査ログは全ロールが読めるため、
+本文を残すとフィールド単位の可視制御が打ち消される。
+フィールド名と変更があった事実は残る。
 
 `audit_logs` はトリガーで UPDATE / DELETE を拒否している（追記のみ）。
 そのため監査ログを持つ組織は通常の `DELETE` では消せず、削除には
 DB 関数 `purge_organization()` を使う（後述）。
+
+## Route Handler からの利用
+
+`src/app/api/chat/` の AI アシスタントも Service Layer を経由する
+（`getOrgSummary()` / `src/services/ai-context.ts`）。Route Handler から
+Drizzle を直接呼ばない点は RSC / Server Action と同じ。
+
+AI に渡すのは**個人を特定しない集計値だけ**にすること。個々の従業員名・
+評価・1on1 の内容を混ぜると、ロール別・本人限定の可視制御を
+AI の回答経由で迂回できてしまう。
 
 ## 本人限定の認可
 

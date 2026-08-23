@@ -8,6 +8,46 @@ import type { AuthContext } from '@/services/auth-context';
 import { authorize } from '@/services/authorize';
 import type { AuditLog, AuditLogListResult } from '@/types/audit-log';
 
+/**
+ * 監査ログに値を残さないフィールド。
+ *
+ * 監査ログは全ロールが読める（docs/database/authorization-matrix.md）。
+ * 一方これらは行単位・フィールド単位の可視制御で特定の相手にしか
+ * 見せていない値であり（src/services/field-visibility.ts、
+ * src/services/self.ts）、変更内容として素通しで書くと
+ * viewer が監査ログ画面を開くだけで全部読めてしまう。
+ *
+ * 監査ログに要るのは「誰がいつ何を変えたか」であって、変更後の値ではない。
+ * フィールド名と変更があった事実だけを残し、値は伏せる。
+ */
+const REDACTED_FIELDS = new Set(['birthDate', 'notes', 'comment', 'aiSummary', 'ratings']);
+
+/** 伏せた値の表示。UI はこの文字列をそのまま描画する。 */
+export const REDACTED = '（記録しない）';
+
+/**
+ * 機微フィールドの値を伏せる。`{ from, to }` 形式と素の値の両方を受ける。
+ *
+ * キーの集合は変えないので、変更されたフィールド名と項目数は監査ログに残る。
+ */
+function redact(changes: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(changes)) {
+    if (!REDACTED_FIELDS.has(key)) {
+      result[key] = value;
+      continue;
+    }
+
+    const isChangePair =
+      typeof value === 'object' && value !== null && 'from' in value && 'to' in value;
+
+    result[key] = isChangePair ? { from: REDACTED, to: REDACTED } : REDACTED;
+  }
+
+  return result;
+}
+
 export async function writeAuditLog(
   ctx: AuthContext,
   action: string,
@@ -21,7 +61,7 @@ export async function writeAuditLog(
     action,
     resourceType,
     resourceId,
-    changes: changes ?? null,
+    changes: changes ? redact(changes) : null,
   });
 }
 

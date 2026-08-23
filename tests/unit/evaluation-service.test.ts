@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { REDACTED } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { AuthorizationError } from '@/services/authorize';
 
@@ -681,11 +682,14 @@ describe('getCycle', () => {
   });
 });
 
-describe('getCycle — 評価コメントのフィールド制御', () => {
+describe('getCycle — 評価の中身のフィールド制御', () => {
   /**
    * 評価サイクルの read は全ロールに開いているため、行単位では
-   * コメントを守れない。member / viewer には自分が書いた評価の
-   * コメントだけを返す（被評価者本人にも見せない）。
+   * 中身を守れない。member / viewer には自分が書いた評価の
+   * コメントと評点だけを返す（被評価者本人にも見せない）。
+   *
+   * 評点はコメントと同じ条件で落とす。「何点を付けられたか」は
+   * 「何と書かれたか」と同じだけ機微で、片方だけ伏せても意味が無い。
    */
   const cycleRow = {
     id: 'c1',
@@ -706,7 +710,7 @@ describe('getCycle — 評価コメントのフィールド制御', () => {
       employeeCode: 'EMP-001',
       evaluatorId: 'me',
       evaluatorName: '自分',
-      ratings: null,
+      ratings: { performance: 5 },
       comment: '自分が書いた評価',
       status: 'draft',
       createdAt: new Date(),
@@ -719,7 +723,7 @@ describe('getCycle — 評価コメントのフィールド制御', () => {
       employeeCode: 'EMP-002',
       evaluatorId: 'someone-else',
       evaluatorName: '佐藤次郎',
-      ratings: null,
+      ratings: { performance: 2 },
       comment: '他人が書いた評価',
       status: 'draft',
       createdAt: new Date(),
@@ -736,6 +740,17 @@ describe('getCycle — 評価コメントのフィールド制御', () => {
     const result = await getCycle(ctx, 'c1');
     if (!result.success) throw new Error('取得に失敗した');
     return result.data.evaluations.map((e) => e.comment);
+  }
+
+  async function ratings(ctx: AuthContext, own: unknown[] = [{ id: 'me' }]) {
+    const { getCycle } = await import('@/services/evaluation');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSelectSequence([[cycleRow], [], [], evalRows, own]));
+
+    const result = await getCycle(ctx, 'c1');
+    if (!result.success) throw new Error('取得に失敗した');
+    return result.data.evaluations.map((e) => e.ratings);
   }
 
   it('admin には全件のコメントを返す', async () => {
@@ -766,7 +781,21 @@ describe('getCycle — 評価コメントのフィールド制御', () => {
     await expect(comments(viewerCtx, [])).resolves.toEqual([null, null]);
   });
 
-  it('マスクはコメントだけで、他のフィールドはそのまま返す', async () => {
+  it('admin には全件の評点を返す', async () => {
+    await expect(ratings(adminCtx)).resolves.toEqual([{ performance: 5 }, { performance: 2 }]);
+  });
+
+  it('member には自分が評価者の評点だけを返す', async () => {
+    // コメントと同じ境界。ここがずれると、コメントを伏せた意味が無くなる。
+    await expect(ratings(memberCtx)).resolves.toEqual([{ performance: 5 }, null]);
+  });
+
+  it('viewer には評点を返さない', async () => {
+    await expect(ratings(viewerCtx, [])).resolves.toEqual([null, null]);
+  });
+
+  it('マスクはコメントと評点だけで、他のフィールドはそのまま返す', async () => {
+    // 評価の「存在」（誰が誰を評価するか）は人事運用上オープンでよい。
     const { getCycle } = await import('@/services/evaluation');
 
     const db = await getDb();
@@ -780,6 +809,8 @@ describe('getCycle — 評価コメントのフィールド制御', () => {
       employeeName: '山田太郎',
       evaluatorName: '自分',
       status: 'draft',
+      comment: null,
+      ratings: null,
     });
   });
 });
@@ -1167,10 +1198,12 @@ describe('updateEvaluation — 差分更新の詳細', () => {
     await updateEvaluation(adminCtx, { id: 'ev1', comment: '' });
 
     expect((updateChain.set.mock.calls[0][0] as Record<string, unknown>).comment).toBeNull();
+    // 監査ログ側はコメントの値を伏せる（writeAuditLog）。
+    // 「comment が変わった」ことは残り、本文は残らない。
     expect(insertChain.values.mock.calls[0][0]).toMatchObject({
       action: 'evaluation.update',
       resourceId: 'ev1',
-      changes: { comment: { from: 'これまでのコメント', to: null } },
+      changes: { comment: { from: REDACTED, to: REDACTED } },
     });
   });
 
@@ -1217,8 +1250,9 @@ describe('updateEvaluation — 差分更新の詳細', () => {
     await updateEvaluation(adminCtx, { id: 'ev1', ratings: { performance: 4 } });
 
     expect(db.update).toHaveBeenCalled();
+    // ratings も評価の中身なので監査ログでは伏せる。差分に載ること自体は変わらない。
     expect(insertChain.values.mock.calls[0][0]).toMatchObject({
-      changes: { ratings: { from: { performance: 4 }, to: { performance: 4 } } },
+      changes: { ratings: { from: REDACTED, to: REDACTED } },
     });
   });
 
@@ -1281,7 +1315,7 @@ describe('updateEvaluation — 差分更新の詳細', () => {
 
   /**
    * 確定（confirmed）は被評価者本人への開示スイッチそのもの
-   * （canReadEvaluationComment）。評価者が自分で倒せると、開示のタイミングを
+   * （canReadEvaluationDetail）。評価者が自分で倒せると、開示のタイミングを
    * 評価者が握ることになるため admin 以上に限定する。
    */
   it('member は評価を確定できない', async () => {

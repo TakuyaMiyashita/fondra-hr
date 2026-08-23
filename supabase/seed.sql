@@ -27,23 +27,16 @@
 begin;
 
 --------------------------------------------------------------------------------
--- 監査トリガの一時停止
+-- 監査ログについて
 --
--- ドメインテーブルには audit_log_trigger が張られており、シード投入だけで
--- 数百件の監査ログが「すべて同一タイムスタンプ・actor 不明」で生成されてしまう。
--- デモとして意味のある監査ログは最後に手で投入するため、ここでは停止する。
+-- 監査ログの記録は Service Layer の writeAuditLog() に一本化されており
+-- （20260822000002 でドメインテーブルの監査トリガを撤去した）、
+-- シード投入では監査ログは発生しない。デモとして意味のある監査ログは
+-- 最後に手で投入する。
 --
--- audit_logs の変更禁止トリガは停止しない。再実行時のクリーンアップには
+-- audit_logs の変更禁止トリガは健在。再実行時のクリーンアップには
 -- 正規のパージ経路（purge_organization）を使う。
 --------------------------------------------------------------------------------
-
-alter table public.departments        disable trigger audit_departments;
-alter table public.employees          disable trigger audit_employees;
-alter table public.skills             disable trigger audit_skills;
-alter table public.employee_skills    disable trigger audit_employee_skills;
-alter table public.one_on_ones        disable trigger audit_one_on_ones;
-alter table public.evaluation_cycles  disable trigger audit_evaluation_cycles;
-alter table public.evaluations        disable trigger audit_evaluations;
 
 --------------------------------------------------------------------------------
 -- 決定的な擬似乱数ヘルパー
@@ -611,17 +604,5 @@ values
     jsonb_build_object('name', 'jQuery'),
     '203.0.113.24', now() - interval '5 days'
   );
-
---------------------------------------------------------------------------------
--- 監査トリガの復帰
---------------------------------------------------------------------------------
-
-alter table public.departments        enable trigger audit_departments;
-alter table public.employees          enable trigger audit_employees;
-alter table public.skills             enable trigger audit_skills;
-alter table public.employee_skills    enable trigger audit_employee_skills;
-alter table public.one_on_ones        enable trigger audit_one_on_ones;
-alter table public.evaluation_cycles  enable trigger audit_evaluation_cycles;
-alter table public.evaluations        enable trigger audit_evaluations;
 
 commit;

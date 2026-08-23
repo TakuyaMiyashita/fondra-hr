@@ -3,6 +3,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { closeRlsClient, rlsClient } from './rls-client';
+
 const SUPABASE_URL = 'http://127.0.0.1:54321';
 const ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
@@ -17,8 +19,12 @@ describe('RLS: tenant isolation', () => {
   let orgBId: string;
   let userAId: string;
   let userBId: string;
-  let clientA: SupabaseClient;
-  let clientB: SupabaseClient;
+  // RLS ポリシーの検証は直接接続でロールを切り替えて行う（./rls-client.ts）。
+  let clientA: ReturnType<typeof rlsClient>;
+  let clientB: ReturnType<typeof rlsClient>;
+  // JWT フックの検証だけは実際のサインインが要るので Supabase クライアントを使う。
+  let authClientA: SupabaseClient;
+  let authClientB: SupabaseClient;
   let invitationBId: string;
 
   beforeAll(async () => {
@@ -85,17 +91,20 @@ describe('RLS: tenant isolation', () => {
     if (invBErr) throw invBErr;
     invitationBId = invB.id;
 
+    clientA = rlsClient({ sub: userAId, orgId: orgAId });
+    clientB = rlsClient({ sub: userBId, orgId: orgBId });
+
     // Sign in as user A → Custom Access Token Hook enriches JWT with org A
-    clientA = createClient(SUPABASE_URL, ANON_KEY);
-    const { error: signInAErr } = await clientA.auth.signInWithPassword({
+    authClientA = createClient(SUPABASE_URL, ANON_KEY);
+    const { error: signInAErr } = await authClientA.auth.signInWithPassword({
       email: `user-a-${testId}@test.example.com`,
       password: 'test-password-123',
     });
     if (signInAErr) throw signInAErr;
 
     // Sign in as user B → Custom Access Token Hook enriches JWT with org B
-    clientB = createClient(SUPABASE_URL, ANON_KEY);
-    const { error: signInBErr } = await clientB.auth.signInWithPassword({
+    authClientB = createClient(SUPABASE_URL, ANON_KEY);
+    const { error: signInBErr } = await authClientB.auth.signInWithPassword({
       email: `user-b-${testId}@test.example.com`,
       password: 'test-password-123',
     });
@@ -112,6 +121,7 @@ describe('RLS: tenant isolation', () => {
     }
     if (userAId) await admin.auth.admin.deleteUser(userAId);
     if (userBId) await admin.auth.admin.deleteUser(userBId);
+    await closeRlsClient();
   });
 
   // ---------------------------------------------------------------------------
@@ -225,7 +235,7 @@ describe('RLS: tenant isolation', () => {
     it('JWT contains org_id and role after sign-in', async () => {
       const {
         data: { session },
-      } = await clientA.auth.getSession();
+      } = await authClientA.auth.getSession();
       expect(session).not.toBeNull();
 
       const jwt = JSON.parse(atob(session!.access_token.split('.')[1]));
@@ -236,7 +246,7 @@ describe('RLS: tenant isolation', () => {
     it('JWT reflects org B for user B', async () => {
       const {
         data: { session },
-      } = await clientB.auth.getSession();
+      } = await authClientB.auth.getSession();
       const jwt = JSON.parse(atob(session!.access_token.split('.')[1]));
       expect(jwt.app_metadata.org_id).toBe(orgBId);
       expect(jwt.app_metadata.role).toBe('owner');

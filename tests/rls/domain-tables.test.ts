@@ -1,11 +1,11 @@
 // @vitest-environment node
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { closeRlsClient, rlsClient } from './rls-client';
+
 const SUPABASE_URL = 'http://127.0.0.1:54321';
-const ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
 const SERVICE_ROLE_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
 
@@ -17,8 +17,8 @@ describe('RLS: domain tables tenant isolation', () => {
   let orgBId: string;
   let userAId: string;
   let userBId: string;
-  let clientA: SupabaseClient;
-  let clientB: SupabaseClient;
+  let clientA: ReturnType<typeof rlsClient>;
+  let clientB: ReturnType<typeof rlsClient>;
 
   // Test entity IDs for org A
   let deptAId: string;
@@ -146,18 +146,10 @@ describe('RLS: domain tables tenant isolation', () => {
       full_name: 'Employee B1',
     });
 
-    // Sign in
-    clientA = createClient(SUPABASE_URL, ANON_KEY);
-    await clientA.auth.signInWithPassword({
-      email: `domain-a-${testId}@test.example.com`,
-      password: 'test-password-123',
-    });
-
-    clientB = createClient(SUPABASE_URL, ANON_KEY);
-    await clientB.auth.signInWithPassword({
-      email: `domain-b-${testId}@test.example.com`,
-      password: 'test-password-123',
-    });
+    // Data API は閉じているため（20260822000001）、RLS ポリシーの検証は
+    // 直接接続でロールを切り替えて行う。詳細は ./rls-client.ts を参照。
+    clientA = rlsClient({ sub: userAId, orgId: orgAId });
+    clientB = rlsClient({ sub: userBId, orgId: orgBId });
   }, 30_000);
 
   afterAll(async () => {
@@ -172,6 +164,7 @@ describe('RLS: domain tables tenant isolation', () => {
     }
     if (userAId) await admin.auth.admin.deleteUser(userAId);
     if (userBId) await admin.auth.admin.deleteUser(userBId);
+    await closeRlsClient();
   });
 
   // ---------------------------------------------------------------------------
@@ -360,10 +353,18 @@ describe('RLS: domain tables tenant isolation', () => {
         .single();
       throwawayOrgId = org!.id;
 
-      // 監査ログを持つ状態にする（employees の INSERT でトリガが発火する）
       await admin
         .from('employees')
         .insert({ org_id: throwawayOrgId, employee_code: 'PURGE-001', full_name: 'パージ対象' });
+
+      // 監査ログを持つ状態にする。20260822000002 でドメインテーブルの
+      // 監査トリガを撤去したため、記録は Service Layer が行う。
+      // ここはその代役として直接投入する。
+      await admin.from('audit_logs').insert({
+        org_id: throwawayOrgId,
+        action: 'employee.create',
+        resource_type: 'employee',
+      });
     });
 
     it('has audit logs before purge', async () => {
@@ -375,11 +376,6 @@ describe('RLS: domain tables tenant isolation', () => {
       const { error } = await admin.from('organizations').delete().eq('id', throwawayOrgId);
       expect(error).not.toBeNull();
       expect(error!.message).toContain('cannot be modified');
-    });
-
-    it('is not callable by an authenticated user', async () => {
-      const { error } = await clientA.rpc('purge_organization', { p_org_id: throwawayOrgId });
-      expect(error).not.toBeNull();
     });
 
     it('purges the organization and its audit logs via service_role', async () => {
@@ -406,6 +402,12 @@ describe('RLS: domain tables tenant isolation', () => {
     });
 
     it('does not leak the purge flag to later statements', async () => {
+      await admin.from('audit_logs').insert({
+        org_id: orgAId,
+        action: 'employee.create',
+        resource_type: 'employee',
+      });
+
       const { data: logs } = await admin
         .from('audit_logs')
         .select('id')
@@ -416,22 +418,6 @@ describe('RLS: domain tables tenant isolation', () => {
       const { error } = await admin.from('audit_logs').delete().eq('id', logs![0].id);
       expect(error).not.toBeNull();
       expect(error!.message).toContain('cannot be modified');
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // audit log auto-recording
-  // ---------------------------------------------------------------------------
-  describe('audit log auto-recording', () => {
-    it('inserting an employee auto-creates an audit log', async () => {
-      const { data: logs } = await admin
-        .from('audit_logs')
-        .select()
-        .eq('org_id', orgAId)
-        .eq('resource_type', 'employees')
-        .eq('resource_id', empAId)
-        .eq('action', 'create');
-      expect(logs!.length).toBeGreaterThanOrEqual(1);
     });
   });
 

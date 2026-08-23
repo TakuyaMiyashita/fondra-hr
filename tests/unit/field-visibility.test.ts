@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { AuthContext, Role } from '@/services/auth-context';
 import {
   canReadBirthDate,
-  canReadEvaluationComment,
+  canReadEvaluationDetail,
   canReadPersonalData,
 } from '@/services/field-visibility';
 
@@ -50,7 +50,7 @@ describe('canReadBirthDate', () => {
   });
 });
 
-describe('canReadEvaluationComment', () => {
+describe('canReadEvaluationDetail', () => {
   const evaluation = (
     over: Partial<{ evaluatorId: string; employeeId: string; status: string }> = {},
   ) => ({
@@ -61,22 +61,22 @@ describe('canReadEvaluationComment', () => {
   });
 
   it('admin 以上は評価者・被評価者に関わらず見られる', () => {
-    expect(canReadEvaluationComment(ctxOf('admin'), evaluation(), null)).toBe(true);
-    expect(canReadEvaluationComment(ctxOf('owner'), evaluation(), 'me')).toBe(true);
+    expect(canReadEvaluationDetail(ctxOf('admin'), evaluation(), null)).toBe(true);
+    expect(canReadEvaluationDetail(ctxOf('owner'), evaluation(), 'me')).toBe(true);
   });
 
   it('自分が評価者なら状態に関わらず見られる', () => {
     // 書いた本人なので下書き段階でも隠す理由が無い。
     for (const status of ['draft', 'in_progress', 'submitted', 'confirmed', 'returned']) {
       expect(
-        canReadEvaluationComment(ctxOf('member'), evaluation({ evaluatorId: 'me', status }), 'me'),
+        canReadEvaluationDetail(ctxOf('member'), evaluation({ evaluatorId: 'me', status }), 'me'),
       ).toBe(true);
     }
   });
 
   it('自分が被評価者なら確定後だけ見られる', () => {
     expect(
-      canReadEvaluationComment(
+      canReadEvaluationDetail(
         ctxOf('member'),
         evaluation({ employeeId: 'me', status: 'confirmed' }),
         'me',
@@ -92,14 +92,14 @@ describe('canReadEvaluationComment', () => {
     '被評価者本人でも %s の段階では見られない',
     (status) => {
       expect(
-        canReadEvaluationComment(ctxOf('member'), evaluation({ employeeId: 'me', status }), 'me'),
+        canReadEvaluationDetail(ctxOf('member'), evaluation({ employeeId: 'me', status }), 'me'),
       ).toBe(false);
     },
   );
 
   it('当事者でなければ確定済みでも見られない', () => {
     expect(
-      canReadEvaluationComment(ctxOf('member'), evaluation({ status: 'confirmed' }), 'me'),
+      canReadEvaluationDetail(ctxOf('member'), evaluation({ status: 'confirmed' }), 'me'),
     ).toBe(false);
   });
 
@@ -109,7 +109,7 @@ describe('canReadEvaluationComment', () => {
    */
   it('紐付いていない member は確定済みでも見られない', () => {
     expect(
-      canReadEvaluationComment(
+      canReadEvaluationDetail(
         ctxOf('member'),
         evaluation({ employeeId: 'someone', status: 'confirmed' }),
         null,
@@ -119,13 +119,13 @@ describe('canReadEvaluationComment', () => {
 
   it('viewer も同じ規則に従う', () => {
     expect(
-      canReadEvaluationComment(
+      canReadEvaluationDetail(
         ctxOf('viewer'),
         evaluation({ employeeId: 'me', status: 'confirmed' }),
         'me',
       ),
     ).toBe(true);
-    expect(canReadEvaluationComment(ctxOf('viewer'), evaluation({ employeeId: 'me' }), 'me')).toBe(
+    expect(canReadEvaluationDetail(ctxOf('viewer'), evaluation({ employeeId: 'me' }), 'me')).toBe(
       false,
     );
   });

@@ -3,8 +3,16 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const PUBLIC_PATHS = ['/login', '/signup', '/reset-password', '/auth/callback', '/invite'];
 
+/**
+ * 未認証で通してよいパスか。
+ *
+ * 前方一致ではなくセグメント単位で判定する。`startsWith` だけだと
+ * `/loginX` のような別パスまで公開扱いになり、将来そこにルートが増えたときに
+ * 認証を素通りする。`/invite/<token>` のような子パスは通す必要があるため、
+ * 完全一致に加えて「区切り文字まで含めた前方一致」を見る。
+ */
 function isPublicPath(pathname: string) {
-  return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 export async function updateSession(request: NextRequest) {

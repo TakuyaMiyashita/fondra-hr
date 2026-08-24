@@ -14,7 +14,7 @@ import {
   type SkillListQuery,
   type SkillMatrixQuery,
 } from '@/lib/validations/skill';
-import { AuthorizationError } from '@/services/authorize';
+import { AuthorizationError, authorizationMessage } from '@/services/authorize';
 import {
   assignSkill as assignSkillSvc,
   createSkill as createSkillSvc,
@@ -38,7 +38,7 @@ export async function fetchSkills(query: SkillListQuery): Promise<Result<SkillLi
     const result = await listSkillsSvc(ctx, parsed.data);
     return ok(result);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -57,7 +57,7 @@ export async function createSkillAction(data: unknown): Promise<Result<{ id: str
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -76,7 +76,7 @@ export async function updateSkillAction(data: unknown): Promise<Result<void>> {
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -98,7 +98,7 @@ export async function deleteSkillAction(id: string): Promise<Result<void>> {
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -124,7 +124,7 @@ export async function fetchSkillMatrix(query: SkillMatrixQuery): Promise<Result<
     const result = await getSkillMatrixSvc(ctx, parsed.data);
     return ok(result);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -143,7 +143,7 @@ export async function assignSkillAction(data: unknown): Promise<Result<void>> {
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -170,7 +170,7 @@ export async function removeSkillAssignmentAction(
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }

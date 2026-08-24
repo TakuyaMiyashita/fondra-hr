@@ -118,6 +118,12 @@ admin 以上に限定する（`supabase/migrations/20260823000001_restrict_avata
 
 認可チェックは Service Layer と UI の二重で行う。Service Layer が主、UI は UX 目的。
 
+**公開デモでは、この表の上にもう一段「書き込み禁止」が乗る。**
+`DEMO_READONLY_ORG_ID` に指定した組織では、ロールに関係なく
+create / update / delete を拒否する（[ADR 0012](../adr/0012-demo-org-is-read-only.md)）。
+読み取りはこの表のとおりに動く。環境変数が未設定なら何も起きないので、
+ローカル・CI では表がそのまま効く。
+
 **この表のロール制御を持っているのは Service Layer だけ**である。RLS は
 `org_id` しか見ないため、Service Layer を通らない経路が開いていると
 この表は丸ごと迂回される。実際 Data API（PostgREST）が開いていた間は、

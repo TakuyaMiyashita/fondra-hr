@@ -11,7 +11,7 @@ import {
   updateOneOnOneSchema,
   type OneOnOneListQuery,
 } from '@/lib/validations/one-on-one';
-import { AuthorizationError } from '@/services/authorize';
+import { AuthorizationError, authorizationMessage } from '@/services/authorize';
 import {
   createOneOnOne as createSvc,
   deleteOneOnOne as deleteSvc,
@@ -34,7 +34,7 @@ export async function fetchOneOnOnes(
     const result = await listSvc(ctx, parsed.data);
     return ok(result);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -53,7 +53,7 @@ export async function createOneOnOneAction(data: unknown): Promise<Result<{ id: 
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -72,7 +72,7 @@ export async function updateOneOnOneAction(data: unknown): Promise<Result<void>>
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -93,7 +93,7 @@ export async function deleteOneOnOneAction(id: string): Promise<Result<void>> {
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }

@@ -25,7 +25,7 @@ import {
   assertCanUpdateAvatar as assertCanUpdateAvatarSvc,
   updateEmployeeAvatar as updateEmployeeAvatarSvc,
 } from '@/services/employee';
-import { AuthorizationError } from '@/services/authorize';
+import { AuthorizationError, authorizationMessage } from '@/services/authorize';
 import type {
   DepartmentOption,
   EmployeeDetail,
@@ -48,7 +48,7 @@ export async function fetchEmployees(
     const result = await listEmployeesSvc(ctx, parsed.data);
     return ok(result);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -65,7 +65,7 @@ export async function fetchEmployee(id: string): Promise<Result<EmployeeDetail>>
     const ctx = await getAuthContext();
     return await getEmployeeSvc(ctx, parsed.data);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -84,7 +84,7 @@ export async function createEmployeeAction(data: unknown): Promise<Result<{ id: 
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -106,7 +106,7 @@ export async function updateEmployeeAction(data: unknown): Promise<Result<void>>
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -125,7 +125,7 @@ export async function deleteEmployeeAction(id: string): Promise<Result<void>> {
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -174,7 +174,7 @@ export async function uploadAvatarAction(
     revalidatePath(`/employees/${employeeId}`);
     return ok({ path: urlData.publicUrl });
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }

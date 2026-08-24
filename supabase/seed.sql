@@ -115,6 +115,18 @@ values
     '{"full_name":"高橋 誠"}'::jsonb,
     '', '', '', '',
     now() - interval '250 days', now()
+  ),
+  (
+    '00000000-0000-0000-0000-000000000000',
+    '2f9a1c00-0000-4000-8000-000000000004',
+    'authenticated', 'authenticated',
+    'viewer@fondra.example.com',
+    extensions.crypt('demo-password123', extensions.gen_salt('bf')),
+    now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"full_name":"渡辺 咲"}'::jsonb,
+    '', '', '', '',
+    now() - interval '120 days', now()
   );
 
 insert into auth.identities (
@@ -148,7 +160,11 @@ insert into public.memberships (user_id, org_id, role, created_at)
 values
   ('2f9a1c00-0000-4000-8000-000000000001', 'f0d3a000-0000-4000-8000-000000000001', 'owner',  now() - interval '400 days'),
   ('2f9a1c00-0000-4000-8000-000000000002', 'f0d3a000-0000-4000-8000-000000000001', 'admin',  now() - interval '300 days'),
-  ('2f9a1c00-0000-4000-8000-000000000003', 'f0d3a000-0000-4000-8000-000000000001', 'member', now() - interval '250 days');
+  ('2f9a1c00-0000-4000-8000-000000000003', 'f0d3a000-0000-4000-8000-000000000001', 'member', now() - interval '250 days'),
+  -- viewer は従業員レコードと紐付けない（メールが一致する従業員を置いていない）。
+  -- 「未紐付けのユーザーは本人限定データが何も見えない」という ADR 0003 の
+  -- 挙動が、そのままデモで見える状態になる。
+  ('2f9a1c00-0000-4000-8000-000000000004', 'f0d3a000-0000-4000-8000-000000000001', 'viewer', now() - interval '120 days');
 
 -- 招待の保留中サンプル（設定 > メンバー画面の表示確認用）
 insert into public.invitations (org_id, email, role, expires_at, created_at)

@@ -3,7 +3,7 @@
 import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
 import { auditLogListQuerySchema, type AuditLogListQuery } from '@/lib/validations/audit-log';
-import { AuthorizationError } from '@/services/authorize';
+import { AuthorizationError, authorizationMessage } from '@/services/authorize';
 import {
   getResourceTypes as getResourceTypesSvc,
   listAuditLogs as listSvc,
@@ -23,7 +23,7 @@ export async function fetchAuditLogs(
     const result = await listSvc(ctx, parsed.data);
     return ok(result);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }

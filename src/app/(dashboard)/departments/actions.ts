@@ -17,7 +17,7 @@ import {
   listDepartments as listDepartmentsSvc,
   updateDepartment as updateDepartmentSvc,
 } from '@/services/department';
-import { AuthorizationError } from '@/services/authorize';
+import { AuthorizationError, authorizationMessage } from '@/services/authorize';
 import type { Department, DepartmentTreeNode } from '@/types/department';
 
 export async function fetchDepartmentTree(): Promise<Result<DepartmentTreeNode[]>> {
@@ -26,7 +26,7 @@ export async function fetchDepartmentTree(): Promise<Result<DepartmentTreeNode[]
     const tree = await getDepartmentTreeSvc(ctx);
     return ok(tree);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -37,7 +37,7 @@ export async function fetchDepartmentList(): Promise<Result<Department[]>> {
     const list = await listDepartmentsSvc(ctx);
     return ok(list);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -57,7 +57,7 @@ export async function createDepartmentAction(data: unknown): Promise<Result<{ id
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -79,7 +79,7 @@ export async function updateDepartmentAction(data: unknown): Promise<Result<void
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -103,7 +103,7 @@ export async function moveDepartmentAction(
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -125,7 +125,7 @@ export async function deleteDepartmentAction(id: string): Promise<Result<void>> 
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }

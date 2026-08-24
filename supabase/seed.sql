@@ -11,7 +11,7 @@
 --
 -- 生成されるもの:
 --   - 組織 1件（株式会社フォンドラ）
---   - ログイン可能なユーザー 3名（owner / admin / member）
+--   - ログイン可能なユーザー 4名（owner / admin / member / viewer）
 --   - 部署 12件（2階層）/ 従業員 30名 / スキル 22件
 --   - スキル割当・1on1・評価サイクル2期分・監査ログ
 --
@@ -22,6 +22,7 @@
 --   owner@fondra.example.com   / demo-password123  (owner)
 --   hr@fondra.example.com      / demo-password123  (admin)
 --   manager@fondra.example.com / demo-password123  (member)
+--   viewer@fondra.example.com  / demo-password123  (viewer / 従業員レコード未紐付け)
 --------------------------------------------------------------------------------
 
 begin;

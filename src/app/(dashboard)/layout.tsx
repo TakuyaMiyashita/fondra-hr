@@ -4,6 +4,7 @@ import { getUserMemberships } from '@/services/auth';
 
 import { AppHeader } from '@/components/layout/app-header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
+import { TenantQueryBoundary } from '@/components/layout/tenant-query-boundary';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -27,7 +28,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <AppSidebar role={ctx.role} orgName={currentOrg?.orgName ?? 'FondraHR'} />
       <SidebarInset>
         <AppHeader email={user?.email ?? ''} currentOrgId={ctx.orgId} orgs={orgs} />
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-6">
+          <TenantQueryBoundary orgId={ctx.orgId}>{children}</TenantQueryBoundary>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

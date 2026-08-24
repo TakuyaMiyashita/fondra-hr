@@ -181,13 +181,22 @@ ID は固定なので、変数を差し替える必要はない。
 `supabase db push` はマイグレーションだけを適用し、`supabase/seed.sql` は流さない。
 デモ組織（と4つのデモアカウント）を検証環境に入れるには、seed を手で流す。
 
+**接続文字列はアプリ用の `DATABASE_URL` を流用しないこと。** あちらは
+Transaction Pooler（6543）で、seed のように1本の長いトランザクションを流す用途には
+向かない。Settings → Database → Connection string → **Direct connection**
+（ポート 5432）を使う。
+
 ```bash
-psql "$DATABASE_URL" -f supabase/seed.sql
+psql "postgresql://postgres:<db-password>@db.<project-ref>.supabase.co:5432/postgres" \
+  -f supabase/seed.sql
 ```
 
-seed は冒頭で `%@fondra.example.com` のユーザーを消してから作り直すため、
-何度流しても同じ状態になる。既存のデモ組織を完全に消したい場合は
-`purge_organization()` を使う（後述）。
+seed は冒頭で `purge_organization()` を呼び、`%@fondra.example.com` のユーザーを
+消してから作り直す。**何度流しても同じ状態になる**ので、デモデータを作り直したい
+ときも同じコマンドでよい。
+
+> `auth.users` に直接 INSERT するため、`postgres` ロールで接続する必要がある。
+> anon / authenticated では通らない。
 
 ### 本番として運用する場合に変更が要る設定
 

@@ -181,22 +181,63 @@ ID は固定なので、変数を差し替える必要はない。
 `supabase db push` はマイグレーションだけを適用し、`supabase/seed.sql` は流さない。
 デモ組織（と4つのデモアカウント）を検証環境に入れるには、seed を手で流す。
 
-**接続文字列はアプリ用の `DATABASE_URL` を流用しないこと。** あちらは
-Transaction Pooler（6543）で、seed のように1本の長いトランザクションを流す用途には
-向かない。Settings → Database → Connection string → **Direct connection**
-（ポート 5432）を使う。
+**接続先は Session pooler（ポート 5432）を使う。**
+Settings → Database → Connection string → **Session pooler** から取得する。
+
+```
+postgresql://postgres.<project-ref>:<db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+```
+
+ユーザー名が `postgres` ではなく **`postgres.<project-ref>`** になる点に注意。
+プーラーはこのドット以降でテナントを振り分ける。
 
 ```bash
-psql "postgresql://postgres:<db-password>@db.<project-ref>.supabase.co:5432/postgres" \
-  -f supabase/seed.sql
+psql "postgresql://postgres.<project-ref>:<db-password>@aws-0-<region>.pooler.supabase.com:5432/postgres" \
+  -v ON_ERROR_STOP=1 -f supabase/seed.sql
 ```
+
+`-v ON_ERROR_STOP=1` を付けること。psql は既定でエラーがあっても続行するため、
+これが無いと途中で失敗しても `commit` まで走り、中途半端な状態が残りうる。
+付けておけば異常時にトランザクションごと巻き戻る。
+
+### なぜ Direct connection ではないのか
+
+手順としては Direct connection（`db.<project-ref>.supabase.co:5432`）が素直だが、
+**このホスト名は AAAA レコードしか返さない**。IPv4 しか出口が無い環境
+（多くの CI、Docker のデフォルトネットワーク、IPv6 未対応の回線）からは
+`Network is unreachable` で繋がらない。
+
+```
+$ dig +short db.<project-ref>.supabase.co A      # 空
+$ dig +short db.<project-ref>.supabase.co AAAA   # 2406:da14:...
+```
+
+Session pooler は IPv4 で解決でき、かつセッションを保持するので
+seed のような1本の長いトランザクションも問題なく通る。
+
+**アプリ用の `DATABASE_URL` は流用しない。** あちらは Transaction Pooler（6543）で、
+プリペアドステートメントがセッションを跨げないなど前提が違う（後述）。
+
+### 何度流してもよい
 
 seed は冒頭で `purge_organization()` を呼び、`%@fondra.example.com` のユーザーを
 消してから作り直す。**何度流しても同じ状態になる**ので、デモデータを作り直したい
 ときも同じコマンドでよい。
 
+裏を返すと、**デモ組織の中に手で作ったデータがあれば消える**。
+ファイル全体が単一トランザクションなので、失敗したときは何も変わらない。
+
 > `auth.users` に直接 INSERT するため、`postgres` ロールで接続する必要がある。
 > anon / authenticated では通らない。
+
+> ローカルに `psql` が無い場合は、起動中の Supabase コンテナのものを使える。
+>
+> ```bash
+> docker exec -i -e PGPASSWORD='<db-password>' supabase_db_<project-id> \
+>   psql -h aws-0-<region>.pooler.supabase.com -p 5432 \
+>        -U postgres.<project-ref> -d postgres \
+>        -v ON_ERROR_STOP=1 -f - < supabase/seed.sql
+> ```
 
 ### 本番として運用する場合に変更が要る設定
 

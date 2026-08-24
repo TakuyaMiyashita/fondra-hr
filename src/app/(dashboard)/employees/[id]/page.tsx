@@ -26,5 +26,5 @@ export default async function EmployeeDetailPage({ params }: Props) {
 
   const departments = await getDepartmentsForOrg(ctx);
 
-  return <EmployeeDetailClient employee={result.data} departments={departments} />;
+  return <EmployeeDetailClient employee={result.data} departments={departments} role={ctx.role} />;
 }

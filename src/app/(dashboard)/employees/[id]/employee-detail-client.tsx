@@ -8,6 +8,7 @@ import { ButtonLink } from '@/components/shared/button-link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { Role } from '@/services/auth-context';
 import type { DepartmentOption, EmployeeDetail } from '@/types/employee';
 
 import { EmployeeDeleteDialog } from '../employee-delete-dialog';
@@ -28,13 +29,17 @@ const statusConfig = {
 interface Props {
   employee: EmployeeDetail;
   departments: DepartmentOption[];
+  role: Role;
 }
 
-export function EmployeeDetailClient({ employee, departments }: Props) {
+export function EmployeeDetailClient({ employee, departments, role }: Props) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const statusInfo = statusConfig[employee.status];
+  // 従業員マスタの書き込みは admin 以上（認可マトリクス）。
+  // Service Layer が本命の防御で、ここは押しても失敗するボタンを出さないための UI 側の制御。
+  const isAdmin = role === 'owner' || role === 'admin';
 
   return (
     <div className="space-y-6">
@@ -51,6 +56,7 @@ export function EmployeeDetailClient({ employee, departments }: Props) {
             employeeId={employee.id}
             fullName={employee.fullName}
             avatarPath={employee.avatarPath}
+            canUpload={isAdmin}
           />
           <div>
             <div className="flex items-center gap-2">
@@ -60,16 +66,18 @@ export function EmployeeDetailClient({ employee, departments }: Props) {
             <p className="text-muted-foreground text-sm">{employee.employeeCode}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-            <Pencil className="mr-1.5 h-3.5 w-3.5" />
-            編集
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            削除
-          </Button>
-        </div>
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              編集
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              削除
+            </Button>
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="basic">

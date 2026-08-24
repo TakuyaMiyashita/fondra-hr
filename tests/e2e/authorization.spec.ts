@@ -112,6 +112,25 @@ test.describe('member — 1on1の閲覧範囲', () => {
   });
 });
 
+test.describe('viewer — 操作ボタンの出し分け', () => {
+  test.use({ storageState: AUTH_FILES.viewer });
+
+  test('従業員詳細に編集・削除・アバター差し替えが出ない', async ({ page }) => {
+    // 押しても Service Layer と Storage ポリシーで弾かれるが、
+    // 出来ない操作を出しておくのは案内として不親切
+    // （認可マトリクスは UI での出し分けも責務に挙げている）。
+    await page.goto('/employees');
+    await page.getByRole('link', { name: /.+/ }).first().waitFor();
+
+    const firstEmployee = page.locator('table a[href^="/employees/"]').first();
+    await firstEmployee.click();
+    await page.waitForURL(/\/employees\/[0-9a-f-]{36}/);
+
+    await expect(page.getByRole('button', { name: '編集' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '削除' })).toHaveCount(0);
+  });
+});
+
 test.describe('viewer — 従業員レコードに紐付いていない場合', () => {
   test.use({ storageState: AUTH_FILES.viewer });
 

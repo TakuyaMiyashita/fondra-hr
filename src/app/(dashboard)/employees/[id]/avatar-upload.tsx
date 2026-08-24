@@ -11,6 +11,14 @@ interface Props {
   employeeId: string;
   fullName: string;
   avatarPath: string | null;
+  /**
+   * アバターを差し替えられるか（admin 以上）。
+   *
+   * false のときは押せるボタンとして描画しない。Storage ポリシーと
+   * Service Layer の両方で弾いているので押しても失敗するだけだが、
+   * 出来ない操作を出しておくのは案内として不親切。
+   */
+  canUpload: boolean;
 }
 
 function getInitials(name: string): string {
@@ -21,7 +29,7 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-export function AvatarUpload({ employeeId, fullName, avatarPath }: Props) {
+export function AvatarUpload({ employeeId, fullName, avatarPath, canUpload }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -56,6 +64,22 @@ export function AvatarUpload({ employeeId, fullName, avatarPath }: Props) {
 
   const displaySrc = preview ?? avatarPath;
 
+  const face = displaySrc ? (
+    <Image src={displaySrc} alt={fullName} fill className="object-cover" unoptimized />
+  ) : (
+    <span className="text-muted-foreground text-lg font-semibold">{initials}</span>
+  );
+
+  // 権限が無いときは見た目だけ。button にしないのは、押せない操作に
+  // フォーカスが当たってスクリーンリーダーに読み上げられるのを避けるため。
+  if (!canUpload) {
+    return (
+      <div className="bg-muted relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full">
+        {face}
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -63,11 +87,7 @@ export function AvatarUpload({ employeeId, fullName, avatarPath }: Props) {
       onClick={() => inputRef.current?.click()}
       disabled={isPending}
     >
-      {displaySrc ? (
-        <Image src={displaySrc} alt={fullName} fill className="object-cover" unoptimized />
-      ) : (
-        <span className="text-muted-foreground text-lg font-semibold">{initials}</span>
-      )}
+      {face}
       <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
         {isPending ? (
           <Loader2 className="h-5 w-5 animate-spin text-white" />

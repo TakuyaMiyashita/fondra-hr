@@ -34,3 +34,4 @@
 | [0009](./0009-form-a11y-wiring-lives-in-base-ui-field.md)         | フォームの a11y 配線は Base UI の Field に任せる           | 採用 |
 | [0010](./0010-color-contrast-is-in-scope.md)                      | 配色のコントラストも担保する（0009 のスコープを上書き）    | 採用 |
 | [0011](./0011-data-api-is-closed.md)                              | Data API を閉じ、RLS の役割を実態に合わせる（0001 を補う） | 採用 |
+| [0012](./0012-demo-org-is-read-only.md)                           | 公開デモの組織は閲覧専用にする                             | 採用 |

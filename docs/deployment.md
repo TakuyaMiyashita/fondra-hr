@@ -153,9 +153,41 @@ Vercel で GitHub リポジトリをインポートし、以下の環境変数�
 | `DATABASE_URL`                  | 下記参照                                           | 必須 |
 | `NEXT_PUBLIC_APP_URL`           | デプロイ先URL（例 `https://fondra-hr.vercel.app`） | 必須 |
 | `ANTHROPIC_API_KEY`             | Anthropic の API キー                              | 任意 |
+| `DEMO_READONLY_ORG_ID`          | デモ組織の UUID（下記参照）                        | 任意 |
 
 `ANTHROPIC_API_KEY` を設定しない場合、AI アシスタントはデモモードの固定応答を返す
 （`src/app/api/chat/route.ts`）。機能自体は壊れない。
+
+### DEMO_READONLY_ORG_ID — 公開デモを荒らされないようにする
+
+README は owner を含む4ロールの資格情報を公開している。何もしないと**誰でも
+従業員を全削除でき、組織名も書き換えられる**。この変数にデモ組織の UUID を
+設定すると、その組織への create / update / delete を Service Layer が拒否する
+（[ADR 0012](./adr/0012-demo-org-is-read-only.md)）。
+
+```
+DEMO_READONLY_ORG_ID=f0d3a000-0000-4000-8000-000000000001
+```
+
+- 読み取りは止めない。ロール別の見え方はそのまま確認できる
+- 対象は指定した組織だけ。サインアップして自分の組織を作った人はそちらに書ける
+- **未設定なら何も起きない**。ローカル開発と CI では設定しない
+
+UUID は `supabase/seed.sql` が作るデモ組織のもの。seed を作り直しても
+ID は固定なので、変数を差し替える必要はない。
+
+### デモデータの投入
+
+`supabase db push` はマイグレーションだけを適用し、`supabase/seed.sql` は流さない。
+デモ組織（と4つのデモアカウント）を検証環境に入れるには、seed を手で流す。
+
+```bash
+psql "$DATABASE_URL" -f supabase/seed.sql
+```
+
+seed は冒頭で `%@fondra.example.com` のユーザーを消してから作り直すため、
+何度流しても同じ状態になる。既存のデモ組織を完全に消したい場合は
+`purge_organization()` を使う（後述）。
 
 ### 本番として運用する場合に変更が要る設定
 

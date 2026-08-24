@@ -11,7 +11,7 @@ import {
   updateCycleSchema,
   updateEvaluationSchema,
 } from '@/lib/validations/evaluation';
-import { AuthorizationError } from '@/services/authorize';
+import { AuthorizationError, authorizationMessage } from '@/services/authorize';
 import {
   createCycle as createCycleSvc,
   createEvaluation as createEvalSvc,
@@ -32,7 +32,7 @@ export async function fetchCycles(): Promise<Result<EvaluationCycle[]>> {
     const result = await listCyclesSvc(ctx);
     return ok(result);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -50,7 +50,7 @@ export async function fetchCycleDetail(id: string): Promise<Result<CycleWithEval
     const ctx = await getAuthContext();
     return await getCycleSvc(ctx, parsed.data);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -69,7 +69,7 @@ export async function createCycleAction(data: unknown): Promise<Result<{ id: str
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -88,7 +88,7 @@ export async function updateCycleAction(data: unknown): Promise<Result<void>> {
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -107,7 +107,7 @@ export async function deleteCycleAction(id: string): Promise<Result<void>> {
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -126,7 +126,7 @@ export async function createEvaluationAction(data: unknown): Promise<Result<{ id
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -145,7 +145,7 @@ export async function updateEvaluationAction(data: unknown): Promise<Result<void
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -164,7 +164,7 @@ export async function deleteEvaluationAction(id: string): Promise<Result<void>> 
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }

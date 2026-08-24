@@ -6,7 +6,7 @@ import { getAuthContext } from '@/lib/auth';
 import { type Result, err, ok } from '@/lib/result';
 import { uuidField } from '@/lib/validations/common';
 import { changeRoleSchema, inviteMemberSchema, updateOrgSchema } from '@/lib/validations/settings';
-import { AuthorizationError } from '@/services/authorize';
+import { AuthorizationError, authorizationMessage } from '@/services/authorize';
 import {
   changeRole as changeRoleSvc,
   createInvitation as createInviteSvc,
@@ -24,7 +24,7 @@ export async function fetchOrgInfo(): Promise<Result<OrgInfo>> {
     const ctx = await getAuthContext();
     return await getOrgInfoSvc(ctx);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -43,7 +43,7 @@ export async function updateOrgAction(data: unknown): Promise<Result<void>> {
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -54,7 +54,7 @@ export async function fetchMembers(): Promise<Result<OrgMember[]>> {
     const members = await listMembersSvc(ctx);
     return ok(members);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -73,7 +73,7 @@ export async function changeRoleAction(data: unknown): Promise<Result<void>> {
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -95,7 +95,7 @@ export async function removeMemberAction(membershipId: string): Promise<Result<v
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -114,7 +114,7 @@ export async function inviteMemberAction(data: unknown): Promise<Result<{ token:
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -125,7 +125,7 @@ export async function fetchPendingInvitations(): Promise<Result<PendingInvitatio
     const invites = await listInvitesSvc(ctx);
     return ok(invites);
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }
@@ -144,7 +144,7 @@ export async function revokeInvitationAction(invitationId: string): Promise<Resu
     }
     return result;
   } catch (e) {
-    if (e instanceof AuthorizationError) return err('権限がありません');
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
     throw e;
   }
 }

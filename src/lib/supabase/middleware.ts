@@ -1,7 +1,16 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/signup', '/reset-password', '/auth/callback', '/invite'];
+const PUBLIC_PATHS = [
+  '/login',
+  '/signup',
+  '/reset-password',
+  '/auth/callback',
+  '/invite',
+  // 死活確認。DB が落ちて画面が全滅している状況でも答えられる必要があるので、
+  // 認証の後ろに置かない（src/app/api/health/route.ts）。
+  '/api/health',
+];
 
 /**
  * 未認証で通してよいパスか。

@@ -371,6 +371,50 @@ postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.co
 
 ## 5. デプロイ後の確認
 
+### まず死活確認を叩く
+
+```bash
+curl -s https://<デプロイ先>/api/health
+# {"status":"ok","database":"ok"}      → DB まで到達できている
+# {"status":"error","database":"error"} → DB に到達できていない（HTTP 503）
+```
+
+認証を要求しないので、画面が全滅している状況でも答えが返る。
+
+### 「ログインはできるのに全画面エラー」になったら
+
+**ほぼ確実に `DATABASE_URL` の問題**。認証（Supabase Auth）と DB アクセス（Drizzle）は
+別系統で、前者は anon key、後者は `DATABASE_URL` を使う。DB だけ落ちると
+この症状になる。
+
+| 症状                                    | 意味            |
+| --------------------------------------- | --------------- |
+| `/login` は開く、ダッシュボードが全滅   | DB 接続だけ失敗 |
+| `/api/health` が 503                    | 同上（確定）    |
+| `/api/health` が 200 なのに画面が落ちる | DB 以外の原因   |
+
+よくある原因:
+
+- **DB パスワードを再発行したのに `DATABASE_URL` を差し替えていない。**
+  パスワード変更は既存の接続文字列を無効にする
+- **環境変数を保存しただけで再デプロイしていない。**
+  Vercel の環境変数はデプロイ時に取り込まれる。保存だけでは動いている
+  インスタンスに反映されない
+- **Environment の選択漏れ。** Production にチェックが入っているか
+- **ポート違い。** アプリ用は Transaction pooler（**6543**）。
+  Direct connection（`db.<ref>.supabase.co`）は AAAA しか返さないため、
+  IPv4 のみの環境からは到達できない
+
+切り分けの早道は、手元のアプリを検証環境の DB に向けて動かすこと。
+これが動けば DB・データ・スキーマは無実で、原因は実行環境の設定に絞れる。
+
+```bash
+DATABASE_URL='postgresql://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:6543/postgres' \
+NEXT_PUBLIC_SUPABASE_URL='https://<ref>.supabase.co' \
+NEXT_PUBLIC_SUPABASE_ANON_KEY='<anon key>' \
+PORT=3100 pnpm dev
+```
+
 1. サインアップして組織を作成できる
 2. ログイン後、従業員一覧が表示される（空状態でよい）
 3. 従業員を1件登録し、監査ログに記録されることを確認する

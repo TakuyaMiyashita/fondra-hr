@@ -103,6 +103,9 @@ describe('updateSession', () => {
       ['/auth/callback', 'メール確認コールバック'],
       ['/invite', '招待受諾'],
       ['/invite/abc-token', '子パス（トークン付き招待 URL）'],
+      // DB が落ちて画面が全滅している状況でも答えられる必要がある。
+      // 認証の後ろに置くと、切り分けたい場面で使えない。
+      ['/api/health', '死活確認'],
       ['/auth/callback/nested', '子パス'],
       ['/', 'ルート（ランディング）'],
     ])('%s は素通りさせる（%s）', async (pathname) => {

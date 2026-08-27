@@ -37,3 +37,4 @@
 | [0012](./0012-demo-org-is-read-only.md)                           | 公開デモの組織は閲覧専用にする                                | 採用 |
 | [0013](./0013-health-check-runs-on-github-actions.md)             | 死活監視は GitHub Actions の cron に置き、失敗を Issue にする | 採用 |
 | [0014](./0014-contrast-is-measured-on-rendered-text.md)           | コントラストは実テキストを走査して測る（0010 の手段を具体化） | 採用 |
+| [0015](./0015-dashboard-charts-are-lazy-loaded.md)                | ダッシュボードのグラフは遅延読み込みする（総量は増える）      | 採用 |

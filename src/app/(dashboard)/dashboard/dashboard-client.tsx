@@ -1,22 +1,12 @@
 'use client';
 
 import { Building2, ClipboardList, Sparkles, Users } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import type {
   DashboardStats,
   DepartmentHeadcount,
@@ -42,29 +32,6 @@ const ACTION_LABELS: Record<string, string> = {
   create: '作成',
   update: '更新',
   delete: '削除',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  active: '在籍',
-  inactive: '休職',
-  retired: '退職',
-};
-
-const CHART_COLORS = [
-  'hsl(221, 83%, 53%)',
-  'hsl(262, 83%, 58%)',
-  'hsl(330, 81%, 60%)',
-  'hsl(24, 94%, 53%)',
-  'hsl(142, 71%, 45%)',
-  'hsl(47, 96%, 53%)',
-  'hsl(199, 89%, 48%)',
-  'hsl(349, 89%, 60%)',
-];
-
-const STATUS_COLORS: Record<string, string> = {
-  active: 'hsl(142, 71%, 45%)',
-  inactive: 'hsl(47, 96%, 53%)',
-  retired: 'hsl(0, 72%, 51%)',
 };
 
 function formatAction(action: string): string {
@@ -130,120 +97,50 @@ function StatCard({ title, value, icon: Icon, href }: StatCardProps) {
   );
 }
 
-function DepartmentChart({ data }: { data: DepartmentHeadcount[] }) {
-  if (data.length === 0) {
-    return <p className="text-muted-foreground py-8 text-center text-sm">部署データがありません</p>;
+/**
+ * グラフだけ遅延読み込みする。
+ *
+ * Recharts は `/dashboard` のルート固有 JS の大半を占める。統計カードと
+ * アクティビティ一覧は Recharts が届く前から描けるので、同じ塊にしておくと
+ * グラフ以外まで待たされる。
+ *
+ * `ssr: false` にしてある。`ResponsiveContainer` は実際の描画領域の寸法に
+ * 依存しており、サーバー側では確定しない。SSR しても捨てる HTML が増えるだけ。
+ */
+const chartLoading = () => <Skeleton className="h-[300px] w-full" />;
+
+const DepartmentChart = dynamic(() => import('./dashboard-charts').then((m) => m.DepartmentChart), {
+  ssr: false,
+  loading: chartLoading,
+});
+
+const SkillCategoryChart = dynamic(
+  () => import('./dashboard-charts').then((m) => m.SkillCategoryChart),
+  { ssr: false, loading: chartLoading },
+);
+
+const EmployeeStatusChart = dynamic(
+  () => import('./dashboard-charts').then((m) => m.EmployeeStatusChart),
+  { ssr: false, loading: chartLoading },
+);
+
+/**
+ * 空状態の分岐は**ここ**に置く。チャート側に置くと、データが0件の組織でも
+ * 「データがありません」を出すためだけに Recharts を取りに行くことになる。
+ */
+function ChartSlot({
+  isEmpty,
+  emptyMessage,
+  children,
+}: {
+  isEmpty: boolean;
+  emptyMessage: string;
+  children: React.ReactNode;
+}) {
+  if (isEmpty) {
+    return <p className="text-muted-foreground py-8 text-center text-sm">{emptyMessage}</p>;
   }
-
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-        <XAxis dataKey="name" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: 'hsl(var(--popover))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '6px',
-            color: 'hsl(var(--popover-foreground))',
-          }}
-          formatter={(value) => [`${value}人`, '人数']}
-        />
-        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-          {data.map((_, i) => (
-            <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-function SkillCategoryChart({ data }: { data: SkillCategoryCount[] }) {
-  if (data.length === 0) {
-    return (
-      <p className="text-muted-foreground py-8 text-center text-sm">スキルデータがありません</p>
-    );
-  }
-
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={data}
-          dataKey="count"
-          nameKey="category"
-          cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={100}
-          paddingAngle={2}
-          label={({ name, value }) => `${name} (${value})`}
-        >
-          {data.map((_, i) => (
-            <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip
-          contentStyle={{
-            backgroundColor: 'hsl(var(--popover))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '6px',
-            color: 'hsl(var(--popover-foreground))',
-          }}
-          formatter={(value) => [`${value}件`, 'スキル割当数']}
-        />
-      </PieChart>
-    </ResponsiveContainer>
-  );
-}
-
-function EmployeeStatusChart({ data }: { data: EmployeeStatusCount[] }) {
-  if (data.length === 0) {
-    return (
-      <p className="text-muted-foreground py-8 text-center text-sm">従業員データがありません</p>
-    );
-  }
-
-  const labeled = data.map((d) => ({
-    ...d,
-    label: STATUS_LABELS[d.status] ?? d.status,
-  }));
-
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={labeled}
-          dataKey="count"
-          nameKey="label"
-          cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={100}
-          paddingAngle={2}
-          label={({ name, value }) => `${name} (${value})`}
-        >
-          {labeled.map((entry, i) => (
-            <Cell
-              key={i}
-              fill={STATUS_COLORS[entry.status] ?? CHART_COLORS[i % CHART_COLORS.length]}
-            />
-          ))}
-        </Pie>
-        <Tooltip
-          contentStyle={{
-            backgroundColor: 'hsl(var(--popover))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '6px',
-            color: 'hsl(var(--popover-foreground))',
-          }}
-          formatter={(value) => [`${value}人`, '人数']}
-        />
-      </PieChart>
-    </ResponsiveContainer>
-  );
+  return <>{children}</>;
 }
 
 interface Props {
@@ -288,7 +185,12 @@ export function DashboardClient({
             <CardTitle className="text-lg">部署別人数</CardTitle>
           </CardHeader>
           <CardContent>
-            <DepartmentChart data={departmentHeadcounts} />
+            <ChartSlot
+              isEmpty={departmentHeadcounts.length === 0}
+              emptyMessage="部署データがありません"
+            >
+              <DepartmentChart data={departmentHeadcounts} />
+            </ChartSlot>
           </CardContent>
         </Card>
 
@@ -297,7 +199,12 @@ export function DashboardClient({
             <CardTitle className="text-lg">従業員ステータス</CardTitle>
           </CardHeader>
           <CardContent>
-            <EmployeeStatusChart data={employeeStatuses} />
+            <ChartSlot
+              isEmpty={employeeStatuses.length === 0}
+              emptyMessage="従業員データがありません"
+            >
+              <EmployeeStatusChart data={employeeStatuses} />
+            </ChartSlot>
           </CardContent>
         </Card>
       </div>
@@ -307,7 +214,9 @@ export function DashboardClient({
           <CardTitle className="text-lg">スキルカテゴリ分布</CardTitle>
         </CardHeader>
         <CardContent>
-          <SkillCategoryChart data={skillCategories} />
+          <ChartSlot isEmpty={skillCategories.length === 0} emptyMessage="スキルデータがありません">
+            <SkillCategoryChart data={skillCategories} />
+          </ChartSlot>
         </CardContent>
       </Card>
 

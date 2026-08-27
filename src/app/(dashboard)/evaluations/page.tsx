@@ -15,5 +15,5 @@ export default async function EvaluationsPage() {
 
   const [cycles, employees] = await Promise.all([listCycles(ctx), getEmployeesForOrg(ctx)]);
 
-  return <EvaluationPageClient initialCycles={cycles} employees={employees} />;
+  return <EvaluationPageClient initialCycles={cycles} employees={employees} role={ctx.role} />;
 }

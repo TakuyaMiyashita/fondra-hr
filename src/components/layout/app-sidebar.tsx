@@ -15,6 +15,8 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { roleAtLeast } from '@/lib/roles';
+
 import {
   Sidebar,
   SidebarContent,
@@ -46,13 +48,6 @@ const adminNav = [
   { href: '/settings', label: '設定', icon: Settings, minRole: 'admin' as Role },
 ];
 
-const ROLE_HIERARCHY: Record<Role, number> = {
-  owner: 4,
-  admin: 3,
-  member: 2,
-  viewer: 1,
-};
-
 interface AppSidebarProps {
   role: Role;
   orgName: string;
@@ -60,7 +55,6 @@ interface AppSidebarProps {
 
 export function AppSidebar({ role, orgName }: AppSidebarProps) {
   const pathname = usePathname();
-  const roleLevel = ROLE_HIERARCHY[role];
 
   return (
     <Sidebar collapsible="icon">
@@ -86,7 +80,7 @@ export function AppSidebar({ role, orgName }: AppSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNav
-                .filter((item) => roleLevel >= ROLE_HIERARCHY[item.minRole])
+                .filter((item) => roleAtLeast(role, item.minRole))
                 .map((item) => (
                   <SidebarMenuItem key={item.href + item.label}>
                     <SidebarMenuButton
@@ -107,7 +101,7 @@ export function AppSidebar({ role, orgName }: AppSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               {adminNav
-                .filter((item) => roleLevel >= ROLE_HIERARCHY[item.minRole])
+                .filter((item) => roleAtLeast(role, item.minRole))
                 .map((item) => (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton

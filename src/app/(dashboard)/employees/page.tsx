@@ -46,7 +46,7 @@ export default async function EmployeesPage({
           </p>
         </div>
       ) : (
-        <EmployeeListClient initialData={result} departments={departments} />
+        <EmployeeListClient initialData={result} departments={departments} role={ctx.role} />
       )}
     </div>
   );

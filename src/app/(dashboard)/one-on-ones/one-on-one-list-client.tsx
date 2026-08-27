@@ -4,6 +4,8 @@ import { Handshake, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { roleAtLeast } from '@/lib/roles';
+import type { Role } from '@/services/auth-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,6 +36,8 @@ interface EmployeeOption {
 }
 
 interface Props {
+  /** ボタンの出し分けに使う。防御の本体は Service Layer。 */
+  role: Role;
   initialRecords: OneOnOne[];
   initialTotal: number;
   employees: EmployeeOption[];
@@ -45,7 +49,9 @@ function MoodBadge({ score }: { score: number }) {
   return <Badge variant={variant}>{score}</Badge>;
 }
 
-export function OneOnOneListClient({ initialRecords, initialTotal, employees }: Props) {
+export function OneOnOneListClient({ initialRecords, initialTotal, employees, role }: Props) {
+  // 1on1 の作成は member 以上。viewer は閲覧のみ。
+  const canCreate = roleAtLeast(role, 'member');
   const router = useRouter();
   const [records, setRecords] = useState(initialRecords);
   const [total, setTotal] = useState(initialTotal);
@@ -93,10 +99,12 @@ export function OneOnOneListClient({ initialRecords, initialTotal, employees }: 
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">1on1記録</h1>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          1on1を記録
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            1on1を記録
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
@@ -142,10 +150,12 @@ export function OneOnOneListClient({ initialRecords, initialTotal, employees }: 
           <p className="text-muted-foreground mt-2 text-sm">
             1on1ミーティングを記録して、コミュニケーションの質を向上させましょう。
           </p>
-          <Button className="mt-6" onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            最初の1on1を記録
-          </Button>
+          {canCreate && (
+            <Button className="mt-6" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              最初の1on1を記録
+            </Button>
+          )}
         </div>
       ) : (
         <>

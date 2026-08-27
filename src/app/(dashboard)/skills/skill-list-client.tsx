@@ -4,6 +4,8 @@ import { MoreHorizontal, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-r
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { roleAtLeast } from '@/lib/roles';
+import type { Role } from '@/services/auth-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,12 +37,16 @@ import { SkillDeleteDialog } from './skill-delete-dialog';
 import { SkillFormDialog } from './skill-form-dialog';
 
 interface Props {
+  /** ボタンの出し分けに使う。防御の本体は Service Layer。 */
+  role: Role;
   initialSkills: SkillWithCount[];
   initialTotal: number;
   categories: string[];
 }
 
-export function SkillListClient({ initialSkills, initialTotal, categories }: Props) {
+export function SkillListClient({ initialSkills, initialTotal, categories, role }: Props) {
+  // スキルの作成は member 以上（docs/database/authorization-matrix.md）。viewer は閲覧のみ。
+  const canCreate = roleAtLeast(role, 'member');
   const router = useRouter();
   const [skills, setSkills] = useState(initialSkills);
   const [total, setTotal] = useState(initialTotal);
@@ -117,10 +123,12 @@ export function SkillListClient({ initialSkills, initialTotal, categories }: Pro
             </Select>
           )}
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          スキルを追加
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            スキルを追加
+          </Button>
+        )}
       </div>
 
       {skills.length === 0 ? (
@@ -130,10 +138,12 @@ export function SkillListClient({ initialSkills, initialTotal, categories }: Pro
           <p className="text-muted-foreground mt-2 text-sm">
             組織のスキルを定義して、従業員に割り当てましょう。
           </p>
-          <Button className="mt-6" onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            最初のスキルを追加
-          </Button>
+          {canCreate && (
+            <Button className="mt-6" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              最初のスキルを追加
+            </Button>
+          )}
         </div>
       ) : (
         <>

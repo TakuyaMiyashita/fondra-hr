@@ -1,0 +1,181 @@
+# 検証環境の死活監視。
+#
+# アプリの外側から `/api/health` を叩く。監視をアプリの中（Vercel Cron 等）に
+# 置くと、アプリごと落ちたときに監視も止まって何も分からない。
+# 判断の経緯と捨てた案は docs/adr/0013-health-check-runs-on-github-actions.md。
+name: Health Check
+
+on:
+  schedule:
+    # 30分おき。:00 ちょうどは GitHub 全体で実行が集中して遅延しやすいので
+    # 端数にずらしてある。ADR 0005 のとおり実ユーザーの居ない検証環境ひとつ
+    # なので、これ以上詰めても縮むのは「誰も見ていない時間帯の検知遅れ」だけ。
+    - cron: '11,41 * * * *'
+
+  # 手で叩いて確かめられるようにしておく（設定変更後の確認用）。
+  workflow_dispatch:
+
+  # このワークフロー自身を変更する PR では、そのブランチの内容で疎通だけ試す。
+  # Issue の起票・クローズは行わない（下の if で切っている）。
+  # cron は既定ブランチの内容でしか回らないため、これが無いとマージするまで
+  # 壊れているかどうか分からない。
+  pull_request:
+    paths:
+      - '.github/workflows/health-check.yml'
+
+# 既定の GITHUB_TOKEN は read のみ（リポジトリ設定）。Issue の起票・クローズに
+# 必要な分だけをここで足す。
+permissions:
+  contents: read
+  issues: write
+
+# cron の遅延で前の実行が残っているところに次が重なることがある。
+# 待たせるだけでよく、打ち切ると「落ちているのに検知しなかった」になるので
+# cancel-in-progress は付けない。
+concurrency:
+  group: health-check
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Probe /api/health
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # 既定値はリポジトリ変数 HEALTH_CHECK_URL で上書きできる。
+      # 未設定でも動くよう既定値を直書きしている。この URL は README が
+      # デモ環境として公開しているものであり、秘密情報ではない。
+      HEALTH_URL: ${{ vars.HEALTH_CHECK_URL || 'https://fondra-hr-staging.vercel.app' }}
+
+    steps:
+      - name: Probe
+        id: probe
+        run: |
+          set -uo pipefail
+          url="${HEALTH_URL%/}/api/health"
+          echo "probing ${url}"
+
+          healthy=false
+          detail=''
+
+          # 1回の失敗では落とさない。サーバーレスのコールドスタート、
+          # Vercel 側の一時的な 5xx、DNS の揺れで毎回 Issue が立つと
+          # 「どうせ誤報」になって誰も見なくなる。
+          for attempt in 1 2 3; do
+            # 前回の応答が残っていると、接続できなかった回に古い本文が
+            # 「最終応答」として報告される。毎回空にしてから叩く
+            # （rm ではなく空ファイルを作る。curl が応答を書かずに終わっても
+            #   後段のリダイレクトが「ファイルが無い」で騒がないように）。
+            : >body.txt
+            code=$(curl -sS --max-time 20 -o body.txt -w '%{http_code}' "${url}" || true)
+            code=${code:-000}
+            body=$(tr -d '\r\n' <body.txt 2>/dev/null | head -c 300 || true)
+            echo "attempt ${attempt}: http=${code} body=${body}"
+
+            # ステータスコードだけでは足りない。
+            #  - 認証必須に戻ると 307 で /login へ飛ぶ（PUBLIC_PATHS の退行）
+            #  - 別プロジェクトを指していると 200 で HTML が返る
+            # 本文まで見て初めて「このアプリが DB まで到達できている」と言える。
+            if [ "${code}" = "200" ] &&
+              printf '%s' "${body}" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"' &&
+              printf '%s' "${body}" | grep -Eq '"database"[[:space:]]*:[[:space:]]*"ok"'; then
+              healthy=true
+              detail="http=${code} body=${body}"
+              break
+            fi
+
+            detail="http=${code} body=${body}"
+            if [ "${attempt}" -lt 3 ]; then sleep 30; fi
+          done
+
+          {
+            echo "healthy=${healthy}"
+            echo "detail=${detail}"
+            echo "url=${url}"
+          } >>"${GITHUB_OUTPUT}"
+
+          {
+            echo "### 死活確認"
+            echo ""
+            echo "- URL: \`${url}\`"
+            echo "- 健全: **${healthy}**"
+            echo "- 最終応答: \`${detail}\`"
+          } >>"${GITHUB_STEP_SUMMARY}"
+
+      # gh issue create --label は存在しないラベルを渡すと落ちる
+      # （--label は付与であって作成ではない）。障害の最中に「ラベルが無くて
+      # 起票できなかった」が起きないよう、健全なときも含め毎回作っておく。
+      # 既にあれば --force が説明と色を上書きするだけで、通知も差分も出ない。
+      # なお gh issue list --label は存在しないラベルでも空を返すので、
+      # 落ちるのは起票側だけ。
+      - name: Ensure label exists
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create health-check \
+            --color B60205 \
+            --description '死活監視の失敗（自動起票）' \
+            --force || echo 'label already present; continuing'
+
+      # 失敗を Issue にする。ジョブの失敗通知（メール）は cron を最後に触った
+      # 人にしか届かず埋もれやすいので、リポジトリ上に残る形も併せて用意する。
+      - name: Open an issue
+        if: steps.probe.outputs.healthy != 'true' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DETAIL: ${{ steps.probe.outputs.detail }}
+          TARGET: ${{ steps.probe.outputs.url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DOC_URL: ${{ github.server_url }}/${{ github.repository }}/blob/main/docs/deployment.md
+        run: |
+          set -euo pipefail
+
+          # 開いている Issue があれば作らない。30分おきに立て続けると
+          # 通知が飽和して、本当に見るべき1件目まで無視されるようになる。
+          existing=$(gh issue list --label health-check --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "${existing}" ]; then
+            echo "already open: #${existing}"
+            exit 0
+          fi
+
+          {
+            echo "\`${TARGET}\` が3回連続で健全な応答を返さなかった。"
+            echo ""
+            echo "- 最終応答: \`${DETAIL}\`"
+            echo "- 実行ログ: ${RUN_URL}"
+            echo ""
+            echo "復旧すると次回の定期実行がこの Issue を自動でクローズする。"
+            echo "失敗が続いている間は新しい Issue を作らず、この1件に集約する。"
+            echo ""
+            echo "切り分けの手順は [デプロイ手順](${DOC_URL}) の「5. デプロイ後の確認」を参照。"
+          } >issue-body.md
+
+          gh issue create \
+            --title '検証環境の死活確認が失敗している' \
+            --label health-check \
+            --body-file issue-body.md
+
+      # 復旧したら閉じる。人が手で閉じる運用にすると閉じ忘れが溜まり、
+      # 「開いている Issue = 今落ちている」が成り立たなくなる。
+      - name: Close resolved issues
+        if: steps.probe.outputs.healthy == 'true' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          for number in $(gh issue list --label health-check --state open --json number --jq '.[].number'); do
+            gh issue comment "${number}" --body "復旧を確認したため自動でクローズする。 ${RUN_URL}"
+            gh issue close "${number}"
+          done
+
+      # ジョブ自体も失敗させる。Actions の実行履歴と失敗通知に載せるため。
+      - name: Fail the job when unhealthy
+        if: steps.probe.outputs.healthy != 'true'
+        env:
+          DETAIL: ${{ steps.probe.outputs.detail }}
+        run: |
+          echo "health check failed: ${DETAIL}"
+          exit 1

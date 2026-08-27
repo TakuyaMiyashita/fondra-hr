@@ -465,8 +465,10 @@ psql "$DIRECT_DATABASE_URL" -c \
 
 ### 荒れたときの作り直し
 
-デモ環境の認証情報は README で公開しており、**誰でも書き込み・削除ができる**。
-データが壊れたら上の `psql -f` を再実行すれば元に戻る。
+デモ環境の認証情報は README で公開しているが、**デモ組織への書き込みは
+Service Layer が拒否する**（`DEMO_READONLY_ORG_ID`。[ADR 0012](./adr/0012-demo-org-is-read-only.md)）。
+そのため通常の操作でデータが壊れることはない。
+seed をやり直したいときは上の `psql -f` を再実行すればよい。
 
 組織単位で消したいだけなら `purge_organization()` を使う
 （`docs/architecture/multi-tenancy.md` 参照）。監査ログは追記専用トリガーで

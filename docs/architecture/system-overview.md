@@ -78,7 +78,7 @@ graph TB
 ### Service Layer パターン
 
 - 認可・ビジネスロジック・監査ログを一貫した場所に集約
-- テナント分離を Application Level で保証（RLS は安全網）
+- テナント分離を Application Level で保証（**RLS はアプリ経路では効かない** → [ADR 0011](../adr/0011-data-api-is-closed.md)）
 - テスト容易性：Service Layer 単体でユニットテスト可能
 
 ### TanStack Query + nuqs
@@ -88,10 +88,10 @@ graph TB
 
 ## レイヤー別の責務
 
-| レイヤー      | 責務                                         | 配置                   |
-| ------------- | -------------------------------------------- | ---------------------- |
-| App Router    | ルーティング・レイアウト・データ取得の起点   | `src/app/`             |
-| Components    | UI表示・ユーザーインタラクション             | `src/components/`      |
-| Service Layer | 認可チェック・ビジネスロジック・監査ログ記録 | `src/services/`        |
-| Drizzle ORM   | 型安全なDBクエリ・org_id フィルタ付与        | `src/db/`              |
-| RLS           | テナント分離の安全網（org_id チェックのみ）  | `supabase/migrations/` |
+| レイヤー      | 責務                                          | 配置                   |
+| ------------- | --------------------------------------------- | ---------------------- |
+| App Router    | ルーティング・レイアウト・データ取得の起点    | `src/app/`             |
+| Components    | UI表示・ユーザーインタラクション              | `src/components/`      |
+| Service Layer | 認可チェック・ビジネスロジック・監査ログ記録  | `src/services/`        |
+| Drizzle ORM   | 型安全なDBクエリ・org_id フィルタ付与         | `src/db/`              |
+| RLS           | Data API 経由のみ有効。アプリ経路では効かない | `supabase/migrations/` |

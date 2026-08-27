@@ -21,9 +21,17 @@
 SaaS で壊してはいけないのは、他社のデータが見えることと、権限を越えた操作ができることの2つ。
 機能の数ではなく、この2点をどう設計し、壊れていないことをどう示すかに時間を使っている。
 
-テナント分離は二重に持つ。Service Layer の `WHERE org_id` と RLS のどちらか一方が漏れても
-データは守られる。ただし RLS に持たせるのは `org_id` の一致だけにしている。
-複雑な条件を SQL に書くと、壊れたときに気付けない。
+**DB に届く経路をひとつに絞り、そこで守る。** Service Layer が全クエリに
+`WHERE org_id` を付け、ロール別の認可もフィールド単位の制御もここに集約する。
+
+素直に読むと「RLS が安全網では」と思うところだが、**実際には効いていない**。
+Drizzle はテーブル所有者として接続するため RLS は評価されない。RLS が効くのは
+Supabase の Data API 経由だけで、そちらは権限を剥がして閉じてある。
+ポリシーは将来 Data API を開けたときのために残しているだけで、稼働中の防御層ではない
+（[ADR 0011](./docs/adr/0011-data-api-is-closed.md)）。
+
+つまり**テナント分離は Service Layer の単独責任**。二重防御を名乗らないのは、
+動いていない層を数に入れるとレビューが甘くなるため。
 
 ```mermaid
 flowchart LR
@@ -39,12 +47,13 @@ flowchart LR
     end
 
     SVC --> ORM["Drizzle ORM<br/>WHERE org_id = ctx.orgId"]
-    ORM --> RLS{{"RLS — 安全網<br/>org_id = current_org_id()"}}
-    RLS --> DB[("Postgres")]
+    ORM --> DB[("Postgres")]
     SVC -. 監査ログ .-> DB
 
+    API["Data API<br/>PostgREST / GraphQL"] -. 権限剥奪済み .-x DB
+
     style SVC fill:#eef2ff,stroke:#4f46e5
-    style RLS fill:#fdf2f8,stroke:#db2777
+    style API fill:#f5f5f5,stroke:#9ca3af,stroke-dasharray: 4 4
 ```
 
 → [テナント分離](./docs/architecture/multi-tenancy.md) ／ [レイヤードアーキテクチャ](./docs/architecture/layered-architecture.md)
@@ -107,7 +116,7 @@ pnpm dev
 
 ### テスト
 
-unit 1457件 / e2e 132件。カバレッジは statements / functions / lines 100%、branches 99% を
+unit 1558件 / e2e 149件。カバレッジは statements / functions / lines 100%、branches 99% を
 閾値として CI で強制している。
 
 ```bash

@@ -103,20 +103,24 @@ src/
 ├── app/                    # Next.js App Router（ページ・レイアウト）
 │   ├── (auth)/             # 認証グループ（ログイン・サインアップ・招待承認）
 │   ├── (dashboard)/        # 認証済みグループ（アプリ本体）
-│   ├── api/                # Route Handlers（AI チャット等）
+│   ├── api/                # Route Handlers（AI チャット / 死活確認 `/api/health`）
 │   ├── auth/               # Supabase Auth コールバック
 │   └── layout.tsx          # ルートレイアウト（Provider群）
 ├── components/
 │   ├── ui/                 # shadcn/ui コンポーネント（自動生成、手動編集しない）
-│   ├── layout/             # アプリシェル（Sidebar, Header, OrgSwitcher）
+│   ├── layout/             # アプリシェル（Sidebar, Header, OrgSwitcher, TenantQueryBoundary）
 │   └── shared/             # 業務横断の共有コンポーネント
 ├── db/
 │   ├── index.ts            # Drizzle クライアント初期化
 │   └── schema/             # Drizzle スキーマ定義（テーブルごとにファイル分割）
 ├── services/               # Service Layer（認可 + ビジネスロジック + 監査）
+│   ├── authorize.ts        # ロール × リソース × 操作 + デモの書き込み禁止
+│   ├── db-errors.ts        # 一意制約違反の判定（同時実行対策）
+│   └── health.ts           # DB 疎通（死活確認用。authorize を通さない）
 ├── lib/
 │   ├── supabase/           # Supabase Client 初期化（client / server / middleware / admin）
 │   ├── validations/        # Zod バリデーションスキーマ（ドメインごとにファイル分割）
+│   ├── roles.ts            # ロール階層。サーバーとクライアントの両方が引く
 │   ├── utils.ts            # cn() 等
 │   └── result.ts           # Result<T, E> 型
 ├── hooks/                  # カスタムフック
@@ -227,7 +231,7 @@ supabase/
 | `pnpm test:unit`        | Service Layer / Server Actions / Zod / ユーティリティ | 不要              |
 | `pnpm test:coverage`    | 上記 + カバレッジ計測（閾値チェック付き）             | 不要              |
 | `pnpm test:integration` | Supabase Auth の認証フロー                            | 必要              |
-| `pnpm test:rls`         | RLS ポリシーによるテナント分離                        | 必要              |
+| `pnpm test:rls`         | RLS ポリシー・Data API の閉鎖・Storage ポリシー       | 必要              |
 | `pnpm test:e2e`         | 画面操作（Playwright）                                | 必要              |
 | `pnpm test`             | unit + integration + rls                              | 必要              |
 

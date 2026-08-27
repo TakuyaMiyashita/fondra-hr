@@ -83,6 +83,11 @@ export function AvatarUpload({ employeeId, fullName, avatarPath, canUpload }: Pr
   return (
     <button
       type="button"
+      // 中身はアバター画像かイニシャルしかないため、名前を付けないと
+      // **氏名のイニシャルがボタン名として拾われる**。「削除される太郎」なら
+      // 「削除」という名前のボタンになり、支援技術にも e2e にも
+      // 別のボタンと区別できない。
+      aria-label="プロフィール写真を変更"
       className="group bg-muted relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full"
       onClick={() => inputRef.current?.click()}
       disabled={isPending}

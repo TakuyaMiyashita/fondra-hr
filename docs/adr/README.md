@@ -38,3 +38,4 @@
 | [0013](./0013-health-check-runs-on-github-actions.md)             | 死活監視は GitHub Actions の cron に置き、失敗を Issue にする | 採用 |
 | [0014](./0014-contrast-is-measured-on-rendered-text.md)           | コントラストは実テキストを走査して測る（0010 の手段を具体化） | 採用 |
 | [0015](./0015-dashboard-charts-are-lazy-loaded.md)                | ダッシュボードのグラフは遅延読み込みする（総量は増える）      | 採用 |
+| [0016](./0016-employee-delete-is-blocked-anonymize-instead.md)    | 記録の残る従業員は削除させず、匿名化で応える                  | 採用 |

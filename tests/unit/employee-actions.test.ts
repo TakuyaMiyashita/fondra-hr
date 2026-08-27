@@ -35,6 +35,7 @@ vi.mock('@/services/employee', () => ({
   createEmployee: vi.fn(),
   updateEmployee: vi.fn(),
   deleteEmployee: vi.fn(),
+  anonymizeEmployee: vi.fn(),
   assertCanUpdateAvatar: vi.fn(),
   updateEmployeeAvatar: vi.fn(),
   getDepartmentsForOrg: vi.fn(),
@@ -60,6 +61,8 @@ const validCreateInput = { employeeCode: 'E001', fullName: '山田太郎' };
 /** Storage のモック。upload / getPublicUrl の戻りをテストごとに差し替える。 */
 const storageUpload = vi.fn();
 const storageGetPublicUrl = vi.fn();
+const storageList = vi.fn();
+const storageRemove = vi.fn();
 
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -69,8 +72,17 @@ beforeEach(async () => {
   storageGetPublicUrl.mockReturnValue({
     data: { publicUrl: 'https://cdn.example.com/avatars/avatar.png' },
   });
+  storageList.mockResolvedValue({ data: [{ name: 'avatar.png' }], error: null });
+  storageRemove.mockResolvedValue({ error: null });
   createClient.mockResolvedValue({
-    storage: { from: vi.fn(() => ({ upload: storageUpload, getPublicUrl: storageGetPublicUrl })) },
+    storage: {
+      from: vi.fn(() => ({
+        upload: storageUpload,
+        getPublicUrl: storageGetPublicUrl,
+        list: storageList,
+        remove: storageRemove,
+      })),
+    },
   });
 });
 
@@ -365,6 +377,119 @@ describe('deleteEmployeeAction', () => {
     s.deleteEmployee.mockRejectedValue(new Error('boom'));
 
     await expect(deleteEmployeeAction(EMPLOYEE_ID)).rejects.toThrow('boom');
+  });
+});
+
+describe('anonymizeEmployeeAction', () => {
+  it('rejects an invalid id without touching the service', async () => {
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+
+    expect((await anonymizeEmployeeAction('not-a-uuid')).success).toBe(false);
+    expect(s.anonymizeEmployee).not.toHaveBeenCalled();
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it('権限が無ければ Storage に触れる前に落とす', async () => {
+    // 顔写真の削除は Service Layer の外で起きる。判定が後段だと、
+    // 権限の無いユーザーでもファイルだけ消せてしまう。
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    s.assertCanUpdateAvatar.mockResolvedValue(err('権限がありません'));
+
+    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(err('権限がありません'));
+
+    expect(createClient).not.toHaveBeenCalled();
+    expect(storageRemove).not.toHaveBeenCalled();
+    expect(s.anonymizeEmployee).not.toHaveBeenCalled();
+  });
+
+  it('removes every file under the employee folder before updating the record', async () => {
+    // 拡張子は登録時のファイル名で決まる。パスを組み立てると差し替えの
+    // 残骸が消えず、顔写真だけ Storage に残る。
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    storageList.mockResolvedValue({
+      data: [{ name: 'avatar.png' }, { name: 'avatar.jpg' }],
+      error: null,
+    });
+    s.anonymizeEmployee.mockResolvedValue(ok(undefined));
+
+    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(ok(undefined));
+
+    expect(storageRemove).toHaveBeenCalledWith([
+      `${ctxAdmin.orgId}/${EMPLOYEE_ID}/avatar.png`,
+      `${ctxAdmin.orgId}/${EMPLOYEE_ID}/avatar.jpg`,
+    ]);
+    expect(s.anonymizeEmployee).toHaveBeenCalledWith(ctxAdmin, EMPLOYEE_ID);
+  });
+
+  it('skips the remove call when the folder is empty', async () => {
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    storageList.mockResolvedValue({ data: [], error: null });
+    s.anonymizeEmployee.mockResolvedValue(ok(undefined));
+
+    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(ok(undefined));
+    expect(storageRemove).not.toHaveBeenCalled();
+  });
+
+  it('tolerates a null listing', async () => {
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    storageList.mockResolvedValue({ data: null, error: null });
+    s.anonymizeEmployee.mockResolvedValue(ok(undefined));
+
+    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(ok(undefined));
+    expect(storageRemove).not.toHaveBeenCalled();
+  });
+
+  it('stops before anonymizing when the avatar cannot be removed', async () => {
+    // ここで先に進むと「匿名化済みなのに顔写真は残っている」状態になる。
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    storageRemove.mockResolvedValue({ error: { message: 'network' } });
+
+    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(
+      err('アバターの削除に失敗しました: network'),
+    );
+    expect(s.anonymizeEmployee).not.toHaveBeenCalled();
+  });
+
+  it('does not revalidate when the service fails', async () => {
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    s.anonymizeEmployee.mockResolvedValue(err('この従業員は既に匿名化されています'));
+
+    expect((await anonymizeEmployeeAction(EMPLOYEE_ID)).success).toBe(false);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('revalidates the list and the detail on success', async () => {
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    s.anonymizeEmployee.mockResolvedValue(ok(undefined));
+
+    await anonymizeEmployeeAction(EMPLOYEE_ID);
+
+    expect(revalidatePath).toHaveBeenCalledWith('/employees');
+    expect(revalidatePath).toHaveBeenCalledWith(`/employees/${EMPLOYEE_ID}`);
+  });
+
+  it('converts AuthorizationError into a permission error', async () => {
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    s.assertCanUpdateAvatar.mockRejectedValue(new AuthorizationError('update', 'employee'));
+
+    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(err('権限がありません'));
+  });
+
+  it('rethrows anything else', async () => {
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    s.assertCanUpdateAvatar.mockRejectedValue(new Error('boom'));
+
+    await expect(anonymizeEmployeeAction(EMPLOYEE_ID)).rejects.toThrow('boom');
   });
 });
 

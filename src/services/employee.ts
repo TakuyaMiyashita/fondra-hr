@@ -310,6 +310,43 @@ export async function updateEmployee(
   return ok(undefined);
 }
 
+/**
+ * 削除を止めるべき参照を数える。
+ *
+ * **評価と 1on1 は「他人が書いた記録」でもある。** 従業員を消すと、その人が
+ * 評価者として書いた他人の評価と、面談者として実施した部下の 1on1 まで
+ * 一緒に消える。被評価者側の履歴から欠落するので、削除の巻き添えにしてよい
+ * データではない。DB 側も `on delete restrict` にしてあり、ここを外しても
+ * 外部キーで止まる。
+ *
+ * `employee_skills` は数えない。スキル割当はその従業員自身の属性でしかなく、
+ * 消えても他人の記録は損なわれない（cascade のまま）。
+ */
+async function countBlockingReferences(orgId: string, employeeId: string) {
+  const [[evaluationRow], [oneOnOneRow]] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(evaluations)
+      .where(
+        and(
+          eq(evaluations.orgId, orgId),
+          or(eq(evaluations.employeeId, employeeId), eq(evaluations.evaluatorId, employeeId)),
+        ),
+      ),
+    db
+      .select({ count: count() })
+      .from(oneOnOnes)
+      .where(
+        and(
+          eq(oneOnOnes.orgId, orgId),
+          or(eq(oneOnOnes.employeeId, employeeId), eq(oneOnOnes.interviewerId, employeeId)),
+        ),
+      ),
+  ]);
+
+  return { evaluations: evaluationRow.count, oneOnOnes: oneOnOneRow.count };
+}
+
 export async function deleteEmployee(ctx: AuthContext, id: string): Promise<Result<void>> {
   authorize(ctx, 'delete', 'employee', (c) => hasMinRole(c, 'admin'));
 
@@ -323,9 +360,81 @@ export async function deleteEmployee(ctx: AuthContext, id: string): Promise<Resu
     return err('従業員が見つかりません');
   }
 
+  // 部署・スキルの削除と同じ作法にする。参照が残っているものは消させない。
+  const refs = await countBlockingReferences(ctx.orgId, id);
+  if (refs.evaluations > 0 || refs.oneOnOnes > 0) {
+    const parts: string[] = [];
+    if (refs.evaluations > 0) parts.push(`評価${refs.evaluations}件`);
+    if (refs.oneOnOnes > 0) parts.push(`1on1記録${refs.oneOnOnes}件`);
+    return err(
+      `${parts.join('・')}が紐づいているため削除できません。` +
+        `退職した従業員はステータスを「退職」に変更してください。` +
+        `個人情報を消す必要がある場合は「匿名化」を使ってください`,
+    );
+  }
+
   await db.delete(employees).where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
 
   await writeAuditLog(ctx, 'employee.delete', 'employee', id, { fullName: target.fullName });
+
+  return ok(undefined);
+}
+
+/** 匿名化した従業員に入れる氏名。UI と監査ログの両方で同じ文言を使う。 */
+const ANONYMIZED_NAME = '匿名化済みの従業員';
+
+/**
+ * 従業員マスタの個人情報を消す（レコードは残す）。
+ *
+ * **削除の代わりではなく、削除できない場合の受け皿。** 評価や 1on1 が
+ * 紐づいた従業員は削除できないが、個人情報の削除請求には応える必要がある。
+ * レコードを残したまま、氏名・カナ・メール・生年月日・アバター・
+ * ログインユーザーとの紐付けを落とす。
+ *
+ * `employee_code` も置き換える。他システムとの突き合わせキーになり得るため。
+ * NOT NULL かつ組織内で一意なので、id から決まる値を入れて衝突を避ける。
+ *
+ * **1on1 のメモや評価コメントの本文は消さない。** これらは他人が書いた
+ * 記録であり、自動で消すと評価履歴そのものが壊れる。本文に個人情報が
+ * 含まれている場合は個別に編集すること（`docs/adr/0016` の「積み残し」）。
+ */
+export async function anonymizeEmployee(ctx: AuthContext, id: string): Promise<Result<void>> {
+  // 個人情報を落とす操作なので、更新権限（admin 以上）と揃える。
+  authorize(ctx, 'update', 'employee', (c) => hasMinRole(c, 'admin'));
+
+  const [target] = await db
+    .select({ id: employees.id, fullName: employees.fullName, avatarPath: employees.avatarPath })
+    .from(employees)
+    .where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)))
+    .limit(1);
+
+  if (!target) {
+    return err('従業員が見つかりません');
+  }
+
+  if (target.fullName === ANONYMIZED_NAME) {
+    return err('この従業員は既に匿名化されています');
+  }
+
+  await db
+    .update(employees)
+    .set({
+      fullName: ANONYMIZED_NAME,
+      fullNameKana: null,
+      email: null,
+      birthDate: null,
+      avatarPath: null,
+      // 紐付けを残すと、本人限定の閲覧範囲がアカウント側から生き続ける。
+      userId: null,
+      employeeCode: `ANON-${id.slice(0, 8)}`,
+      status: 'retired',
+      updatedAt: new Date(),
+    })
+    .where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
+
+  // 監査ログに旧氏名は残さない。何を消したかの記録に個人情報を戻しては
+  // 意味が無いため、消した事実と対象 id だけを残す。
+  await writeAuditLog(ctx, 'employee.anonymize', 'employee', id, { anonymized: true });
 
   return ok(undefined);
 }

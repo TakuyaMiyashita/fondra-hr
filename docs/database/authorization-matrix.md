@@ -23,6 +23,11 @@
 - **削除は原則 admin 以上**。employees / skills / departments / evaluation_cycles /
   evaluations / one_on_ones のいずれも member は削除できない
   （`employee_skills` の割当解除のみ member 可）
+- **従業員の削除は、評価・1on1 が紐づいていると拒否される。** 他人が書いた記録まで
+  道連れで消えるため。退職者は `status = 'retired'` に倒し、個人情報を消す
+  必要がある場合は**匿名化**（`anonymizeEmployee` / admin 以上）を使う。
+  匿名化はレコードを残したまま氏名・カナ・メール・生年月日・アバター・社員番号・
+  `user_id` を落とす（[ADR 0016](../adr/0016-employee-delete-is-blocked-anonymize-instead.md)）
 - **`employees` の書き込みは admin 以上**。従業員レコードのメールアドレスは
   ログインユーザーとの紐付けキーであり、member が書き換えられると
   任意のレコードを「自分」に付け替えて本人限定の操作を奪えるため

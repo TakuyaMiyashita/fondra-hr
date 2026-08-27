@@ -22,6 +22,7 @@ import {
   getEmployeeSkills as getSkillsSvc,
   listEmployees as listEmployeesSvc,
   updateEmployee as updateEmployeeSvc,
+  anonymizeEmployee as anonymizeEmployeeSvc,
   assertCanUpdateAvatar as assertCanUpdateAvatarSvc,
   updateEmployeeAvatar as updateEmployeeAvatarSvc,
 } from '@/services/employee';
@@ -122,6 +123,55 @@ export async function deleteEmployeeAction(id: string): Promise<Result<void>> {
     const result = await deleteEmployeeSvc(ctx, parsed.data);
     if (result.success) {
       revalidatePath('/employees');
+    }
+    return result;
+  } catch (e) {
+    if (e instanceof AuthorizationError) return err(authorizationMessage(e));
+    throw e;
+  }
+}
+
+/**
+ * 個人情報を落として従業員レコードだけ残す。
+ *
+ * 評価や 1on1 が紐づいた従業員は削除できない（他人の記録まで消えるため）。
+ * それでも個人情報の削除請求には応える必要があるので、こちらで受ける。
+ *
+ * **アバターの削除を先に行う。** DB を先に更新すると、Storage の削除に
+ * 失敗したときに「匿名化済みなのに顔写真は残っている」状態になる。
+ * 順序を逆にしておけば、失敗しても匿名化されていない状態で止まる。
+ * Storage への操作は Service Layer の外なので、権限は手前で確かめる。
+ */
+export async function anonymizeEmployeeAction(id: string): Promise<Result<void>> {
+  const parsed = employeeId.safeParse(id);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+
+  try {
+    const ctx = await getAuthContext();
+
+    const allowed = await assertCanUpdateAvatarSvc(ctx, parsed.data);
+    if (!allowed.success) return allowed;
+
+    // 拡張子は登録時のファイル名で決まるため、パスを組み立てずに
+    // フォルダごと列挙して消す。差し替えの残骸も一緒に落ちる。
+    const supabase = await createClient();
+    const folder = `${ctx.orgId}/${parsed.data}`;
+    const { data: files } = await supabase.storage.from('avatars').list(folder);
+    if (files && files.length > 0) {
+      const { error: removeError } = await supabase.storage
+        .from('avatars')
+        .remove(files.map((f) => `${folder}/${f.name}`));
+      if (removeError) {
+        return err(`アバターの削除に失敗しました: ${removeError.message}`);
+      }
+    }
+
+    const result = await anonymizeEmployeeSvc(ctx, parsed.data);
+    if (result.success) {
+      revalidatePath('/employees');
+      revalidatePath(`/employees/${parsed.data}`);
     }
     return result;
   } catch (e) {

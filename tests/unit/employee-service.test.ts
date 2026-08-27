@@ -510,18 +510,76 @@ describe('updateEmployee', () => {
   });
 });
 
+/**
+ * `deleteEmployee` は3回 select する。対象の存在確認 → 評価の件数 → 1on1 の件数。
+ * まとめて同じ値を返すモックにすると、件数が undefined のまま
+ * 「参照ゼロだから消せる」を通ってしまい、ガードを検証したことにならない。
+ */
+function deleteSelects(target: unknown[], evaluations = 0, oneOnOnes = 0) {
+  return createSequentialSelect([target, [{ count: evaluations }], [{ count: oneOnOnes }]]);
+}
+
 describe('deleteEmployee', () => {
   it('allows admin to delete', async () => {
     const { deleteEmployee } = await import('@/services/employee');
 
     const db = await getDb();
-    db.select.mockReturnValue(createChainMock([{ id: 'emp-1', fullName: '山田太郎' }]));
+    db.select = deleteSelects([{ id: 'emp-1', fullName: '山田太郎' }]);
     db.insert.mockReturnValue(createChainMock([]));
 
     const result = await deleteEmployee(adminCtx, 'emp-1');
 
     expect(result.success).toBe(true);
     expect(db.delete).toHaveBeenCalled();
+  });
+
+  it('refuses to delete when evaluations reference the employee', async () => {
+    const { deleteEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select = deleteSelects([{ id: 'emp-1', fullName: '山田太郎' }], 20, 0);
+    db.insert.mockReturnValue(createChainMock([]));
+
+    const result = await deleteEmployee(adminCtx, 'emp-1');
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('評価20件');
+      expect(result.error).toContain('匿名化');
+    }
+    // 消さずに止まること。ここが通ると他人が書いた評価まで道連れになる。
+    expect(db.delete).not.toHaveBeenCalled();
+  });
+
+  it('refuses to delete when one-on-ones reference the employee', async () => {
+    const { deleteEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select = deleteSelects([{ id: 'emp-1', fullName: '山田太郎' }], 0, 38);
+    db.insert.mockReturnValue(createChainMock([]));
+
+    const result = await deleteEmployee(adminCtx, 'emp-1');
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('1on1記録38件');
+    }
+    expect(db.delete).not.toHaveBeenCalled();
+  });
+
+  it('lists both kinds of references in the message', async () => {
+    const { deleteEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select = deleteSelects([{ id: 'emp-1', fullName: '山田太郎' }], 2, 5);
+    db.insert.mockReturnValue(createChainMock([]));
+
+    const result = await deleteEmployee(adminCtx, 'emp-1');
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('評価2件・1on1記録5件');
+    }
   });
 
   it('throws AuthorizationError for member', async () => {
@@ -540,7 +598,7 @@ describe('deleteEmployee', () => {
     const { deleteEmployee } = await import('@/services/employee');
 
     const db = await getDb();
-    db.select.mockReturnValue(createChainMock([{ id: 'emp-1', fullName: '山田太郎' }]));
+    db.select = deleteSelects([{ id: 'emp-1', fullName: '山田太郎' }]);
 
     const auditInsertChain = createChainMock([]);
     db.insert.mockReturnValue(auditInsertChain);
@@ -569,6 +627,135 @@ describe('deleteEmployee', () => {
     if (!result.success) {
       expect(result.error).toBe('従業員が見つかりません');
     }
+  });
+});
+
+describe('anonymizeEmployee', () => {
+  const target = [{ id: 'emp-1', fullName: '山田太郎', avatarPath: 'https://x/avatar.png' }];
+
+  it('clears every personal field and drops the account link', async () => {
+    const { anonymizeEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockReturnValue(createChainMock(target));
+    const chain = createChainMock([]);
+    db.update.mockReturnValue(chain);
+    db.insert.mockReturnValue(createChainMock([]));
+
+    const result = await anonymizeEmployee(adminCtx, 'emp-1');
+
+    expect(result.success).toBe(true);
+    expect(chain.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fullName: '匿名化済みの従業員',
+        fullNameKana: null,
+        email: null,
+        birthDate: null,
+        avatarPath: null,
+        // 紐付けが残ると、本人限定の閲覧範囲がアカウント側から生き続ける。
+        userId: null,
+        status: 'retired',
+      }),
+    );
+  });
+
+  it('replaces the employee code so it cannot be used as a cross-system key', async () => {
+    const { anonymizeEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockReturnValue(createChainMock(target));
+    const chain = createChainMock([]);
+    db.update.mockReturnValue(chain);
+    db.insert.mockReturnValue(createChainMock([]));
+
+    await anonymizeEmployee(adminCtx, 'emp-1');
+
+    expect(chain.set).toHaveBeenCalledWith(expect.objectContaining({ employeeCode: 'ANON-emp-1' }));
+  });
+
+  it('does not put the old name into the audit log', async () => {
+    const { anonymizeEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockReturnValue(createChainMock(target));
+    db.update.mockReturnValue(createChainMock([]));
+    const auditInsertChain = createChainMock([]);
+    db.insert.mockReturnValue(auditInsertChain);
+
+    await anonymizeEmployee(adminCtx, 'emp-1');
+
+    // 何を消したかの記録に個人情報を戻しては意味が無い。
+    expect(auditInsertChain.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'employee.anonymize',
+        changes: { anonymized: true },
+      }),
+    );
+    const [[recorded]] = auditInsertChain.values.mock.calls;
+    expect(JSON.stringify(recorded)).not.toContain('山田太郎');
+  });
+
+  it('refuses to anonymize twice', async () => {
+    const { anonymizeEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockReturnValue(
+      createChainMock([{ id: 'emp-1', fullName: '匿名化済みの従業員', avatarPath: null }]),
+    );
+    db.update.mockReturnValue(createChainMock([]));
+    db.insert.mockReturnValue(createChainMock([]));
+
+    const result = await anonymizeEmployee(adminCtx, 'emp-1');
+
+    expect(result.success).toBe(false);
+    expect(db.update).not.toHaveBeenCalled();
+  });
+
+  it('returns err when employee not found', async () => {
+    const { anonymizeEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockReturnValue(createChainMock([]));
+    db.insert.mockReturnValue(createChainMock([]));
+
+    const result = await anonymizeEmployee(adminCtx, 'nonexistent');
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe('従業員が見つかりません');
+    }
+  });
+
+  it.each(rolesBelow('admin'))('throws AuthorizationError for %s', async (role) => {
+    const { anonymizeEmployee } = await import('@/services/employee');
+
+    await expect(anonymizeEmployee(CTX_BY_ROLE[role], 'emp-1')).rejects.toThrow(AuthorizationError);
+  });
+
+  it.each(rolesAtLeast('admin'))('allows %s', async (role) => {
+    const { anonymizeEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockReturnValue(createChainMock(target));
+    db.update.mockReturnValue(createChainMock([]));
+    db.insert.mockReturnValue(createChainMock([]));
+
+    const result = await anonymizeEmployee(CTX_BY_ROLE[role], 'emp-1');
+
+    expect(result.success).toBe(true);
+  });
+
+  it('scopes the update to the caller org', async () => {
+    const { anonymizeEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockReturnValue(createChainMock([]));
+    db.insert.mockReturnValue(createChainMock([]));
+
+    const result = await anonymizeEmployee(otherOrgCtx, 'emp-1');
+
+    expect(result.success).toBe(false);
+    expect(db.update).not.toHaveBeenCalled();
   });
 });
 

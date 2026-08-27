@@ -12,10 +12,10 @@ export const oneOnOnes = pgTable(
       .references(() => organizations.id, { onDelete: 'cascade' }),
     employeeId: uuid('employee_id')
       .notNull()
-      .references(() => employees.id, { onDelete: 'cascade' }),
+      .references(() => employees.id, { onDelete: 'restrict' }),
     interviewerId: uuid('interviewer_id')
       .notNull()
-      .references(() => employees.id, { onDelete: 'cascade' }),
+      .references(() => employees.id, { onDelete: 'restrict' }),
     heldOn: date('held_on').notNull(),
     notes: text('notes'),
     aiSummary: text('ai_summary'),

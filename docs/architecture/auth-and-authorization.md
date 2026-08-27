@@ -125,17 +125,22 @@ JWT（`app_metadata.org_id` が null）のまま画面に入り、リダイレ�
 ```
 リクエスト
   ↓
-[RLS] org_id チェック → テナント外のデータを完全遮断
+[Service Layer] authorize(ctx, action, resource) → ロール別の権限チェック
   ↓
-[Service Layer] authorize(ctx, action, resource) → ロール別の細かな権限チェック
+[Service Layer] WHERE org_id = ctx.orgId → テナント外を除外
   ↓
 データアクセス
 ```
 
-- **RLS（安全網）**: `org_id = current_org_id()` のみ。シンプルで壊れにくい
-- **Service Layer（主）**: ロール × リソース × 操作の認可マトリクスを TypeScript で実装
+- **Service Layer（唯一の防御）**: ロール × リソース × 操作の認可マトリクスと
+  テナント分離の両方を TypeScript で実装する
+- **RLS**: ポリシーは全テーブルに定義してあるが、**アプリ経路では評価されない**。
+  Drizzle がテーブル所有者として接続するため。効くのは Data API 経由だけで、
+  そちらは権限を剥がして閉じてある
 
-どちらか一方が漏れてもデータは守られる。
+以前この節は「RLS が Service Layer の手前で遮断する」「どちらか一方が漏れても
+データは守られる」と書いていたが、どちらも事実ではなかった。
+経緯は [ADR 0011](../adr/0011-data-api-is-closed.md)。
 
 ### Service Layer 内部の3段階
 

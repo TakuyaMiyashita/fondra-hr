@@ -35,7 +35,7 @@ Zod スキーマのような宣言的なコードは、**モジュールを impo
 | ----------- | -------------------------------------------------------------- | ---- | ----------------------- |
 | unit        | Service Layer / Server Actions / Zod スキーマ / ユーティリティ | 不要 | `pnpm test:unit`        |
 | integration | Supabase Auth の認証フロー                                     | 必要 | `pnpm test:integration` |
-| rls         | RLS ポリシーによるテナント分離                                 | 必要 | `pnpm test:rls`         |
+| rls         | RLS ポリシー・Data API の閉鎖・Storage ポリシー                | 必要 | `pnpm test:rls`         |
 | e2e         | 画面操作                                                       | 必要 | `pnpm test:e2e`         |
 
 CI では DB 不要な unit を先に回して早期に落とし、
@@ -176,6 +176,30 @@ Claude Code のフックを `.claude/settings.json` に設定している。
 | ------------------------------------------ | --------------------- | --------------------------------------------------------------- |
 | `PostToolUse` (`Write`/`Edit`/`MultiEdit`) | `src/` を編集した直後 | 対応するテストファイルを**名指しで**提示する                    |
 | `Stop`                                     | ターンを終える前      | `pnpm test:coverage` を実行し、失敗すれば完了を**ブロック**する |
+
+## RLS テストは GRANT を与えてから検証する
+
+Data API（PostgREST）は `anon` / `authenticated` から権限を剥がして閉じてある
+（[ADR 0011](./adr/0011-data-api-is-closed.md)）。そのため **`authenticated` として
+テーブルを読むことがそもそもできず**、RLS ポリシーを素直に検証できない。
+
+`tests/rls/rls-client.ts` は、トランザクションの中でだけ GRANT を与えてロールを
+切り替え、検証が終わったら ROLLBACK する。GRANT は Postgres ではトランザクショナル
+なので権限は残らない。
+
+「**GRANT があったとしても RLS がテナントを跨がせない**」ことを確かめる形になり、
+将来 Data API を開ける判断をしたときの保険が生きているかを検証できる。
+
+| ファイル                             | 何を見るか                                                  |
+| ------------------------------------ | ----------------------------------------------------------- |
+| `tests/rls/tenant-isolation.test.ts` | テナント基盤テーブルの分離                                  |
+| `tests/rls/domain-tables.test.ts`    | ドメインテーブルの分離・パージ・一意制約                    |
+| `tests/rls/data-api-closed.test.ts`  | **Data API が実際に閉じているか**。組織内のロール昇格も試す |
+| `tests/rls/storage-avatars.test.ts`  | Storage ポリシー（書き込みは admin 以上）                   |
+
+`data-api-closed.test.ts` が要。以前 `tests/rls/` は**組織を跨ぐケースしか
+検証しておらず**、同一組織内で `viewer` が自分のロールを `owner` に書き換えられる
+穴を見逃していた。同じ形の見落としを繰り返さないよう、組織内の攻撃を明示的に並べてある。
 
 ## e2e のロール別セッション
 

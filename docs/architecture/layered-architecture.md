@@ -3,11 +3,16 @@
 ## データフローの全体像
 
 ```
-RSC / Server Actions
+RSC / Server Actions / Route Handlers
   → Service Layer (認可 + ビジネスロジック + 監査ログ)
     → Drizzle ORM (型安全クエリ、org_id 自動付与)
-      → Supabase Postgres (RLS = テナント分離の安全網)
+      → Supabase Postgres
 ```
+
+**RLS はこの経路では効かない。** Drizzle はテーブル所有者として接続するため
+ポリシーが評価されない。RLS が効くのは Data API 経由だけで、そちらは権限を
+剥がして閉じてある（[ADR 0011](../adr/0011-data-api-is-closed.md)）。
+テナント分離は Service Layer の単独責任だと考えること。
 
 ## 各レイヤーの実装指針
 
@@ -23,24 +28,29 @@ RSC / Server Actions
 
 ```typescript
 export async function createEmployee(ctx: AuthContext, input: CreateEmployeeInput) {
-  // 1. 認可チェック
-  authorize(ctx, 'create', 'employee');
+  // 1. 認可チェック。第4引数を省くと「viewer 以外なら誰でも」になる。
+  //    ロールを絞るものは必ず渡す（ここは admin 以上）
+  authorize(ctx, 'create', 'employee', (c) => hasMinRole(c, 'admin'));
 
-  // 2. バリデーション（必要に応じて）
-  const validated = createEmployeeSchema.parse(input);
-
-  // 3. ビジネスロジック + DB操作（org_id は必ず ctx.orgId を使用）
+  // 2. DB操作（org_id は必ず ctx.orgId を使用）
+  //    「存在を確かめてから書く」形は一意制約とセットにする。
+  //    確認と書き込みの間に別のリクエストが入ると通り抜けるため
   const [employee] = await db
     .insert(employees)
-    .values({ ...validated, orgId: ctx.orgId })
+    .values({ ...input, orgId: ctx.orgId })
     .returning();
 
-  // 4. 監査ログ
-  await writeAuditLog(ctx, 'create', 'employee', employee.id);
+  // 3. 監査ログ。機微フィールドの値は writeAuditLog が伏せる
+  await writeAuditLog(ctx, 'employee.create', 'employee', employee.id, input);
 
-  return employee;
+  return ok({ id: employee.id });
 }
 ```
+
+**Zod による入力検証は Service ではなく Server Action 側で行う。**
+`actions.ts` が `safeParse` して、通ったものだけを Service に渡す
+（`pnpm check:conventions` の `action-validation` が機械的に検査する）。
+Service の引数は「検証済み」を前提にした型で受ける。
 
 ### 3. Drizzle ORM レイヤー（`src/db/`）
 

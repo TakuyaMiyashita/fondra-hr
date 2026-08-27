@@ -139,6 +139,7 @@ sequenceDiagram
         Hook-->>Auth: 新しい app_metadata
         Auth-->>SA: 新しいセッション
         SA-->>UI: redirect /employees
+        UI->>UI: TanStack Query のキャッシュを破棄
     end
 ```
 
@@ -147,6 +148,12 @@ service_role の Auth Admin API が要る。`updateUser({ data })` が書くの�
 `user_metadata` で、Hook が読むのは `app_metadata` なので組織は切り替わらない。
 service_role は RLS をバイパスするため、**書き込みの手前で必ず
 `switchOrganization()` によるメンバーシップ検証を通す**。
+
+`redirect()` は**クライアントサイドのナビゲーション**なので、React のツリー＝
+`QueryClient` は生き残る。一覧系のクエリキーには組織を表す値が入っていないため、
+何もしないと**切替後も前の組織のデータが描画される**（`staleTime` の間は再取得も
+走らない）。`TenantQueryBoundary`（`src/components/layout/tenant-query-boundary.tsx`）が
+テナントの変化を検知してキャッシュを捨てる。
 
 ## 5. 未認証リダイレクト
 

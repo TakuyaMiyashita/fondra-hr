@@ -80,6 +80,18 @@ AI に渡すのは**個人を特定しない集計値だけ**にすること。�
 評価・1on1 の内容を混ぜると、ロール別・本人限定の可視制御を
 AI の回答経由で迂回できてしまう。
 
+### 死活確認だけは `authorize()` を通さない
+
+`/api/health` が呼ぶ `isDatabaseReachable()`（`src/services/health.ts`）は、
+**Service Layer で唯一 `authorize()` を通さない**。認証（Supabase Auth）と
+DB アクセス（Drizzle）は別系統で、DB だけ落ちると「ログインはできるのに
+全画面エラー」になる。その切り分けに使うものを認証の後ろに置くと、
+肝心なときに使えない。認証ブートストラップ関数と同じ扱いになる。
+
+代わりに**返す情報を絞る**ことで釣り合いを取る。接続先・ユーザー名・
+エラー本文は返さず、`ok` / `error` だけを返す。例外も投げず真偽値で返し、
+ステータスコードへの変換は Route Handler が行う。
+
 ## 同時実行への備え
 
 **「SELECT で確かめてから INSERT」は、それだけでは同時実行に耐えない。**
@@ -170,6 +182,9 @@ member / viewer のときだけ発行する。
 | サービス        | 配置                               | 主な責務                                        |
 | --------------- | ---------------------------------- | ----------------------------------------------- |
 | Auth            | `src/services/auth.ts`             | 組織作成・メンバーシップ管理・招待承認          |
+| AiContext       | `src/services/ai-context.ts`       | AI アシスタントに渡す組織サマリ（集計値のみ）   |
+| DbErrors        | `src/services/db-errors.ts`        | 一意制約違反（`23505`）の判定                   |
+| Health          | `src/services/health.ts`           | DB 疎通確認（`authorize()` を通さない例外）     |
 | AuthContext     | `src/services/auth-context.ts`     | AuthContext 型・Role 型の定義                   |
 | Authorize       | `src/services/authorize.ts`        | authorize() / hasMinRole() / AuthorizationError |
 | AuditLog        | `src/services/audit-log.ts`        | 監査ログの記録・一覧取得・リソース種別取得      |

@@ -15,13 +15,23 @@ import type { Result } from 'axe-core';
  */
 
 /**
- * 今回の a11y スコープは「フォーム関連 + キーボード到達性」。
- * 配色は docs/adr/0009 で明示的にスコープ外としたので検査しない。
  * **除外を増やすときは、なぜ増やすのかをここに書くこと。**
  */
 const DISABLED_RULES = [
-  // 配色はスコープ外（ADR 0009）。フォーカスリングと Recharts の系列色が
-  // まとめて落ちるため、有効にすると導入そのものができない。
+  // 配色はスコープ内（ADR 0010 が ADR 0009 のスコープ判断を上書きした）。
+  // それでもこのルールを外すのは、**axe が lab() を誤読して false positive を
+  // 出す**ため。配色トークンは oklch で書いてあり、Chrome の
+  // getComputedStyle はこれを lab() のまま返す。
+  //
+  //   実測（/settings/members の招待ダイアログ、dialog-description）
+  //     ブラウザが描く実際の色: lab(48.496 0 0) → #737373 / 白地に 4.74:1（合格）
+  //     axe が読み取った色:     #7c7c7c / 背景 #fdfdfd → 4.1:1（不合格と報告）
+  //
+  // ADR 0010 が canvas で描いて測る手段を選んだのと同じ理由。文字列から数値を
+  // 拾う実装は oklch/lab で狂う。非テキスト（フォーカスリング・系列色）と
+  // 併せて a11y-contrast.spec.ts が担当する。
+  //
+  // axe-core を上げたときは、ここを一度外して false positive が消えたか試す。
   'color-contrast',
 ];
 

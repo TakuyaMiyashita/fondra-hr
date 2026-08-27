@@ -7,6 +7,7 @@ import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { ButtonLink } from '@/components/shared/button-link';
+import { roleAtLeast } from '@/lib/roles';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,7 +72,7 @@ interface Props {
 
 export function MembersClient({ members, invitations, role, currentUserId }: Props) {
   const router = useRouter();
-  const isAdmin = role === 'owner' || role === 'admin';
+  const isAdmin = roleAtLeast(role, 'admin');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<OrgMember | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<PendingInvitation | null>(null);

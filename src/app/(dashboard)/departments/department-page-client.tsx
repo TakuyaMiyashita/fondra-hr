@@ -14,6 +14,8 @@ import { useCallback, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
+import { roleAtLeast } from '@/lib/roles';
+import type { Role } from '@/services/auth-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { Department, DepartmentTreeNode } from '@/types/department';
@@ -41,11 +43,15 @@ function isDescendant(nodes: DepartmentTreeNode[], parentId: string, childId: st
 }
 
 interface Props {
+  /** ボタンの出し分けに使う。防御の本体は Service Layer。 */
+  role: Role;
   initialTree: DepartmentTreeNode[];
   departments: Department[];
 }
 
-export function DepartmentPageClient({ initialTree, departments }: Props) {
+export function DepartmentPageClient({ initialTree, departments, role }: Props) {
+  // 部署の作成・編集・削除は admin 以上（docs/database/authorization-matrix.md）。
+  const canManage = roleAtLeast(role, 'admin');
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -150,10 +156,12 @@ export function DepartmentPageClient({ initialTree, departments }: Props) {
             部署の階層構造を管理します。ドラッグ&ドロップで部署を移動できます。
           </p>
         </div>
-        <Button onClick={handleCreate} disabled={isPending}>
-          <Plus className="mr-2 size-4" />
-          部署を追加
-        </Button>
+        {canManage && (
+          <Button onClick={handleCreate} disabled={isPending}>
+            <Plus className="mr-2 size-4" />
+            部署を追加
+          </Button>
+        )}
       </div>
 
       {isEmpty ? (

@@ -12,6 +12,8 @@ import {
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
+import { roleAtLeast } from '@/lib/roles';
+import type { Role } from '@/services/auth-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -40,11 +42,15 @@ function StatusBadge({ status }: { status: EvaluationCycle['status'] }) {
 }
 
 interface Props {
+  /** ボタンの出し分けに使う。防御の本体は Service Layer。 */
+  role: Role;
   initialCycles: EvaluationCycle[];
   employees: EmployeeOption[];
 }
 
-export function EvaluationPageClient({ initialCycles, employees }: Props) {
+export function EvaluationPageClient({ initialCycles, employees, role }: Props) {
+  // 評価サイクルの作成は admin 以上。評価そのものは member も作れる。
+  const canManageCycle = roleAtLeast(role, 'admin');
   const router = useRouter();
   const [cycles, setCycles] = useState(initialCycles);
   const [createOpen, setCreateOpen] = useState(false);
@@ -96,10 +102,12 @@ export function EvaluationPageClient({ initialCycles, employees }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">評価</h1>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          評価サイクルを作成
-        </Button>
+        {canManageCycle && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            評価サイクルを作成
+          </Button>
+        )}
       </div>
 
       {cycles.length === 0 ? (
@@ -109,10 +117,12 @@ export function EvaluationPageClient({ initialCycles, employees }: Props) {
           <p className="text-muted-foreground mt-2 text-sm">
             評価サイクルを作成して、体系的な人事評価を開始しましょう。
           </p>
-          <Button className="mt-6" onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            最初の評価サイクルを作成
-          </Button>
+          {canManageCycle && (
+            <Button className="mt-6" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              最初の評価サイクルを作成
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

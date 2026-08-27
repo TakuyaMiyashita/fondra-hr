@@ -187,6 +187,9 @@ supabase/
   stable 化した prop で、`reset` は再フェッチせず子を再レンダリングするだけ。
   学習データに引きずられて `reset` を書きやすいので注意
 - 空状態（アイコン + 説明 + CTA）は全画面で設計する
+- **ロールで出し分けるボタンは `roleAtLeast()`（`@/lib/roles`）を使う**。
+  ロール階層の定義はここ1箇所。サーバーの `hasMinRole()` も同じものを引く。
+  出し分けの網羅は `tests/e2e/role-gated-buttons.spec.ts` が横断で検査する
 - アイコンのみのボタン・リンクには `aria-label` を付ける。一覧の行内なら対象名を
   含める（`${m.email} を削除`）。`tests/e2e/accessible-names.spec.ts` が横断で検査する
 - プレースホルダーページ（実データ取得未実装）には loading/error は不要。実データ取得の実装時に追加する

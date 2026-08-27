@@ -14,5 +14,5 @@ export default async function DepartmentsPage() {
 
   const [tree, departments] = await Promise.all([getDepartmentTree(ctx), listDepartments(ctx)]);
 
-  return <DepartmentPageClient initialTree={tree} departments={departments} />;
+  return <DepartmentPageClient initialTree={tree} departments={departments} role={ctx.role} />;
 }

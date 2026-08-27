@@ -118,6 +118,14 @@ admin 以上に限定する（`supabase/migrations/20260823000001_restrict_avata
 
 認可チェックは Service Layer と UI の二重で行う。Service Layer が主、UI は UX 目的。
 
+**UI の出し分けはロール階層を1箇所から引く**（`roleAtLeast()` / `src/lib/roles.ts`）。
+サーバー側の `hasMinRole()` も同じ定義を使う。分けて持つと、片方だけ直したときに
+「押せるのにボタンが無い」「ボタンはあるが必ず失敗する」がすぐ生まれる。
+
+出し分けの網羅は `tests/e2e/role-gated-buttons.spec.ts` が全ロール × 全一覧画面で
+検査する。**許可されているロールでボタンが出ることも併せて見る** —
+「出ないこと」だけを検証すると、ボタンを消してしまっても気付けない。
+
 **公開デモでは、この表の上にもう一段「書き込み禁止」が乗る。**
 `DEMO_READONLY_ORG_ID` に指定した組織では、ロールに関係なく
 create / update / delete を拒否する（[ADR 0012](../adr/0012-demo-org-is-read-only.md)）。

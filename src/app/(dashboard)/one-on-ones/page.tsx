@@ -22,6 +22,7 @@ export default async function OneOnOnesPage() {
       initialRecords={result.records}
       initialTotal={result.total}
       employees={employees}
+      role={ctx.role}
     />
   );
 }

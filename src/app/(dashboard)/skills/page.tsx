@@ -25,6 +25,7 @@ export default async function SkillsPage() {
       initialTotal={result.total}
       categories={categories}
       departments={departments}
+      role={ctx.role}
     />
   );
 }

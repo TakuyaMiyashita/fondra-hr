@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import type { Role } from '@/services/auth-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { DepartmentOption } from '@/types/employee';
 import type { SkillWithCount } from '@/types/skill';
@@ -10,13 +11,21 @@ import { SkillListClient } from './skill-list-client';
 import { SkillMatrixClient } from './skill-matrix-client';
 
 interface Props {
+  /** ボタンの出し分けに使う。防御の本体は Service Layer。 */
+  role: Role;
   initialSkills: SkillWithCount[];
   initialTotal: number;
   categories: string[];
   departments: DepartmentOption[];
 }
 
-export function SkillPageClient({ initialSkills, initialTotal, categories, departments }: Props) {
+export function SkillPageClient({
+  initialSkills,
+  initialTotal,
+  categories,
+  departments,
+  role,
+}: Props) {
   const [activeTab, setActiveTab] = useState('list');
 
   return (
@@ -33,6 +42,7 @@ export function SkillPageClient({ initialSkills, initialTotal, categories, depar
             initialSkills={initialSkills}
             initialTotal={initialTotal}
             categories={categories}
+            role={role}
           />
         </TabsContent>
         <TabsContent value="matrix">

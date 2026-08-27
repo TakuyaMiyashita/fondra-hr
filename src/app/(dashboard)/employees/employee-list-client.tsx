@@ -6,6 +6,8 @@ import { Plus } from 'lucide-react';
 import { parseAsInteger, parseAsString, parseAsStringEnum, useQueryState } from 'nuqs';
 import { useCallback, useMemo, useState } from 'react';
 
+import { roleAtLeast } from '@/lib/roles';
+import type { Role } from '@/services/auth-context';
 import { DataTable, type VisibilityState } from '@/components/shared/data-table';
 import { DataTablePagination } from '@/components/shared/data-table-pagination';
 import { Button } from '@/components/ui/button';
@@ -20,12 +22,16 @@ import { useEmployeeCsvExport } from './use-employee-csv-export';
 interface EmployeeListClientProps {
   initialData: EmployeeListResult;
   departments: DepartmentOption[];
+  /** ボタンの出し分けに使う。防御の本体は Service Layer。 */
+  role: Role;
 }
 
 type SortKey =
   'employeeCode' | 'fullName' | 'email' | 'position' | 'hiredOn' | 'status' | 'createdAt';
 
-export function EmployeeListClient({ initialData, departments }: EmployeeListClientProps) {
+export function EmployeeListClient({ initialData, departments, role }: EmployeeListClientProps) {
+  // 従業員マスタの書き込みは admin 以上（docs/database/authorization-matrix.md）。
+  const canCreate = roleAtLeast(role, 'admin');
   const queryClient = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
@@ -186,10 +192,12 @@ export function EmployeeListClient({ initialData, departments }: EmployeeListCli
           onCsvExport={handleCsvExport}
           isExporting={isExporting}
         />
-        <Button onClick={() => setSheetOpen(true)}>
-          <Plus className="mr-1.5 size-4" />
-          新規登録
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setSheetOpen(true)}>
+            <Plus className="mr-1.5 size-4" />
+            新規登録
+          </Button>
+        )}
       </div>
       <DataTable
         columns={employeeColumns}

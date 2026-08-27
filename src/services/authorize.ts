@@ -1,15 +1,10 @@
+import { roleAtLeast } from '@/lib/roles';
+
 import type { AuthContext, Role } from './auth-context';
 
 type Action = 'create' | 'read' | 'update' | 'delete';
 
 const WRITE_ACTIONS: Action[] = ['create', 'update', 'delete'];
-
-const ROLE_HIERARCHY: Record<Role, number> = {
-  owner: 4,
-  admin: 3,
-  member: 2,
-  viewer: 1,
-};
 
 export class AuthorizationError extends Error {
   constructor(
@@ -94,5 +89,5 @@ export function authorize(
 }
 
 export function hasMinRole(ctx: AuthContext, minRole: Role): boolean {
-  return ROLE_HIERARCHY[ctx.role] >= ROLE_HIERARCHY[minRole];
+  return roleAtLeast(ctx.role, minRole);
 }

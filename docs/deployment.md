@@ -381,24 +381,23 @@ curl -s https://<デプロイ先>/api/health
 
 認証を要求しないので、画面が全滅している状況でも答えが返る。
 
-### 定期的な死活監視
+### 死活確認を手で走らせる
 
-上の `curl` は**デプロイ直後に一度叩くだけ**の手順で、その後に落ちても
-誰も気付かない。継続的な確認は GitHub Actions が行う。
+`.github/workflows/health-check.yml` が同じエンドポイントを叩き、
+**HTTP ステータスと本文の両方**を検査する。上の `curl` より厳密で、
+3回試して1回でも健全なら成功、そうでなければジョブを失敗させる。
 
-`.github/workflows/health-check.yml` が30分おきに同じエンドポイントを叩き、
-HTTP ステータスと本文の両方を検査する。3回連続で健全な応答が返らなければ、
+```bash
+gh workflow run health-check.yml
+gh run list --workflow=health-check.yml --limit 3
+```
 
-1. ジョブを失敗させる（Actions の実行履歴に残り、失敗通知が飛ぶ）
-2. `health-check` ラベルの Issue を**1件だけ**起票する
-3. 復旧を検知したら、その Issue に復旧コメントを付けて自動でクローズする
+Actions タブの Health Check → Run workflow からでも同じことができる。
 
-**開いている `health-check` の Issue があれば、それが「今落ちている」ことを意味する。**
-起票された Issue の切り分けは、下の「ログインはできるのに全画面エラー」になったら
-の表がそのまま使える。
-
-判断の経緯と捨てた案（Vercel Cron / 外形監視 SaaS / Slack 通知 / README バッジ）は
-[ADR 0013](./adr/0013-health-check-runs-on-github-actions.md) を参照。
+**定期実行はしない**（[ADR 0017](./adr/0017-health-check-is-on-demand-only.md) が
+[ADR 0013](./adr/0013-health-check-runs-on-github-actions.md) の cron 判断を上書き）。
+検証環境は7日使われないと自動で一時停止するため、常時監視すると
+「今日も眠っている」という通知が鳴り続けるだけになる。
 
 #### 監視先 URL の設定
 
@@ -414,40 +413,36 @@ Settings → Secrets and variables → Actions → Variables に
 HEALTH_CHECK_URL=https://fondra-hr-staging.vercel.app
 ```
 
-#### 手で走らせる
-
-設定を変えた直後など、次の定期実行を待たずに確かめたいとき。
-
-```bash
-gh workflow run health-check.yml
-gh run list --workflow=health-check.yml --limit 3
-```
-
-Actions タブの Health Check → Run workflow からでも同じことができる。
-
-#### この監視で分かること・分からないこと
+#### この確認で分かること
 
 ステータスコードだけでなく本文（`"status":"ok"` と `"database":"ok"`）まで
-見ているため、以下が検知できる。
+見ているため、以下を区別できる。
 
-| 症状                   | 監視の見え方       | 意味                                     |
-| ---------------------- | ------------------ | ---------------------------------------- |
-| `503` + `"error"`      | 失敗               | DB に到達できていない（`DATABASE_URL`）  |
-| `307` で `/login` へ   | 失敗               | `/api/health` が公開パスから外れた       |
-| `200` だが HTML が返る | 失敗               | 監視先が別プロジェクト・停止済みデプロイ |
-| 接続できない           | 失敗（`http=000`） | デプロイ・DNS ごと落ちている             |
+| 症状                   | 意味                                                                      |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `503` + `"error"`      | DB に到達できていない（`DATABASE_URL`、または**プロジェクトの一時停止**） |
+| `307` で `/login` へ   | `/api/health` が公開パスから外れた                                        |
+| `200` だが HTML が返る | 確認先が別プロジェクト・停止済みデプロイ                                  |
+| 接続できない           | デプロイ・DNS ごと落ちている（`http=000`）                                |
 
-一方で**検知の速さは保証されない**。GitHub Actions の cron は混雑時に
-数分〜十数分遅延し、スキップされることもある。さらに
-**60日間リポジトリに活動が無いとスケジュールが自動で無効化される**
-（無効化前に GitHub から所有者へ通知が届くので、そこで再有効化する）。
+### 検証環境が一時停止したら
 
-「N分以内に検知する」ことが要るなら、外形監視 SaaS に移すのが筋。
-判断の分かれ目は ADR 0013 に書いてある。
+Supabase の無料枠は**7日間使われないとプロジェクトを自動で一時停止する**。
+このとき `/api/health` は `503 {"status":"error","database":"error"}` を返す。
+アプリ（Vercel）は生きていて DB だけが落ちている状態なので、`/login` は開くが
+ログインできず、`supabase db push` も通らない。
 
-> 副次的な効果として、30分おきのアクセスが Supabase から見て「活動」に
-> なるため、無料枠プロジェクトの一時停止が起きにくくなる。**逆に言えば、
-> 監視を止めるとデモ環境が停止しうる**。
+**復帰は Supabase のダッシュボードから手で行う。** CLI に復帰用のコマンドは無い
+（`supabase projects` は list / create / delete のみ）。
+
+```bash
+# 現在の状態を確認する。status が INACTIVE なら一時停止している
+npx supabase projects list
+```
+
+> **監視を動かしても一時停止は防げない。** 死活確認は停止までの7日間、
+> 止まらず DB に `select 1` を投げ続けていたが、それでも一時停止した。
+> キープアライブ目的で監視を回す意味は無い（[ADR 0017](./adr/0017-health-check-is-on-demand-only.md)）。
 
 ### 「ログインはできるのに全画面エラー」になったら
 

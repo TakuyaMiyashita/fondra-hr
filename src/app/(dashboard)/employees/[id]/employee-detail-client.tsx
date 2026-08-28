@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -12,6 +12,7 @@ import { roleAtLeast } from '@/lib/roles';
 import type { Role } from '@/services/auth-context';
 import type { DepartmentOption, EmployeeDetail } from '@/types/employee';
 
+import { EmployeeAnonymizeDialog } from '../employee-anonymize-dialog';
 import { EmployeeDeleteDialog } from '../employee-delete-dialog';
 import { EmployeeFormSheet } from '../employee-form-sheet';
 
@@ -37,6 +38,7 @@ export function EmployeeDetailClient({ employee, departments, role }: Props) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [anonymizeOpen, setAnonymizeOpen] = useState(false);
   const statusInfo = statusConfig[employee.status];
   // 従業員マスタの書き込みは admin 以上（認可マトリクス）。
   // Service Layer が本命の防御で、ここは押しても失敗するボタンを出さないための UI 側の制御。
@@ -72,6 +74,10 @@ export function EmployeeDetailClient({ employee, departments, role }: Props) {
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="mr-1.5 h-3.5 w-3.5" />
               編集
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setAnonymizeOpen(true)}>
+              <UserX className="mr-1.5 h-3.5 w-3.5" />
+              匿名化
             </Button>
             <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="mr-1.5 h-3.5 w-3.5" />
@@ -122,6 +128,17 @@ export function EmployeeDetailClient({ employee, departments, role }: Props) {
         onSuccess={() => {
           setDeleteOpen(false);
           router.push('/employees');
+        }}
+      />
+
+      <EmployeeAnonymizeDialog
+        open={anonymizeOpen}
+        onOpenChange={setAnonymizeOpen}
+        employeeId={employee.id}
+        employeeName={employee.fullName}
+        onSuccess={() => {
+          setAnonymizeOpen(false);
+          router.refresh();
         }}
       />
     </div>

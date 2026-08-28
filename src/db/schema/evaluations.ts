@@ -16,10 +16,10 @@ export const evaluations = pgTable(
       .references(() => evaluationCycles.id, { onDelete: 'cascade' }),
     employeeId: uuid('employee_id')
       .notNull()
-      .references(() => employees.id, { onDelete: 'cascade' }),
+      .references(() => employees.id, { onDelete: 'restrict' }),
     evaluatorId: uuid('evaluator_id')
       .notNull()
-      .references(() => employees.id, { onDelete: 'cascade' }),
+      .references(() => employees.id, { onDelete: 'restrict' }),
     ratings: jsonb('ratings'),
     comment: text('comment'),
     status: text('status', {

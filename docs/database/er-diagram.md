@@ -160,6 +160,23 @@ erDiagram
 | `employee_skills` | `(employee_id, skill_id)`                       | 1人1スキルにつき1レコード                    |
 | `evaluations`     | `(org_id, cycle_id, employee_id, evaluator_id)` | 同一サイクルで同じ被評価者×評価者の評価は1件 |
 
+## 従業員の削除は外部キーで止める
+
+`employees` を参照する外部キーのうち、**評価と 1on1 は `on delete restrict`**。
+
+| 参照元                                       | 削除規則   | 理由                                                     |
+| -------------------------------------------- | ---------- | -------------------------------------------------------- |
+| `evaluations.employee_id` / `evaluator_id`   | `restrict` | 評価は**他人が書いた記録**でもある                       |
+| `one_on_ones.employee_id` / `interviewer_id` | `restrict` | 面談者として実施した部下の記録が道連れになる             |
+| `employee_skills.employee_id`                | `cascade`  | その従業員自身の属性でしかなく、他人の記録は損なわれない |
+
+cascade のままだと、**従業員を1人消すだけでその人が評価者として書いた他人の評価と、
+面談者として実施した部下の 1on1 まで黙って消える**（実測で65件）。
+Service Layer の `deleteEmployee` も件数を数えて拒否するが、Service Layer を
+通らない経路のために DB 側でも止める（[ADR 0016](../adr/0016-employee-delete-is-blocked-anonymize-instead.md)）。
+
+削除できない従業員の個人情報は `anonymizeEmployee` で落とす。
+
 **「存在を確かめてから書く」処理は、DB の一意制約とセットにすること。**
 確認と書き込みの間に別のリクエストが入ると、アプリ側のチェックだけでは
 重複を防げない。Service Layer は一意制約違反（`23505`）を拾って、

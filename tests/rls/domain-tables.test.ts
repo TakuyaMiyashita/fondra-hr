@@ -313,6 +313,56 @@ describe('RLS: domain tables tenant isolation', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // 従業員の削除で他人の記録が消えないこと
+  // ---------------------------------------------------------------------------
+  describe('employee delete restriction', () => {
+    it('評価が紐づいた従業員は DB レベルで削除できない', async () => {
+      // deleteEmployee() が件数を数えて止めているが、Service Layer を
+      // 通らない経路（service_role・将来の別サービス）でも消えないことを
+      // 確かめる。ここが cascade に戻ると、その従業員が「評価者として
+      // 書いた他人の評価」まで道連れで消える。
+      const { data: evaluation } = await admin
+        .from('evaluations')
+        .select('evaluator_id')
+        .eq('org_id', orgAId)
+        .limit(1)
+        .single();
+
+      const { error } = await admin.from('employees').delete().eq('id', evaluation!.evaluator_id);
+
+      expect(error).not.toBeNull();
+      expect(error!.message).toContain('evaluations_evaluator_id_fkey');
+    });
+
+    it('1on1 だけが紐づいた従業員も DB レベルで削除できない', async () => {
+      // フィクスチャの面談者は評価者も兼ねており、そのまま消そうとすると
+      // evaluations 側の制約が先に発火する。1on1 の制約が効いていることを
+      // 確かめたいので、1on1 しか持たない従業員を専用に作る。
+      const { data: interviewer } = await admin
+        .from('employees')
+        .insert({
+          org_id: orgAId,
+          employee_code: `FK-${testId}`,
+          full_name: `FK 面談者 ${testId}`,
+        })
+        .select()
+        .single();
+
+      await admin.from('one_on_ones').insert({
+        org_id: orgAId,
+        employee_id: empAId,
+        interviewer_id: interviewer!.id,
+        held_on: '2026-01-01',
+      });
+
+      const { error } = await admin.from('employees').delete().eq('id', interviewer!.id);
+
+      expect(error).not.toBeNull();
+      expect(error!.message).toContain('one_on_ones_interviewer_id_fkey');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // audit_logs
   // ---------------------------------------------------------------------------
   describe('audit_logs', () => {

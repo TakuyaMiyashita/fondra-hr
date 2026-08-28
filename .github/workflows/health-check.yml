@@ -48,6 +48,13 @@ jobs:
       # デモ環境として公開しているものであり、秘密情報ではない。
       HEALTH_URL: ${{ vars.HEALTH_CHECK_URL || 'https://fondra-hr-staging.vercel.app' }}
 
+      # **これが無いと gh が対象リポジトリを決められない。**
+      # このジョブはコードを使わないので checkout していない。gh は
+      # カレントディレクトリの git remote から対象を推測するため、
+      # checkout の無いジョブでは `fatal: not a git repository` で全て失敗する。
+      # 明示的に渡す。
+      GH_REPO: ${{ github.repository }}
+
     steps:
       - name: Probe
         id: probe
@@ -109,15 +116,22 @@ jobs:
       # 既にあれば --force が説明と色を上書きするだけで、通知も差分も出ない。
       # なお gh issue list --label は存在しないラベルでも空を返すので、
       # 落ちるのは起票側だけ。
+      #
+      # **失敗を握り潰さない。** 以前は `|| echo 'label already present'` で
+      # 逃がしていたが、GH_REPO が無くて gh 自体が落ちていたときも
+      # 「ラベルはある」と嘘の成功を出していた。実際にはラベルは作られておらず、
+      # 障害が起きた瞬間に起票が失敗する状態だった。--force があるので
+      # 「既にある」で落ちることは無く、ここが落ちるのは本当に異常なとき。
       - name: Ensure label exists
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           gh label create health-check \
             --color B60205 \
             --description '死活監視の失敗（自動起票）' \
-            --force || echo 'label already present; continuing'
+            --force
 
       # 失敗を Issue にする。ジョブの失敗通知（メール）は cron を最後に触った
       # 人にしか届かず埋もれやすいので、リポジトリ上に残る形も併せて用意する。

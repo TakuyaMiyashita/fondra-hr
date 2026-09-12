@@ -217,3 +217,22 @@ test('/skills: エラー表示中のダイアログに axe 違反が無い', asy
 
   expect(violations, format(violations)).toEqual([]);
 });
+
+/**
+ * 未認証で見えるページ。middleware が認証済みユーザーを飛ばすため、
+ * 既定の storageState では走査できず、どの検査にも入っていなかった。
+ */
+test.describe('未認証ページ', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const path of ['/', '/login', '/signup', '/reset-password']) {
+    test(`${path}: axe 違反が無い`, async ({ page }) => {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+
+      const { violations } = await axe(page).analyze();
+
+      expect(violations, format(violations)).toEqual([]);
+    });
+  }
+});

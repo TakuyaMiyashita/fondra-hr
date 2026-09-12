@@ -444,11 +444,20 @@ for (const theme of ['light', 'dark'] as const) {
     for (const path of TEXT_PAGES) {
       test(`${path} のテキストがコントラスト基準を満たす`, async ({ page }) => {
         await gotoWithTheme(page, path, theme);
+        // 描画されたことの実信号。件数の下限より確か。
+        await expect(page.getByRole('heading').first()).toBeVisible();
 
         const result = await page.evaluate(textContrastProbe, 10);
 
-        // 「1つも測れていないのに緑」を防ぐ。セレクタや描画が壊れたら気付ける。
-        expect(result.checked, `${path} でテキストを1つも測れていない`).toBeGreaterThan(5);
+        // 「1つも測れていないのに緑」を防ぐ。
+        //
+        // **件数の下限を大きく取らないこと。** 以前は 5 を下限にしていたが、
+        // `/reset-password` は可視テキストが5個しかない（見出し・説明・ラベル・
+        // ボタン・戻るリンク）ため、正常なのに落ちた。ページの規模は画面ごとに
+        // 違うので、件数で「ちゃんと描画された」は判定できない。
+        // 描画されたことの判定は、この手前の goto とページ固有の
+        // 可視アサーション（見出し・ダイアログ）に任せる。
+        expect(result.checked, `${path} でテキストを1つも測れていない`).toBeGreaterThan(0);
         expect(result.violations, formatTextViolations(result)).toEqual([]);
       });
     }
@@ -461,7 +470,7 @@ for (const theme of ['light', 'dark'] as const) {
 
         const result = await page.evaluate(textContrastProbe, 10);
 
-        expect(result.checked).toBeGreaterThan(5);
+        expect(result.checked).toBeGreaterThan(0);
         expect(result.violations, formatTextViolations(result)).toEqual([]);
       });
     }
@@ -472,7 +481,7 @@ for (const theme of ['light', 'dark'] as const) {
 
       const result = await page.evaluate(textContrastProbe, 10);
 
-      expect(result.checked).toBeGreaterThan(5);
+      expect(result.checked).toBeGreaterThan(0);
       expect(result.violations, formatTextViolations(result)).toEqual([]);
     });
 
@@ -486,7 +495,7 @@ for (const theme of ['light', 'dark'] as const) {
 
       const result = await page.evaluate(textContrastProbe, 10);
 
-      expect(result.checked).toBeGreaterThan(5);
+      expect(result.checked).toBeGreaterThan(0);
       expect(result.violations, formatTextViolations(result)).toEqual([]);
     });
 
@@ -501,9 +510,34 @@ for (const theme of ['light', 'dark'] as const) {
 
         const result = await page.evaluate(textContrastProbe, 10);
 
-        expect(result.checked).toBeGreaterThan(5);
+        expect(result.checked).toBeGreaterThan(0);
         expect(result.violations, formatTextViolations(result)).toEqual([]);
       });
     }
   });
 }
+
+/**
+ * 未認証で見えるページのコントラスト。
+ *
+ * 認証済みの画面と配色トークンは同じだが、**組み合わせが違う**
+ * （ランディングは他の画面に無い見出し・CTA を持つ）。
+ * トークンが同じでも、載る背景が違えば結果は変わる。
+ */
+test.describe('未認証ページ / 実テキスト', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const theme of ['light', 'dark'] as const) {
+    for (const path of ['/', '/login', '/signup', '/reset-password']) {
+      test(`${theme}: ${path} のテキストがコントラスト基準を満たす`, async ({ page }) => {
+        await gotoWithTheme(page, path, theme);
+        await expect(page.getByRole('heading').first()).toBeVisible();
+
+        const result = await page.evaluate(textContrastProbe, 10);
+
+        expect(result.checked, `${path} でテキストを1つも測れていない`).toBeGreaterThan(0);
+        expect(result.violations, formatTextViolations(result)).toEqual([]);
+      });
+    }
+  }
+});

@@ -182,6 +182,30 @@ ESLint の `no-restricted-syntax` で止めている。
 </div>
 ```
 
+### 見出し
+
+**どのページにもレベル1の見出しをちょうど1つ置く。** 支援技術でページの
+位置を把握する主要な手段で、無いと「何のページか」を読み取る足がかりが消える。
+
+**`CardTitle` は `<div>`。** 見た目が見出しでも、そのまま使うと見出しは0個になる。
+`src/components/ui/` は手を入れない方針なので、利用側で
+`role="heading" aria-level={1}` を渡す（`CardTitle` は props をそのまま div に流す）。
+
+**見出しの文言はページごとに変える。** ブランド名だけだと、見出しで
+ページを判別できない。ブランド名を見た目に残したい場合は、目的を
+`sr-only` で足す。
+
+```tsx
+<CardTitle role="heading" aria-level={1}>
+  FondraHR
+  <span className="sr-only">｜ログイン</span>
+</CardTitle>
+```
+
+**axe では拾えない。** `page-has-heading-one` は `best-practice` タグにあり、
+上流のルール追加で無関係な PR が落ちるのを避けるため入れていない。
+`tests/e2e/accessible-names.spec.ts` が全ページを横断で検査する。
+
 ### エラー状態
 
 - `error.tsx` で Suspense Error Boundary を活用

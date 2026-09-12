@@ -80,6 +80,22 @@ AI に渡すのは**個人を特定しない集計値だけ**にすること。�
 評価・1on1 の内容を混ぜると、ロール別・本人限定の可視制御を
 AI の回答経由で迂回できてしまう。
 
+### Route Handler も入力境界
+
+**Server Action と同じく、UI を経由しない呼び出しが常に可能**な公開
+エンドポイントである。`/api/chat` は body を無検証の `as` で受けており、
+`messages` が無いだけで `TypeError` → 500（スタックごと）になっていた。
+
+`check:conventions` の `action-validation` は `actions.ts` しか見ないため
+捕まえられなかった。`route-validation` を足して、body を読む `route.ts` にも
+`@/lib/validations` を求めるようにしてある。
+
+**上限も検証で置く。** README はデモ環境の資格情報を公開しており、ログインは
+誰でもできる。AI チャットは DB 書き込みではないのでデモの書き込み禁止
+（[ADR 0012](../adr/0012-demo-org-is-read-only.md)）の対象外で、素通しだと
+会話の長さに比例して LLM の課金が積み上がる
+（`src/lib/validations/chat.ts` で発言数50件・合計2万文字まで）。
+
 ### 死活確認だけは `authorize()` を通さない
 
 `/api/health` が呼ぶ `isDatabaseReachable()`（`src/services/health.ts`）は、

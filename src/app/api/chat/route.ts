@@ -8,6 +8,8 @@ import {
   createUIMessageStreamResponse,
 } from 'ai';
 
+import { chatRequestSchema } from '@/lib/validations/chat';
+
 import { getAuthContextForApi } from './auth';
 import { buildSystemPrompt } from './system-prompt';
 
@@ -35,7 +37,22 @@ export async function POST(req: Request) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const { messages } = (await req.json()) as { messages: UIMessage[] };
+  // **ここは入力境界。** UI を経由しない呼び出しが常に可能なので、
+  // 検証せずに使うと messages.findLast が TypeError で落ち、500 と
+  // スタックを返す。壊れた JSON も同じ。どちらも 400 で返す。
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: 'リクエストの形式が正しくありません' }, { status: 400 });
+  }
+
+  const parsed = chatRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const messages = parsed.data.messages as UIMessage[];
 
   if (!process.env.ANTHROPIC_API_KEY) {
     const lastMsg = messages.findLast((m) => m.role === 'user');

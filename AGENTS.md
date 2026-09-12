@@ -264,6 +264,7 @@ lines 100%、branches 99）。計測対象は `src/services/` `src/lib/` `src/ap
 | org-id            | ドメインテーブルが `org_id uuid not null` を持つか                              |
 | drizzle-sync      | マイグレーションのテーブルに対応する Drizzle 定義があるか                       |
 | action-validation | `actions.ts` が `@/lib/validations` を通しているか                              |
+| route-validation  | body を読む `route.ts` が `@/lib/validations` を通しているか                    |
 | doc-link          | ドキュメントの相対リンクが実在するか                                            |
 | screen-inventory  | 実ルートが `docs/design/screen-inventory.md` に載っているか                     |
 | data-api-grant    | `anon` / `authenticated` にテーブル権限が残っていないか（ADR 0011）             |

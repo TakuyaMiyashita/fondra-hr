@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 
-import { adminInsert, adminSelect } from './admin-api';
+import { adminInsert, adminSelect, adminStorageList } from './admin-api';
 
 test.describe('従業員一覧', () => {
   test('displays employee list page', async ({ page }) => {
@@ -142,6 +142,35 @@ test.describe('従業員の削除と匿名化', () => {
     await expect(page.getByText(/1on1記録1件.*削除できません/)).toBeVisible();
     // 消えていないこと。一覧へ飛ばされずに留まる。
     await expect(page).toHaveURL(employeeUrl);
+  });
+
+  test('アバターのある従業員を匿名化すると Storage からも消える', async ({ page }) => {
+    // **写真のある経路が本番の主経路。** 写真の無い従業員でしか試していないと、
+    // アバター削除が失敗しても気づけない。Storage の remove はポリシーで
+    // 拒否されても error を返さないため、実物で確かめる意味が大きい。
+    const employeeId = await createEmployee(page, 'アバター持ち三郎');
+    const [row] = await adminSelect<{ org_id: string }[]>(
+      `employees?id=eq.${employeeId}&select=org_id`,
+    );
+    const folder = `${row.org_id}/${employeeId}`;
+
+    // 1x1 の PNG を実際にアップロードする。
+    await page.setInputFiles('input[type="file"]', {
+      name: 'avatar.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+    });
+    await expect.poll(() => adminStorageList('avatars', folder)).toHaveLength(1);
+
+    await page.getByRole('button', { name: '匿名化', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: '匿名化する' }).click();
+
+    await expect(page.getByRole('heading', { name: '匿名化済みの従業員' })).toBeVisible();
+    // DB だけ匿名化されて顔写真が残る、が一番まずい。service_role で直接見る。
+    expect(await adminStorageList('avatars', folder)).toHaveLength(0);
   });
 
   test('匿名化すると個人情報が消え、レコードは残る', async ({ page }) => {

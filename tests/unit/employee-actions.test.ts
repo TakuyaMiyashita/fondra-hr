@@ -72,7 +72,10 @@ beforeEach(async () => {
   storageGetPublicUrl.mockReturnValue({
     data: { publicUrl: 'https://cdn.example.com/avatars/avatar.png' },
   });
-  storageList.mockResolvedValue({ data: [{ name: 'avatar.png' }], error: null });
+  // 既定は「1件あって、削除後は空になる」正常系。
+  storageList
+    .mockResolvedValueOnce({ data: [{ name: 'avatar.png' }], error: null })
+    .mockResolvedValue({ data: [], error: null });
   storageRemove.mockResolvedValue({ error: null });
   createClient.mockResolvedValue({
     storage: {
@@ -409,10 +412,13 @@ describe('anonymizeEmployeeAction', () => {
     // 残骸が消えず、顔写真だけ Storage に残る。
     const { anonymizeEmployeeAction } = await actions();
     const s = await svc();
-    storageList.mockResolvedValue({
-      data: [{ name: 'avatar.png' }, { name: 'avatar.jpg' }],
-      error: null,
-    });
+    storageList
+      .mockReset()
+      .mockResolvedValueOnce({
+        data: [{ name: 'avatar.png' }, { name: 'avatar.jpg' }],
+        error: null,
+      })
+      .mockResolvedValue({ data: [], error: null });
     s.anonymizeEmployee.mockResolvedValue(ok(undefined));
 
     expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(ok(undefined));
@@ -424,24 +430,51 @@ describe('anonymizeEmployeeAction', () => {
     expect(s.anonymizeEmployee).toHaveBeenCalledWith(ctxAdmin, EMPLOYEE_ID);
   });
 
-  it('skips the remove call when the folder is empty', async () => {
+  it('ignores the empty-folder placeholder', async () => {
+    // ダッシュボードから作られたフォルダに入る。これをファイルと数えると
+    // 「消したのに残っている」と誤判定して匿名化できなくなる。
     const { anonymizeEmployeeAction } = await actions();
     const s = await svc();
-    storageList.mockResolvedValue({ data: [], error: null });
+    storageList.mockReset().mockResolvedValue({
+      data: [{ name: '.emptyFolderPlaceholder' }],
+      error: null,
+    });
     s.anonymizeEmployee.mockResolvedValue(ok(undefined));
 
     expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(ok(undefined));
     expect(storageRemove).not.toHaveBeenCalled();
   });
 
-  it('tolerates a null listing', async () => {
+  it('skips the remove call when the folder is empty', async () => {
     const { anonymizeEmployeeAction } = await actions();
     const s = await svc();
-    storageList.mockResolvedValue({ data: null, error: null });
+    storageList.mockReset().mockResolvedValue({ data: [], error: null });
     s.anonymizeEmployee.mockResolvedValue(ok(undefined));
 
     expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(ok(undefined));
     expect(storageRemove).not.toHaveBeenCalled();
+  });
+
+  it('refuses to anonymize when the listing cannot be read', async () => {
+    // 一覧が取れない＝写真の有無が分からない。そのまま進めると
+    // 「消したつもりで残っている」になる。
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    storageList.mockReset().mockResolvedValue({ data: null, error: { message: 'denied' } });
+
+    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(
+      err('アバターの確認に失敗しました: denied'),
+    );
+    expect(s.anonymizeEmployee).not.toHaveBeenCalled();
+  });
+
+  it('refuses to anonymize when the listing comes back null without an error', async () => {
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    storageList.mockReset().mockResolvedValue({ data: null, error: null });
+
+    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(err('アバターの確認に失敗しました'));
+    expect(s.anonymizeEmployee).not.toHaveBeenCalled();
   });
 
   it('stops before anonymizing when the avatar cannot be removed', async () => {
@@ -453,6 +486,34 @@ describe('anonymizeEmployeeAction', () => {
     expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(
       err('アバターの削除に失敗しました: network'),
     );
+    expect(s.anonymizeEmployee).not.toHaveBeenCalled();
+  });
+
+  it('stops when files survive a remove that reported no error', async () => {
+    // **remove() はポリシーで拒否されても error を返さない。** 消せなかった
+    // オブジェクトを黙って結果から外すだけ（tests/rls/storage-avatars.test.ts が
+    // この挙動を確かめている）。戻り値だけ見ていると、DB は匿名化されたのに
+    // 顔写真は残る。
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    storageList.mockReset().mockResolvedValue({ data: [{ name: 'avatar.png' }], error: null });
+    storageRemove.mockResolvedValue({ error: null });
+
+    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(
+      err('アバターを削除できませんでした。権限を確認してください'),
+    );
+    expect(s.anonymizeEmployee).not.toHaveBeenCalled();
+  });
+
+  it('refuses to anonymize when the verification listing fails', async () => {
+    const { anonymizeEmployeeAction } = await actions();
+    const s = await svc();
+    storageList
+      .mockReset()
+      .mockResolvedValueOnce({ data: [{ name: 'avatar.png' }], error: null })
+      .mockResolvedValue({ data: null, error: { message: 'denied' } });
+
+    expect((await anonymizeEmployeeAction(EMPLOYEE_ID)).success).toBe(false);
     expect(s.anonymizeEmployee).not.toHaveBeenCalled();
   });
 

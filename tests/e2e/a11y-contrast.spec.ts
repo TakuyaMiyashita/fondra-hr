@@ -1,4 +1,8 @@
+import { readFileSync } from 'node:fs';
+
 import { test, expect, type Page } from '@playwright/test';
+
+import { FIXTURES_FILE, type Fixtures } from './authorization-fixtures';
 
 /**
  * コントラスト比の検証。
@@ -382,6 +386,8 @@ for (const theme of ['light', 'dark'] as const) {
  * フォームは全てダイアログ / シートの中にあり、静的ページだけ見ても
  * 1つも検査していないことになるため。
  */
+const fixtures = (): Fixtures => JSON.parse(readFileSync(FIXTURES_FILE, 'utf-8'));
+
 const TEXT_PAGES = [
   '/dashboard',
   '/employees',
@@ -451,6 +457,36 @@ for (const theme of ['light', 'dark'] as const) {
       test(`${d.title} ダイアログのテキストがコントラスト基準を満たす`, async ({ page }) => {
         await gotoWithTheme(page, d.path, theme);
         await openDialog(page, d.primary, d.empty);
+        await expect(page.getByRole('dialog')).toBeVisible();
+
+        const result = await page.evaluate(textContrastProbe, 10);
+
+        expect(result.checked).toBeGreaterThan(5);
+        expect(result.violations, formatTextViolations(result)).toEqual([]);
+      });
+    }
+
+    // **アプリで一番大きいフォームは Sheet の中にある**（9項目）。
+    // TEXT_DIALOGS は一覧ヘッダーから開くものだけを並べており、
+    // 従業員だけは Sheet、削除・匿名化は詳細画面にあるため漏れていた。
+    test('従業員登録シートのテキストがコントラスト基準を満たす', async ({ page }) => {
+      await gotoWithTheme(page, '/employees', theme);
+      await page.getByRole('button', { name: '新規登録' }).click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+
+      const result = await page.evaluate(textContrastProbe, 10);
+
+      expect(result.checked).toBeGreaterThan(5);
+      expect(result.violations, formatTextViolations(result)).toEqual([]);
+    });
+
+    for (const { label, title } of [
+      { label: '削除', title: '従業員の削除' },
+      { label: '匿名化', title: '従業員の匿名化' },
+    ] as const) {
+      test(`${title}ダイアログのテキストがコントラスト基準を満たす`, async ({ page }) => {
+        await gotoWithTheme(page, `/employees/${fixtures().othersEmployeeId}`, theme);
+        await page.getByRole('button', { name: label, exact: true }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
 
         const result = await page.evaluate(textContrastProbe, 10);

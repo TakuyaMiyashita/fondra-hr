@@ -1,5 +1,9 @@
 import AxeBuilder from '@axe-core/playwright';
+import { readFileSync } from 'node:fs';
+
 import { test, expect, type Page } from '@playwright/test';
+
+import { FIXTURES_FILE, type Fixtures } from './authorization-fixtures';
 import type { Result } from 'axe-core';
 
 /**
@@ -60,6 +64,8 @@ function format(violations: Result[]): string {
     })
     .join('\n\n');
 }
+
+const fixtures = (): Fixtures => JSON.parse(readFileSync(FIXTURES_FILE, 'utf-8'));
 
 const PAGES = [
   '/dashboard',
@@ -131,6 +137,46 @@ for (const d of DIALOGS) {
     await expect(dialog).toBeVisible();
 
     // 開いたダイアログだけを見る。背後のページは上のテストが見ている。
+    const { violations } = await axe(page).include('[role="dialog"]').analyze();
+
+    expect(violations, format(violations)).toEqual([]);
+  });
+}
+
+/**
+ * 従業員のシートとダイアログ。
+ *
+ * **アプリで一番大きいフォームがここにある**（9項目・Select 2つ・日付2つ）。
+ * `DIALOGS` は「一覧のヘッダーから開くもの」だけを並べており、
+ * 従業員だけは Sheet で、削除・匿名化は詳細画面にあるため漏れていた。
+ * このスペックの目的が「ダイアログの中を見ること」である以上、
+ * 一番中身の多いフォームが外れているのは本末転倒だった。
+ *
+ * Sheet も `role="dialog"` を持つので、走査の仕組みはそのまま使える。
+ */
+test('/employees: 従業員登録シートに axe 違反が無い', async ({ page }) => {
+  await page.goto('/employees');
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: '新規登録' }).click();
+
+  await expect(page.getByRole('dialog')).toBeVisible();
+
+  const { violations } = await axe(page).include('[role="dialog"]').analyze();
+
+  expect(violations, format(violations)).toEqual([]);
+});
+
+for (const { label, title } of [
+  { label: '削除', title: '従業員の削除' },
+  { label: '匿名化', title: '従業員の匿名化' },
+] as const) {
+  test(`/employees/[id]: ${title}ダイアログに axe 違反が無い`, async ({ page }) => {
+    await page.goto(`/employees/${fixtures().othersEmployeeId}`);
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: label, exact: true }).click();
+
+    await expect(page.getByRole('dialog')).toBeVisible();
+
     const { violations } = await axe(page).include('[role="dialog"]').analyze();
 
     expect(violations, format(violations)).toEqual([]);

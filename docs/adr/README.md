@@ -41,3 +41,4 @@
 | [0016](./0016-employee-delete-is-blocked-anonymize-instead.md)    | 記録の残る従業員は削除させず、匿名化で応える                  | 採用 |
 | [0017](./0017-health-check-is-on-demand-only.md)                  | 死活監視の定期実行をやめる（0013 の cron 判断を上書き）       | 採用 |
 | [0018](./0018-role-authority-is-the-database.md)                  | ロールの権威は JWT の claim ではなく DB                       | 採用 |
+| [0019](./0019-signup-tells-you-the-email-is-taken.md)             | サインアップは「既に登録済み」を伝える（列挙を受け入れる）    | 採用 |

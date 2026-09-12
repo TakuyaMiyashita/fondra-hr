@@ -145,15 +145,17 @@ describe('signUp', () => {
     expect(auth.signUp).not.toHaveBeenCalled();
   });
 
-  it('returns the Supabase error message when account creation fails', async () => {
+  it('既に登録済みのメールは日本語で伝える', async () => {
+    // **伝えること自体は意図した判断**（ADR 0019）。伏せると「登録できませんでした」
+    // としか言えず、利用者が原因に辿り着けない。ただし生の英語は出さない。
     const { signUp } = await actions();
     const s = await svc();
     auth.signUp.mockResolvedValue({
       data: { user: null },
-      error: { message: 'User already registered' },
+      error: { code: 'user_already_exists', message: 'User already registered' },
     });
 
-    expect(await signUp(VALID_SIGNUP)).toEqual(err('User already registered'));
+    expect(await signUp(VALID_SIGNUP)).toEqual(err('このメールアドレスは既に登録されています'));
     // 認証に失敗している以上、組織を作ってはならない。
     expect(s.createOrganizationWithOwner).not.toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
@@ -323,7 +325,7 @@ describe('signIn', () => {
     const { signIn } = await actions();
     auth.signInWithPassword.mockResolvedValue({
       data: {},
-      error: { message: 'Invalid login credentials' },
+      error: { code: 'invalid_credentials', message: 'Invalid login credentials' },
     });
 
     const result = await signIn({ email: 'user@example.com', password: 'wrong-password' });
@@ -348,18 +350,38 @@ describe('signIn', () => {
     }
   });
 
-  it('surfaces other Supabase errors as-is', async () => {
-    // レート制限やメール未確認など、ユーザーが対処できる情報は通す設計。
+  it('対処できる情報は通すが、日本語にして返す', async () => {
+    // 「ユーザーが対処できる情報は通す」という意図は変えていない。
+    // 生の英語をそのまま出すのをやめ、code から日本語に写像する。
     const { signIn } = await actions();
     auth.signInWithPassword.mockResolvedValue({
       data: {},
-      error: { message: 'Email not confirmed' },
+      error: { code: 'email_not_confirmed', message: 'Email not confirmed' },
     });
 
     expect(await signIn({ email: 'user@example.com', password: 'password123' })).toEqual(
-      err('Email not confirmed'),
+      err('メールアドレスの確認が完了していません'),
     );
     expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('未知のエラーは内部の文言を出さずに落とす', async () => {
+    const { signIn } = await actions();
+    auth.signInWithPassword.mockResolvedValue({
+      data: {},
+      error: {
+        code: 'some_new_upstream_code',
+        message: 'Password should be at least 6 characters.',
+      },
+    });
+
+    const result = await signIn({ email: 'user@example.com', password: 'password123' });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // UI は8文字以上を求めている。内部の 6 characters が漏れてはいけない。
+      expect(result.error).not.toContain('6 characters');
+    }
   });
 
   it('redirects to the employee list on success', async () => {
@@ -431,14 +453,14 @@ describe('resetPassword', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('returns the Supabase error when the mail cannot be sent', async () => {
+  it('送信に失敗したら日本語で伝える', async () => {
     const { resetPassword } = await actions();
     auth.resetPasswordForEmail.mockResolvedValue({
-      error: { message: 'Email rate limit exceeded' },
+      error: { code: 'over_email_send_rate_limit', message: 'Email rate limit exceeded' },
     });
 
     expect(await resetPassword({ email: 'user@example.com' })).toEqual(
-      err('Email rate limit exceeded'),
+      err('メールの送信回数が上限に達しました。しばらく待ってからやり直してください'),
     );
   });
 });

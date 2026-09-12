@@ -91,6 +91,17 @@ for (const path of PAGES) {
   });
 }
 
+test('/employees/[id]: axe 違反が無い', async ({ page }) => {
+  // 詳細は PAGES に入れられない（id が要る）。一覧だけ見ていると
+  // アバター・タブ・操作ボタンがまとめて素通りする。
+  await page.goto(`/employees/${fixtures().othersEmployeeId}`);
+  await page.waitForLoadState('networkidle');
+
+  const { violations } = await axe(page).analyze();
+
+  expect(violations, format(violations)).toEqual([]);
+});
+
 /**
  * 空状態のときは CTA のラベルが変わる（「スキルを追加」→「最初のスキルを追加」）。
  * e2e 用組織はシードデータを持たないため、両方に対応する必要がある。

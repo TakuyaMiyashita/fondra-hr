@@ -1,4 +1,8 @@
+import { readFileSync } from 'node:fs';
+
 import { test, expect } from '@playwright/test';
+
+import { FIXTURES_FILE, type Fixtures } from './authorization-fixtures';
 
 /**
  * アイコンだけのボタン・リンクに名前が無いと、読み上げでは「ボタン」としか
@@ -39,6 +43,8 @@ function findUnnamedControls() {
     .map((el) => el.outerHTML.slice(0, 200));
 }
 
+const fixtures = (): Fixtures => JSON.parse(readFileSync(FIXTURES_FILE, 'utf-8'));
+
 const PAGES = [
   '/dashboard',
   '/employees',
@@ -62,3 +68,18 @@ for (const path of PAGES) {
     expect(unnamed, `名前の無い操作要素:\n${unnamed.join('\n\n')}`).toEqual([]);
   });
 }
+
+/**
+ * 従業員詳細は `PAGES` に入れられない（id が要る）ため別立てにする。
+ *
+ * **一覧だけ見て詳細を見ないと、画面の半分が素通りする。** アバター・タブ・
+ * 操作ボタンと、この画面にしかない要素が多い。
+ */
+test('/employees/[id]: 名前の無いボタン・リンクが無い', async ({ page }) => {
+  await page.goto(`/employees/${fixtures().othersEmployeeId}`);
+  await page.waitForLoadState('networkidle');
+
+  const unnamed = await page.evaluate(findUnnamedControls);
+
+  expect(unnamed, `名前の無い操作要素:\n${unnamed.join('\n\n')}`).toEqual([]);
+});

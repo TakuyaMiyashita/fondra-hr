@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+import { readFileSync } from 'node:fs';
+
+import { adminInsert } from './admin-api';
+import { FIXTURES_FILE, type Fixtures } from './authorization-fixtures';
+
 /**
  * 画面が壊れる回帰の検知。いずれも e2e を書いて初めて見つかった不具合で、
  * ユニットテストでは通り抜けていた。
@@ -42,17 +47,39 @@ test.describe('ドロップダウンが開ける', () => {
  * 新しいキーに同じ初期データが入り、常に新鮮とみなされて Server Action が
  * 呼ばれない。URL だけ変わって一覧が更新されず、リロードすると直る、
  * という気付きにくい症状になる。
+ *
+ * **専用データを投入して検索で母集団を固定する。** 以前は「全件の1ページ目」と
+ * 「retired の1ページ目」の行数が違うことを見ていたが、これは組織全体の件数に
+ * 依存する。実際、退職者が perPage（20）に達した時点でどちらも20行になり、
+ * 正しく動いているのに落ちた。匿名化がステータスを「退職」にするため、
+ * e2e を回すほど退職者が増えて必ず踏む。
+ * （docs/testing.md「件数を数えるテストは専用データを投入して母集団を固定する」）
  */
+const fixtures = (): Fixtures => JSON.parse(readFileSync(FIXTURES_FILE, 'utf-8'));
+
 test('ステータス絞り込みがリロード無しで一覧に反映される', async ({ page }) => {
-  await page.goto('/employees');
-  await page.waitForLoadState('networkidle');
-  const before = await page.locator('tbody tr').count();
+  const marker = `E2E-FILTER-${Date.now()}`;
+  // **組織は fixtures から取る。** 適当な従業員から org_id を引くと、
+  // ローカルにはデモ組織のデータも入っているため別組織に投入してしまい、
+  // ログイン中の組織からは1件も見えない（表は「該当なし」の1行になる）。
+  const orgId = fixtures().orgId;
 
-  await page.goto('/employees?status=retired');
-  await page.waitForLoadState('networkidle');
-  const after = await page.locator('tbody tr').count();
+  await adminInsert('employees', [
+    { org_id: orgId, employee_code: `${marker}-A`, full_name: `${marker} 在籍`, status: 'active' },
+    { org_id: orgId, employee_code: `${marker}-R`, full_name: `${marker} 退職`, status: 'retired' },
+  ]);
 
-  expect(after).not.toBe(before);
+  await page.goto(`/employees?search=${marker}`);
+  await page.waitForLoadState('networkidle');
+  expect(await page.locator('tbody tr').count()).toBe(2);
+
+  // URL だけ変えて（リロードはするが SPA 遷移と同じくキーが変わる）絞り込む。
+  await page.goto(`/employees?search=${marker}&status=retired`);
+  await page.waitForLoadState('networkidle');
+
+  const rows = page.locator('tbody tr');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText(`${marker} 退職`);
 });
 
 /**

@@ -9,6 +9,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { roleAtLeast } from '@/lib/roles';
 import type { Role } from '@/services/auth-context';
 import { DataTable, type VisibilityState } from '@/components/shared/data-table';
+import { QueryErrorState } from '@/components/shared/query-error-state';
 import { DataTablePagination } from '@/components/shared/data-table-pagination';
 import { Button } from '@/components/ui/button';
 import type { DepartmentOption, EmployeeListResult, EmployeeStatus } from '@/types/employee';
@@ -84,7 +85,7 @@ export function EmployeeListClient({ initialData, departments, role }: EmployeeL
   // react-hooks/refs に引っかかるため。
   const [initialQueryKey] = useState(queryKey);
 
-  const { data } = useQuery({
+  const { data, isError, refetch } = useQuery({
     queryKey,
     queryFn: async () => {
       const result = await fetchEmployees({
@@ -199,31 +200,40 @@ export function EmployeeListClient({ initialData, departments, role }: EmployeeL
           </Button>
         )}
       </div>
-      <DataTable
-        columns={employeeColumns}
-        data={data?.employees ?? []}
-        total={data?.total ?? 0}
-        pagination={pagination}
-        sorting={sorting}
-        columnVisibility={columnVisibility}
-        onPaginationChange={handlePaginationChange}
-        onSortingChange={handleSortingChange}
-        onColumnVisibilityChange={(updater) => {
-          const next = typeof updater === 'function' ? updater(columnVisibility) : updater;
-          void setColumnVisibility(next);
-        }}
-        emptyMessage="従業員が登録されていません"
-      />
-      <DataTablePagination
-        page={page}
-        perPage={perPage}
-        total={data?.total ?? 0}
-        onPageChange={(p) => void setPage(p)}
-        onPerPageChange={(pp) => {
-          void setPerPage(pp);
-          void setPage(1);
-        }}
-      />
+      {/* **error を見ないと、取得失敗が「従業員が登録されていません」に化ける。**
+          keepPreviousData を入れているため、絞り込みを変えた直後に失敗すると
+          前の条件の結果が新しい条件の結果として残ってしまう。表は出さない。 */}
+      {isError ? (
+        <QueryErrorState title="従業員一覧を取得できませんでした" onRetry={() => void refetch()} />
+      ) : (
+        <>
+          <DataTable
+            columns={employeeColumns}
+            data={data?.employees ?? []}
+            total={data?.total ?? 0}
+            pagination={pagination}
+            sorting={sorting}
+            columnVisibility={columnVisibility}
+            onPaginationChange={handlePaginationChange}
+            onSortingChange={handleSortingChange}
+            onColumnVisibilityChange={(updater) => {
+              const next = typeof updater === 'function' ? updater(columnVisibility) : updater;
+              void setColumnVisibility(next);
+            }}
+            emptyMessage="従業員が登録されていません"
+          />
+          <DataTablePagination
+            page={page}
+            perPage={perPage}
+            total={data?.total ?? 0}
+            onPageChange={(p) => void setPage(p)}
+            onPerPageChange={(pp) => {
+              void setPerPage(pp);
+              void setPage(1);
+            }}
+          />
+        </>
+      )}
       <EmployeeFormSheet
         mode="create"
         open={sheetOpen}

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/ui/card';
+import { QueryErrorState } from '@/components/shared/query-error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { fetchEmployeeSkills } from '../../actions';
@@ -23,7 +24,12 @@ function SkillLevelBar({ level }: { level: number }) {
 }
 
 export function SkillsTab({ employeeId }: Props) {
-  const { data: skills, isLoading } = useQuery({
+  const {
+    data: skills,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['employee-skills', employeeId],
     queryFn: () => fetchEmployeeSkills(employeeId),
   });
@@ -36,6 +42,12 @@ export function SkillsTab({ employeeId }: Props) {
         ))}
       </div>
     );
+  }
+
+  // **error を見ずに data の有無だけで分岐すると、取得失敗が空状態に化ける。**
+  // 「記録が無い」と「記録が読めなかった」は別の事実で、人事の判断が変わる。
+  if (isError) {
+    return <QueryErrorState title="スキルを取得できませんでした" onRetry={() => void refetch()} />;
   }
 
   if (!skills || skills.length === 0) {

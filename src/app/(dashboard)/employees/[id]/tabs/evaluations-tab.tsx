@@ -5,6 +5,7 @@ import { ClipboardList } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { QueryErrorState } from '@/components/shared/query-error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { fetchEmployeeEvaluations } from '../../actions';
@@ -25,7 +26,12 @@ const evalStatusConfig: Record<
 };
 
 export function EvaluationsTab({ employeeId }: Props) {
-  const { data: evaluations, isLoading } = useQuery({
+  const {
+    data: evaluations,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['employee-evaluations', employeeId],
     queryFn: () => fetchEmployeeEvaluations(employeeId),
   });
@@ -37,6 +43,14 @@ export function EvaluationsTab({ employeeId }: Props) {
           <Skeleton key={i} className="h-20 w-full" />
         ))}
       </div>
+    );
+  }
+
+  // **error を見ずに data の有無だけで分岐すると、取得失敗が空状態に化ける。**
+  // 「記録が無い」と「記録が読めなかった」は別の事実で、人事の判断が変わる。
+  if (isError) {
+    return (
+      <QueryErrorState title="評価記録を取得できませんでした" onRetry={() => void refetch()} />
     );
   }
 

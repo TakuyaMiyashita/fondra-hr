@@ -5,6 +5,7 @@ import { Handshake } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { QueryErrorState } from '@/components/shared/query-error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { fetchEmployeeOneOnOnes } from '../../actions';
@@ -24,7 +25,12 @@ function MoodBadge({ score }: { score: number }) {
 }
 
 export function OneOnOneTab({ employeeId }: Props) {
-  const { data: records, isLoading } = useQuery({
+  const {
+    data: records,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['employee-one-on-ones', employeeId],
     queryFn: () => fetchEmployeeOneOnOnes(employeeId),
   });
@@ -36,6 +42,14 @@ export function OneOnOneTab({ employeeId }: Props) {
           <Skeleton key={i} className="h-20 w-full" />
         ))}
       </div>
+    );
+  }
+
+  // **error を見ずに data の有無だけで分岐すると、取得失敗が空状態に化ける。**
+  // 「記録が無い」と「記録が読めなかった」は別の事実で、人事の判断が変わる。
+  if (isError) {
+    return (
+      <QueryErrorState title="1on1記録を取得できませんでした" onRetry={() => void refetch()} />
     );
   }
 

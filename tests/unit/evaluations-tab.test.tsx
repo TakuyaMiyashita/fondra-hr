@@ -1,4 +1,5 @@
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EvaluationsTab } from '@/app/(dashboard)/employees/[id]/tabs/evaluations-tab';
@@ -72,12 +73,28 @@ describe('EvaluationsTab', () => {
     expect(screen.getByText('この従業員の評価記録はまだ登録されていません。')).toBeInTheDocument();
   });
 
-  it('取得が失敗して data が undefined のときも空状態にフォールバックする', async () => {
+  it('取得が失敗したら空状態ではなく失敗として出す', async () => {
+    // **「記録が無い」と「記録が読めなかった」は別の事実。** 人事の画面で
+    // 取り違えると判断を誤る（この従業員は1on1をしていない、と読んでしまう）。
+    // 以前はここが空状態にフォールバックしており、失敗が見えなかった。
     fetchEmployeeEvaluations.mockRejectedValue(new Error('boom'));
 
     renderWithQuery(<EvaluationsTab employeeId={EMPLOYEE_ID} />);
 
-    expect(await screen.findByText('評価記録がありません')).toBeInTheDocument();
+    expect(await screen.findByText('評価記録を取得できませんでした')).toBeInTheDocument();
+    expect(screen.queryByText('評価記録がありません')).not.toBeInTheDocument();
+  });
+
+  it('再試行で取得し直す', async () => {
+    fetchEmployeeEvaluations.mockRejectedValue(new Error('boom'));
+
+    renderWithQuery(<EvaluationsTab employeeId={EMPLOYEE_ID} />);
+    await screen.findByText('評価記録を取得できませんでした');
+
+    const before = fetchEmployeeEvaluations.mock.calls.length;
+    await userEvent.click(screen.getByRole('button', { name: '再試行' }));
+
+    await waitFor(() => expect(fetchEmployeeEvaluations.mock.calls.length).toBeGreaterThan(before));
   });
 
   it('ステータスを日本語ラベルに変換する', async () => {

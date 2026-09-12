@@ -17,14 +17,19 @@ test.describe('設定', () => {
     await expect(page).toHaveURL(/\/settings\/members/);
   });
 
+  // **exact を付ける。** 保留中の招待があると1件ごとに
+  // 「<メール> への招待を取り消す」ボタンが並び、部分一致では複数に当たる。
+  const inviteButton = (page: import('@playwright/test').Page) =>
+    page.getByRole('button', { name: '招待', exact: true });
+
   test('members page shows invite button', async ({ page }) => {
     await page.goto('/settings/members');
-    await expect(page.getByRole('button', { name: '招待' })).toBeVisible();
+    await expect(inviteButton(page)).toBeVisible();
   });
 
   test('opens invite dialog', async ({ page }) => {
     await page.goto('/settings/members');
-    await page.getByRole('button', { name: '招待' }).click();
+    await inviteButton(page).click();
     await expect(page.locator('#invite-email')).toBeVisible();
   });
 });

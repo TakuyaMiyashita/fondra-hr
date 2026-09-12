@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { test, expect, type Page } from '@playwright/test';
 
+import { createInvitation, deleteInvitation } from './admin-api';
 import { FIXTURES_FILE, type Fixtures } from './authorization-fixtures';
 
 /**
@@ -539,5 +540,60 @@ test.describe('未認証ページ / 実テキスト', () => {
         expect(result.violations, formatTextViolations(result)).toEqual([]);
       });
     }
+  }
+});
+
+/**
+ * 未走査だった画面のコントラスト。
+ *
+ * 404 と招待の受諾画面は他の画面に無い組み合わせを持つ
+ * （案内文・トークン失効のメッセージ・組織名とロールの表示）。
+ */
+for (const theme of ['light', 'dark'] as const) {
+  test.describe(`${theme} テーマ / 残りの画面`, () => {
+    for (const tab of ['スキル', '1on1', '評価'] as const) {
+      test(`/employees/[id] の${tab}タブがコントラスト基準を満たす`, async ({ page }) => {
+        await gotoWithTheme(page, `/employees/${fixtures().othersEmployeeId}`, theme);
+        await page.getByRole('tab', { name: tab }).click();
+        await expect(page.getByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
+
+        const result = await page.evaluate(textContrastProbe, 10);
+
+        expect(result.checked).toBeGreaterThan(0);
+        expect(result.violations, formatTextViolations(result)).toEqual([]);
+      });
+    }
+  });
+}
+
+test.describe('未認証のフォールバック画面 / 実テキスト', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const theme of ['light', 'dark'] as const) {
+    test(`${theme}: 404 画面のテキストがコントラスト基準を満たす`, async ({ page }) => {
+      await gotoWithTheme(page, '/this-page-does-not-exist', theme);
+      await expect(page.getByRole('heading').first()).toBeVisible();
+
+      const result = await page.evaluate(textContrastProbe, 10);
+
+      expect(result.checked).toBeGreaterThan(0);
+      expect(result.violations, formatTextViolations(result)).toEqual([]);
+    });
+
+    test(`${theme}: 有効な招待の受諾画面のテキストがコントラスト基準を満たす`, async ({ page }) => {
+      // 残すと他スペックのセレクタが曖昧になって落ちる。finally で必ず消す。
+      const token = await createInvitation(fixtures().orgId);
+      try {
+        await gotoWithTheme(page, `/invite/${token}`, theme);
+        await expect(page.locator('#password')).toBeVisible();
+
+        const result = await page.evaluate(textContrastProbe, 10);
+
+        expect(result.checked).toBeGreaterThan(0);
+        expect(result.violations, formatTextViolations(result)).toEqual([]);
+      } finally {
+        await deleteInvitation(token);
+      }
+    });
   }
 });

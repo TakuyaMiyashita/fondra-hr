@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { QueryErrorState } from '@/components/shared/query-error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { DepartmentOption } from '@/types/employee';
 
@@ -43,7 +44,7 @@ export function SkillMatrixClient({ categories, departments }: Props) {
 
   const queryKey = ['skill-matrix', departmentId, category, debouncedSearch];
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey,
     queryFn: async () => {
       const result = await fetchSkillMatrix({
@@ -146,6 +147,12 @@ export function SkillMatrixClient({ categories, departments }: Props) {
             <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
+      ) : isError ? (
+        // error を見ないと、取得失敗が「マトリクスデータがありません」に化ける。
+        <QueryErrorState
+          title="スキルマトリクスを取得できませんでした"
+          onRetry={() => void refetch()}
+        />
       ) : !data || (data.employees.length === 0 && data.skills.length === 0) ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Sparkles className="text-muted-foreground/50 h-12 w-12" />

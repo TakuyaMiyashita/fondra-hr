@@ -194,6 +194,22 @@ ESLint の `no-restricted-syntax` で止めている。
   `globals.css` もテーマ属性も届かないため、Tailwind ではなくインラインの
   `style` で組む（Next.js の仕様）
 
+**`error.tsx` はクライアント取得の失敗を拾わない。** 画面の中で TanStack Query が
+失敗しても Error Boundary には届かないため、`useQuery` の `error` を自分で見る
+必要がある。**`data` の有無だけで分岐すると、取得失敗が空状態に化ける。**
+
+```tsx
+const { data, isLoading, isError, refetch } = useQuery({ ... });
+if (isError) return <QueryErrorState title="…を取得できませんでした" onRetry={() => void refetch()} />;
+```
+
+表示は `QueryErrorState`（`@/components/shared/query-error-state`）に揃える。
+見た目を `error.tsx` と同じにして、利用者から見て同じ種類の出来事に見せる。
+
+**「データが無い」と「データが読めなかった」を混ぜないこと。** 人事の画面では
+判断が変わる（この従業員は1on1をしていない、と読んでしまう）。
+なお**権限が無くて空配列が返るのは空状態が正しい**。失敗ではないため。
+
 ### 成功フィードバック
 
 - `sonner` の `toast.success()` で即座にフィードバック

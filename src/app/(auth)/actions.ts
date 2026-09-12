@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
+import { authErrorMessage } from '@/lib/auth-errors';
 import { type Result, err, ok } from '@/lib/result';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
@@ -42,7 +43,7 @@ export async function signUp(data: {
   });
 
   if (error) {
-    return err(error.message);
+    return err(authErrorMessage(error));
   }
 
   if (!authData.user) {
@@ -86,10 +87,8 @@ export async function signIn(data: { email: string; password: string }): Promise
   });
 
   if (error) {
-    if (error.message === 'Invalid login credentials') {
-      return err('メールアドレスまたはパスワードが正しくありません');
-    }
-    return err(error.message);
+    // 生の message は英語で、内部の制約（Supabase 側の最小文字数など）も漏れる。
+    return err(authErrorMessage(error));
   }
 
   redirect('/employees');
@@ -114,7 +113,7 @@ export async function resetPassword(data: { email: string }): Promise<Result<voi
   });
 
   if (error) {
-    return err(error.message);
+    return err(authErrorMessage(error));
   }
 
   return ok(undefined);

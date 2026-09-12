@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 import { test, expect, type Page } from '@playwright/test';
 
+import { createInvitation, deleteInvitation } from './admin-api';
 import { FIXTURES_FILE, type Fixtures } from './authorization-fixtures';
 import type { Result } from 'axe-core';
 
@@ -236,3 +237,66 @@ test.describe('未認証ページ', () => {
     });
   }
 });
+
+/**
+ * フォールバック画面と、招待の受諾画面。
+ *
+ * `fallbacks.spec.ts` が機能面（404 が出る・無効トークンで案内が出る）を
+ * 見ているが、**a11y の走査には入っていなかった**。
+ * とくに有効な招待の受諾画面はパスワード入力のフォームを持つのに、
+ * トークンが要るため既定のページ一覧に入れられず一度も検査されていない。
+ */
+test.describe('未認証のフォールバック画面', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test('404 画面に axe 違反が無い', async ({ page }) => {
+    await page.goto('/this-page-does-not-exist');
+    await page.waitForLoadState('networkidle');
+
+    const { violations } = await axe(page).analyze();
+
+    expect(violations, format(violations)).toEqual([]);
+  });
+
+  test('無効な招待トークンの案内画面に axe 違反が無い', async ({ page }) => {
+    await page.goto('/invite/00000000-0000-0000-0000-000000000000');
+    await page.waitForLoadState('networkidle');
+
+    const { violations } = await axe(page).analyze();
+
+    expect(violations, format(violations)).toEqual([]);
+  });
+
+  test('有効な招待の受諾画面に axe 違反が無い', async ({ page }) => {
+    // 残すとメンバー管理画面に「取り消す」ボタンが増え、他スペックのセレクタが
+    // 曖昧になって落ちる。finally で必ず消す。
+    const token = await createInvitation(fixtures().orgId);
+    try {
+      await page.goto(`/invite/${token}`);
+      await page.waitForLoadState('networkidle');
+      // 招待が有効なときだけパスワード入力が出る。ここが出ていないと
+      // 「案内画面を検査しただけ」になる。
+      await expect(page.locator('#password')).toBeVisible();
+
+      const { violations } = await axe(page).analyze();
+
+      expect(violations, format(violations)).toEqual([]);
+    } finally {
+      await deleteInvitation(token);
+    }
+  });
+});
+
+/** 既定タブ以外も見る。タブを切り替えないと3画面ぶんが素通りする。 */
+for (const tab of ['スキル', '1on1', '評価'] as const) {
+  test(`/employees/[id]: ${tab}タブに axe 違反が無い`, async ({ page }) => {
+    await page.goto(`/employees/${fixtures().othersEmployeeId}`);
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('tab', { name: tab }).click();
+    await expect(page.getByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
+
+    const { violations } = await axe(page).analyze();
+
+    expect(violations, format(violations)).toEqual([]);
+  });
+}

@@ -74,6 +74,39 @@ export async function adminStorageList(bucket: string, prefix: string): Promise<
     .filter((name) => name !== '.emptyFolderPlaceholder');
 }
 
+/**
+ * 有効な招待を作り、トークンを返す。
+ *
+ * 受諾画面は**有効なトークンが無いと案内画面に落ちる**ため、
+ * フォームを検査したい場合は毎回作る必要がある。
+ * メールは毎回変える（同一メールの有効な招待が重複すると Service 側で弾かれる）。
+ */
+export async function createInvitation(orgId: string, role = 'member'): Promise<string> {
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const [row] = await adminInsert<{ token: string }[]>('invitations', {
+    org_id: orgId,
+    email: `invited-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@example.com`,
+    role,
+    expires_at: expiresAt,
+  });
+  return row.token;
+}
+
+/**
+ * 招待を消す。
+ *
+ * **作ったら消すこと。** 保留中の招待はメンバー管理画面に1件ずつ
+ * 「取り消す」ボタンを並べるため、残り続けると他スペックのセレクタが
+ * 曖昧になって落ちる（実際 settings.spec.ts が落ちた）。
+ */
+export async function deleteInvitation(token: string): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/invitations?token=eq.${token}`, {
+    method: 'DELETE',
+    headers: adminHeaders(),
+  });
+  if (!res.ok) throw new Error(`Failed to delete invitation: ${res.status}`);
+}
+
 /** メールアドレスからユーザーを作る。既にいればその id を返す。 */
 export async function ensureAuthUser(email: string, password: string): Promise<string> {
   const listRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, { headers: adminHeaders() });

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { test, expect } from '@playwright/test';
 
+import { createInvitation, deleteInvitation } from './admin-api';
 import { FIXTURES_FILE, type Fixtures } from './authorization-fixtures';
 
 /**
@@ -168,5 +169,48 @@ test.describe('未認証ページの見出し', () => {
     }
 
     expect(new Set(texts).size, `見出しが重複している: ${texts.join(' / ')}`).toBe(texts.length);
+  });
+});
+
+/** 既定タブ以外と、招待の受諾画面。どちらもこの画面固有の操作要素を持つ。 */
+for (const tab of ['スキル', '1on1', '評価'] as const) {
+  test(`/employees/[id]: ${tab}タブに名前の無いボタン・リンクが無い`, async ({ page }) => {
+    await page.goto(`/employees/${fixtures().othersEmployeeId}`);
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('tab', { name: tab }).click();
+    await expect(page.getByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
+
+    const unnamed = await page.evaluate(findUnnamedControls);
+
+    expect(unnamed, `名前の無い操作要素:\n${unnamed.join('\n\n')}`).toEqual([]);
+  });
+}
+
+test.describe('未認証のフォールバック画面の名前', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test('404 画面に名前の無いボタン・リンクが無い', async ({ page }) => {
+    await page.goto('/this-page-does-not-exist');
+    await page.waitForLoadState('networkidle');
+
+    const unnamed = await page.evaluate(findUnnamedControls);
+
+    expect(unnamed, `名前の無い操作要素:\n${unnamed.join('\n\n')}`).toEqual([]);
+  });
+
+  test('有効な招待の受諾画面に名前の無いボタン・リンクが無い', async ({ page }) => {
+    // 残すと他スペックのセレクタが曖昧になって落ちる。finally で必ず消す。
+    const token = await createInvitation(fixtures().orgId);
+    try {
+      await page.goto(`/invite/${token}`);
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('#password')).toBeVisible();
+
+      const unnamed = await page.evaluate(findUnnamedControls);
+
+      expect(unnamed, `名前の無い操作要素:\n${unnamed.join('\n\n')}`).toEqual([]);
+    } finally {
+      await deleteInvitation(token);
+    }
   });
 });

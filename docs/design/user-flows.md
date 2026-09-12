@@ -186,17 +186,46 @@ sequenceDiagram
     SVC->>DB: SELECT employees WHERE org_id = ctx.orgId
     DB-->>UI: 従業員リスト
 
-    Note over User,DB: 新規作成
+    Note over User,DB: 新規作成（admin 以上）
     User->>UI: Sheet でフォーム入力
     UI->>SA: createEmployeeAction(data)
     SA->>SA: Zod バリデーション
     SA->>SVC: createEmployee(ctx, input)
-    SVC->>SVC: authorize(ctx, 'create', 'employee')
+    SVC->>SVC: authorize(ctx, 'create', 'employee', hasMinRole(admin))
+    Note over SVC: 従業員のメールはログインユーザーとの紐付けキー。<br/>member が書けると本人限定の操作を奪える
     SVC->>DB: INSERT employees
     SVC->>DB: INSERT audit_logs
     SVC-->>SA: ok
     SA-->>UI: toast.success + revalidatePath
+
+    Note over User,DB: 削除（admin 以上）— 参照があれば拒否する
+    User->>UI: 削除ダイアログで確認
+    UI->>SA: deleteEmployeeAction(id)
+    SA->>SVC: deleteEmployee(ctx, id)
+    SVC->>DB: SELECT count(evaluations), count(one_on_ones)
+    alt 評価・1on1 が紐づいている
+        SVC-->>UI: err（件数 + 「退職」か「匿名化」の案内）
+        Note over SVC,DB: 他人が書いた評価・部下の1on1まで<br/>道連れで消えるため。外部キーも restrict
+    else 参照なし
+        SVC->>DB: DELETE employees
+        SVC->>DB: INSERT audit_logs
+        SVC-->>UI: ok（一覧へ遷移）
+    end
+
+    Note over User,DB: 匿名化（admin 以上）— 削除できない従業員の個人情報を落とす
+    User->>UI: 匿名化ダイアログで確認
+    UI->>SA: anonymizeEmployeeAction(id)
+    SA->>SVC: assertCanUpdateAvatar(ctx, id)
+    Note over SA: Storage は Service Layer の外。先に権限を確かめる
+    SA->>SA: avatars から一覧 → 削除 → 再度一覧して空を確認
+    Note over SA: remove() は拒否されても error を返さない。<br/>消えたことを確かめないと顔写真だけ残る
+    SA->>SVC: anonymizeEmployee(ctx, id)
+    SVC->>DB: UPDATE employees SET 氏名・メール・生年月日・<br/>社員番号・user_id を落とす, status='retired'
+    SVC->>DB: INSERT audit_logs（旧氏名は残さない）
+    SVC-->>UI: ok
 ```
+
+削除と匿名化の判断は [ADR 0016](../adr/0016-employee-delete-is-blocked-anonymize-instead.md)。
 
 ## 7. 1on1 記録
 
@@ -221,8 +250,9 @@ sequenceDiagram
     User->>UI: Dialog でフォーム入力
     UI->>SA: createOneOnOneAction(data)
     SA->>SVC: createOneOnOne(ctx, input)
-    SVC->>SVC: authorize(ctx, 'create', 'one_on_one', memberCheck)
-    Note over SVC: member は自分が employee_id または interviewer_id の場合のみ
+    SVC->>SVC: authorize(ctx, 'create', 'one_on_one')
+    SVC->>SVC: getOwnEmployeeId(ctx) で当事者判定
+    Note over SVC: member は自分が employee_id または interviewer_id の場合のみ。<br/>**authorize の第4引数では書けない**（同期関数で、<br/>本人判定は DB 参照が要るため）
     SVC->>DB: INSERT one_on_ones
     SVC->>DB: INSERT audit_logs
     SVC-->>SA: ok
@@ -267,10 +297,11 @@ sequenceDiagram
     Admin->>SA: updateEvaluationAction({ status: 'confirmed' })
     SA->>SVC: updateEvaluation(ctx, input)
     SVC->>DB: UPDATE evaluations SET status = 'confirmed'
-    Note over SVC,DB: 以降、被評価者本人にもコメントが返る<br/>（canReadEvaluationComment）
+    Note over SVC,DB: 以降、被評価者本人にもコメント**と評点**が返る<br/>（canReadEvaluationDetail）
 ```
 
-評価コメントの可視性は読み取り時にフィールド単位で制御している。
+評価コメント**と評点**の可視性は読み取り時にフィールド単位で制御している。
+評点だけ素通しではコメントを伏せる意味が無いため、同じ条件で落とす。
 詳細は [認可マトリクス](../database/authorization-matrix.md)。
 
 ## 9. AI チャット
@@ -287,9 +318,11 @@ sequenceDiagram
     User->>UI: メッセージ入力
     UI->>API: POST /api/chat (messages)
     API->>API: JWT 認証（parseJwtClaims）
-    API->>SVC: テナントデータ取得（org_id 限定）
-    SVC->>DB: SELECT（従業員・スキル等）
-    DB-->>API: コンテキストデータ
+    API->>SVC: getOrgSummary(ctx)
+    SVC->>SVC: authorize(ctx, 'read', 'ai_assistant')
+    SVC->>DB: SELECT count(...)（org_id 限定）
+    DB-->>API: **個人を特定しない集計値だけ**
+    Note over SVC,API: 氏名・評価・1on1 の中身は渡さない。<br/>渡すとロール別・本人限定の可視制御を<br/>AI の回答経由で迂回できる
     API->>LLM: システムプロンプト + ユーザーメッセージ
     LLM-->>UI: ストリーミングレスポンス
     Note over UI: テキストがリアルタイムで表示

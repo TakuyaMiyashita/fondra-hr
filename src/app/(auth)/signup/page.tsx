@@ -12,7 +12,10 @@ export default function SignupPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold tracking-tight">FondraHR</CardTitle>
+        <CardTitle role="heading" aria-level={1} className="text-2xl font-bold tracking-tight">
+          FondraHR
+          <span className="sr-only">｜アカウント作成</span>
+        </CardTitle>
         <CardDescription>新しいアカウントを作成</CardDescription>
       </CardHeader>
       <CardContent>

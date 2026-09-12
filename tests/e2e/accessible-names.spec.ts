@@ -83,3 +83,90 @@ test('/employees/[id]: 名前の無いボタン・リンクが無い', async ({ 
 
   expect(unnamed, `名前の無い操作要素:\n${unnamed.join('\n\n')}`).toEqual([]);
 });
+
+/**
+ * 未認証で見えるページ。
+ *
+ * **訪問者が最初に見る画面が、どの横断検査にも入っていなかった。**
+ * 既定の storageState は認証済みで、middleware が `/login` `/signup` を
+ * ダッシュボードへ飛ばすため、認証済みのままでは走査できない。
+ */
+test.describe('未認証ページ', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const path of ['/', '/login', '/signup', '/reset-password']) {
+    test(`${path}: 名前の無いボタン・リンクが無い`, async ({ page }) => {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+
+      const unnamed = await page.evaluate(findUnnamedControls);
+
+      expect(unnamed, `名前の無い操作要素:\n${unnamed.join('\n\n')}`).toEqual([]);
+    });
+  }
+});
+
+/**
+ * どのページにも「今どこに居るか」を表す見出しが1つある。
+ *
+ * **見た目が見出しでも、マークアップが見出しでなければ支援技術には無い。**
+ * shadcn の `CardTitle` は `<div>` なので、そのまま使うと見出しが0個になる。
+ * 実際 `(auth)` の3ページがそうなっていた（WCAG 1.3.1）。
+ *
+ * axe では拾えない。`page-has-heading-one` は `best-practice` タグにあり、
+ * このリポジトリは上流のルール追加で無関係な PR が落ちるのを避けるため
+ * そのタグを入れていない。
+ *
+ * **文言が重複していないこと**も見る。見出しだけでページを判別できないと、
+ * 見出しがある意味が薄れる（WCAG 2.4.6）。
+ */
+const level1Headings = (page: import('@playwright/test').Page) =>
+  page.evaluate(() =>
+    Array.from(document.querySelectorAll('h1, [role="heading"][aria-level="1"]')).map((el) =>
+      (el.textContent ?? '').trim(),
+    ),
+  );
+
+test.describe('見出し', () => {
+  for (const path of PAGES) {
+    test(`${path}: レベル1の見出しがちょうど1つある`, async ({ page }) => {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+
+      expect(await level1Headings(page)).toHaveLength(1);
+    });
+  }
+
+  test('/employees/[id]: レベル1の見出しがちょうど1つある', async ({ page }) => {
+    await page.goto(`/employees/${fixtures().othersEmployeeId}`);
+    await page.waitForLoadState('networkidle');
+
+    expect(await level1Headings(page)).toHaveLength(1);
+  });
+});
+
+test.describe('未認証ページの見出し', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  const PUBLIC_PAGES = ['/', '/login', '/signup', '/reset-password'];
+
+  for (const path of PUBLIC_PAGES) {
+    test(`${path}: レベル1の見出しがちょうど1つある`, async ({ page }) => {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+
+      expect(await level1Headings(page)).toHaveLength(1);
+    });
+  }
+
+  test('未認証ページの見出しが互いに重複しない', async ({ page }) => {
+    const texts: string[] = [];
+    for (const path of PUBLIC_PAGES) {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+      texts.push((await level1Headings(page))[0]);
+    }
+
+    expect(new Set(texts).size, `見出しが重複している: ${texts.join(' / ')}`).toBe(texts.length);
+  });
+});

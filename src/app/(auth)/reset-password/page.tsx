@@ -12,7 +12,9 @@ export default function ResetPasswordPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold tracking-tight">パスワードリセット</CardTitle>
+        <CardTitle role="heading" aria-level={1} className="text-2xl font-bold tracking-tight">
+          パスワードリセット
+        </CardTitle>
         <CardDescription>
           登録済みのメールアドレスを入力してください。パスワードリセット用のリンクを送信します。
         </CardDescription>

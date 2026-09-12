@@ -32,7 +32,8 @@
 | `/settings/members` | 招待・ロール変更・メンバー削除    | admin            |
 
 権限の根拠は [認可マトリクス](../database/authorization-matrix.md)。
-網羅は `tests/e2e/role-gated-buttons.spec.ts` が全ロール × 全一覧画面で検査する。
+網羅は `tests/e2e/role-gated-buttons.spec.ts` が全ロール × 全一覧画面と
+**従業員詳細**（編集・削除・匿名化・アバター変更）で検査する。
 **許可されているロールでボタンが出ることも併せて見る** — 「出ないこと」だけを
 検証すると、ボタンを消してしまっても気付けない。
 

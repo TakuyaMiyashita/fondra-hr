@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
+
 import { test, expect } from '@playwright/test';
 
-import { AUTH_FILES } from './authorization-fixtures';
+import { AUTH_FILES, FIXTURES_FILE, type Fixtures } from './authorization-fixtures';
 
 /**
  * 書き込みボタンの出し分けが認可マトリクスと一致していることを、
@@ -43,6 +45,47 @@ for (const [role, authFile] of [
         await page.goto(path);
         // 一覧が描画されるまで待つ（ボタンはヘッダーにあるので見出しで判定する）
         await expect(page.getByRole('heading').first()).toBeVisible();
+
+        const button = page.getByRole('button', { name: label, exact: true });
+        if (allowed) {
+          await expect(button).toBeVisible();
+        } else {
+          await expect(button).toHaveCount(0);
+        }
+      });
+    }
+  });
+}
+
+/**
+ * 一覧だけでなく**従業員詳細**も見る。
+ *
+ * 詳細画面の編集・削除・匿名化・アバター変更は admin 以上に限っているが、
+ * 一覧の CASES からは漏れていた。`docs/design/screen-inventory.md` は
+ * admin と書いているのに、それを確かめるものが無い状態だった。
+ *
+ * とくに匿名化は個人情報を落とす操作で、出し分けが壊れたときの見え方が悪い。
+ */
+const DETAIL_BUTTONS = ['編集', '削除', '匿名化', 'プロフィール写真を変更'] as const;
+
+const fixtures = (): Fixtures => JSON.parse(readFileSync(FIXTURES_FILE, 'utf-8'));
+
+for (const [role, authFile] of [
+  ['owner', AUTH_FILES.owner],
+  ['member', AUTH_FILES.member],
+  ['viewer', AUTH_FILES.viewer],
+] as const) {
+  test.describe(`${role} の従業員詳細の操作`, () => {
+    test.use({ storageState: authFile });
+
+    // 編集・削除・匿名化・アバター変更はいずれも admin 以上。
+    const allowed = RANK[role] >= RANK.admin;
+
+    for (const label of DETAIL_BUTTONS) {
+      test(`/employees/[id] の「${label}」は${allowed ? '出る' : '出ない'}`, async ({ page }) => {
+        await page.goto(`/employees/${fixtures().othersEmployeeId}`);
+        // 詳細が描画されるまで待つ。タブは全ロールに出る。
+        await expect(page.getByRole('tab', { name: '基本情報' })).toBeVisible();
 
         const button = page.getByRole('button', { name: label, exact: true });
         if (allowed) {

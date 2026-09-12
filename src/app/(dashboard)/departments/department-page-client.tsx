@@ -173,7 +173,20 @@ export function DepartmentPageClient({ initialTree, departments, role }: Props) 
           </p>
         </div>
       ) : (
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext
+          // **id を渡さないとハイドレーションが壊れる。** dnd-kit の useUniqueId は
+          // モジュールスコープの可変カウンタで採番する（@dnd-kit/utilities）。
+          // サーバーはプロセスを跨いでカウンタが進み続けるので、リロードのたびに
+          // 0 から始まるクライアントとずれ、ドラッグハンドルの aria-describedby が
+          // server / client で食い違う。React は属性の不一致を patch up しないため、
+          // **存在しない id を指す aria-describedby が残る**。
+          // 初回アクセスだけは両方 0 で一致するので、2回目以降に出る。
+          // id を渡すと useUniqueId はそれをそのまま返すので、採番自体が起きない。
+          id="department-tree"
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
           <div className="rounded-md border">
             <div className="p-2">
               {initialTree.map((node) => (

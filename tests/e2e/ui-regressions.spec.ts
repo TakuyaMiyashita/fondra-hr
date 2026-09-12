@@ -54,3 +54,43 @@ test('ステータス絞り込みがリロード無しで一覧に反映され�
 
   expect(after).not.toBe(before);
 });
+
+/**
+ * ハイドレーション不一致が出ていないこと。
+ *
+ * **これは見た目では気づけない。** React は属性の不一致を patch up しないので、
+ * 壊れた値（存在しない id を指す aria-describedby など）がそのまま残る。
+ * 画面は正しく見えるのに支援技術からは壊れている、という形になる。
+ *
+ * 実際 `/departments` で dnd-kit が踏んでいた。`useUniqueId` が
+ * モジュールスコープの可変カウンタで採番するため、プロセスが長生きする
+ * サーバーとリロードのたびに 0 から始まるクライアントで必ずずれていた。
+ */
+const HYDRATION_PAGES = ['/dashboard', '/employees', '/departments', '/skills', '/audit-logs'];
+
+for (const path of HYDRATION_PAGES) {
+  test(`${path}: ハイドレーション不一致が出ない`, async ({ page }) => {
+    const complaints: string[] = [];
+    const capture = (text: string) => {
+      if (/[Hh]ydrat|didn't match the client|server rendered/.test(text)) {
+        complaints.push(text.slice(0, 400));
+      }
+    };
+    page.on('console', (m) => capture(m.text()));
+    page.on('pageerror', (e) => capture(String(e)));
+
+    // **2回開く。** モジュールスコープのカウンタで採番するライブラリは、
+    // 初回だけ server / client がどちらも 0 で一致してしまう。
+    // ずれるのは2回目以降なので、1回のアクセスでは検出できない。
+    await page.goto(path);
+    await page.waitForLoadState('networkidle');
+    complaints.length = 0;
+
+    await page.goto(path);
+    await page.waitForLoadState('networkidle');
+    // ハイドレーションはロード完了の後に走る。少し待たないと取りこぼす。
+    await page.waitForTimeout(1500);
+
+    expect(complaints, complaints.join('\n---\n')).toEqual([]);
+  });
+}

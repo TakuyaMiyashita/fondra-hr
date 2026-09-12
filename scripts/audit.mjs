@@ -124,6 +124,28 @@ for (const file of walk(APP, (p) => p.endsWith('/actions.ts'))) {
 }
 
 // ---------------------------------------------------------------------------
+// 5b. Route Handler の Zod バリデーション
+//
+// **Server Action と同じく入力境界である。** actions.ts しか見ていなかったため、
+// /api/chat がリクエスト body を無検証の `as` で受けており、messages が
+// 無いだけで TypeError → 500 になっていた（スタックごと返る）。
+//
+// body を読む route.ts だけを対象にする。GET しか持たない route.ts
+// （/api/health）は読む body が無いので、検証を求めても意味が無い。
+// ---------------------------------------------------------------------------
+for (const file of walk(APP, (p) => p.endsWith('/route.ts'))) {
+  const src = read(file);
+  const readsBody = /\breq(uest)?\.(json|formData|text)\s*\(/.test(src);
+  if (readsBody && !src.includes('@/lib/validations')) {
+    report(
+      'route-validation',
+      rel(file),
+      'body を読んでいるが @/lib/validations を import していない',
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 6. ドキュメント内の相対リンクが実在するか
 //
 // 「古い図は無いより悪い」の一種。リンク切れは読み手を存在しない前提へ導く。

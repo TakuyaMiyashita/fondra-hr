@@ -26,6 +26,9 @@ const CASES = [
   ['/skills', 'スキルを追加', 'member'],
   ['/one-on-ones', '1on1を記録', 'member'],
   ['/evaluations', '評価サイクルを作成', 'admin'],
+  // 招待は member / viewer には無い操作（認可マトリクスの invitations 行が `-`）。
+  // screen-inventory は admin と書いているのに、ここから漏れていた。
+  ['/settings/members', '招待', 'admin'],
 ] as const;
 
 const RANK = { owner: 4, admin: 3, member: 2, viewer: 1 } as const;

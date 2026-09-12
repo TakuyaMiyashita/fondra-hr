@@ -466,6 +466,16 @@ for (const theme of ['light', 'dark'] as const) {
       });
     }
 
+    test('/employees/[id] のテキストがコントラスト基準を満たす', async ({ page }) => {
+      // 詳細は TEXT_PAGES に入れられない（id が要る）。
+      await gotoWithTheme(page, `/employees/${fixtures().othersEmployeeId}`, theme);
+
+      const result = await page.evaluate(textContrastProbe, 10);
+
+      expect(result.checked).toBeGreaterThan(5);
+      expect(result.violations, formatTextViolations(result)).toEqual([]);
+    });
+
     // **アプリで一番大きいフォームは Sheet の中にある**（9項目）。
     // TEXT_DIALOGS は一覧ヘッダーから開くものだけを並べており、
     // 従業員だけは Sheet、削除・匿名化は詳細画面にあるため漏れていた。

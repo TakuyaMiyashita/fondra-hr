@@ -132,6 +132,31 @@ export async function deleteEmployeeAction(id: string): Promise<Result<void>> {
 }
 
 /**
+ * 従業員フォルダのアバターファイル名を返す。
+ *
+ * **確かめられなかったときは成功にしない。** 一覧が取れないということは
+ * 写真の有無が分からないということで、そのまま匿名化に進むと
+ * 「消したつもりで残っている」になる。削除請求の文脈では最悪の結果。
+ */
+async function listAvatarFiles(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  folder: string,
+): Promise<Result<string[]>> {
+  const { data, error } = await supabase.storage.from('avatars').list(folder);
+
+  if (error) {
+    return err(`アバターの確認に失敗しました: ${error.message}`);
+  }
+  if (!data) {
+    return err('アバターの確認に失敗しました');
+  }
+
+  // ダッシュボードから作られたフォルダには空フォルダ用の
+  // プレースホルダが入ることがある。ファイルとして数えない。
+  return ok(data.map((f) => f.name).filter((name) => name !== '.emptyFolderPlaceholder'));
+}
+
+/**
  * 個人情報を落として従業員レコードだけ残す。
  *
  * 評価や 1on1 が紐づいた従業員は削除できない（他人の記録まで消えるため）。
@@ -158,13 +183,27 @@ export async function anonymizeEmployeeAction(id: string): Promise<Result<void>>
     // フォルダごと列挙して消す。差し替えの残骸も一緒に落ちる。
     const supabase = await createClient();
     const folder = `${ctx.orgId}/${parsed.data}`;
-    const { data: files } = await supabase.storage.from('avatars').list(folder);
-    if (files && files.length > 0) {
+
+    const listed = await listAvatarFiles(supabase, folder);
+    if (!listed.success) return listed;
+
+    if (listed.data.length > 0) {
       const { error: removeError } = await supabase.storage
         .from('avatars')
-        .remove(files.map((f) => `${folder}/${f.name}`));
+        .remove(listed.data.map((name) => `${folder}/${name}`));
       if (removeError) {
         return err(`アバターの削除に失敗しました: ${removeError.message}`);
+      }
+
+      // **remove() はポリシーで拒否されても error を返さない。** 消せなかった
+      // オブジェクトを黙って結果から外すだけなので、戻り値を見ても気づけない
+      // （tests/rls/storage-avatars.test.ts がこの挙動を直接確かめている）。
+      // 消えたことを list で確かめないと、DB だけ匿名化されて顔写真は
+      // Storage に残る。個人情報を消す操作で一番機微なものだけが残ることになる。
+      const after = await listAvatarFiles(supabase, folder);
+      if (!after.success) return after;
+      if (after.data.length > 0) {
+        return err('アバターを削除できませんでした。権限を確認してください');
       }
     }
 

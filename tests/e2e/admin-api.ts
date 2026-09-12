@@ -54,6 +54,26 @@ export async function adminUpdate<T>(path: string, body: unknown): Promise<T> {
   return json as T;
 }
 
+/**
+ * Storage のフォルダに残っているファイル名を service_role で数える。
+ *
+ * ポリシーを迂回して「本当に消えたか」を見るために使う。アプリ側の
+ * クライアントで確かめると、ポリシーで見えないだけなのか消えたのかを
+ * 区別できない。
+ */
+export async function adminStorageList(bucket: string, prefix: string): Promise<string[]> {
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${bucket}`, {
+    method: 'POST',
+    headers: adminHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ prefix, limit: 100 }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(`Failed to list ${bucket}/${prefix}: ${JSON.stringify(json)}`);
+  return (json as { name: string }[])
+    .map((o) => o.name)
+    .filter((name) => name !== '.emptyFolderPlaceholder');
+}
+
 /** メールアドレスからユーザーを作る。既にいればその id を返す。 */
 export async function ensureAuthUser(email: string, password: string): Promise<string> {
   const listRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, { headers: adminHeaders() });

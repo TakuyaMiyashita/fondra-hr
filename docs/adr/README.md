@@ -40,3 +40,4 @@
 | [0015](./0015-dashboard-charts-are-lazy-loaded.md)                | ダッシュボードのグラフは遅延読み込みする（総量は増える）      | 採用 |
 | [0016](./0016-employee-delete-is-blocked-anonymize-instead.md)    | 記録の残る従業員は削除させず、匿名化で応える                  | 採用 |
 | [0017](./0017-health-check-is-on-demand-only.md)                  | 死活監視の定期実行をやめる（0013 の cron 判断を上書き）       | 採用 |
+| [0018](./0018-role-authority-is-the-database.md)                  | ロールの権威は JWT の claim ではなく DB                       | 採用 |

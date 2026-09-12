@@ -47,6 +47,35 @@ export async function createOrganizationWithOwner(
   }
 }
 
+/**
+ * いま選んでいる組織のメンバーシップを引く。無ければ null。
+ *
+ * **JWT の claim は古くなる。** `app_metadata.role` / `org_id` はトークンを
+ * 発行した時点の値で、既定の有効期間は1時間（`jwt_expiry = 3600`）。
+ * その間に管理者がメンバーを削除しても降格させても、本人の手元のトークンは
+ * 変わらないため、**最大1時間は元の権限で通ってしまう**。
+ *
+ * 実測でも、メンバーシップを削除した直後に従業員一覧が開き、20件見えた。
+ *
+ * そこで role の権威を DB に置く。`(user_id, org_id)` は一意制約があるので
+ * 索引1本で引ける。claim は「どの組織を見ているか」の指定としてだけ使う。
+ *
+ * 認証ブートストラップ関数と同じく、`AuthContext` 未確定の段階で呼ばれるため
+ * 個別パラメータで受け取る。
+ */
+export async function getActiveMembership(
+  userId: string,
+  orgId: string,
+): Promise<{ role: Role } | null> {
+  const [row] = await db
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(and(eq(memberships.userId, userId), eq(memberships.orgId, orgId)))
+    .limit(1);
+
+  return row ? { role: row.role as Role } : null;
+}
+
 export async function getUserMemberships(userId: string) {
   return db
     .select({

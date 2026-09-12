@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
+import { getActiveMembership } from '@/services/auth';
 import type { AuthContext } from '@/services/auth-context';
 import type { Role } from '@/services/auth-context';
 
@@ -36,10 +37,22 @@ export async function getAuthContext(): Promise<AuthContext> {
     redirect('/login');
   }
 
+  // **role は JWT ではなく DB を権威にする。** claim はトークン発行時の値で、
+  // 既定で1時間有効（`jwt_expiry = 3600`）。その間に管理者がメンバーを
+  // 削除・降格しても手元のトークンは変わらないため、claim を信じると
+  // 最大1時間は元の権限で通る。claim は「どの組織を見ているか」にだけ使う。
+  const membership = await getActiveMembership(user.id, claims.orgId);
+  if (!membership) {
+    // **`/login` に直接飛ばすとループする。** Supabase の認証自体は生きているので、
+    // ミドルウェアが「認証済み」と見てダッシュボードへ戻してしまう。
+    // cookie を消せるのは Route Handler なので、そちらへ逃がす。
+    redirect('/auth/signout');
+  }
+
   return {
     userId: user.id,
     orgId: claims.orgId,
-    role: claims.role,
+    role: membership.role,
   };
 }
 

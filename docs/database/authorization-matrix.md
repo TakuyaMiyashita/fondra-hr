@@ -121,6 +121,13 @@ admin 以上に限定する（`supabase/migrations/20260823000001_restrict_avata
 アップロードは Service Layer の外で起きるため、Server Action 側でも
 `assertCanUpdateAvatar()` を**アップロードより先に**通すこと。
 
+**`role` の権威は DB。** JWT の `app_metadata.role` はトークン発行時の値で、
+既定で1時間有効（`jwt_expiry = 3600`）。claim を信じると、管理者がメンバーを
+削除・降格しても**最大1時間は元の権限で通る**。`getAuthContext()` は毎リクエスト
+`memberships` を1件引き、行が無ければサインアウトへ逃がす
+（[ADR 0018](../adr/0018-role-authority-is-the-database.md)）。
+claim は「どの組織を見ているか」と、Storage ポリシー（`auth.jwt()` を読む）のために残す。
+
 認可チェックは Service Layer と UI の二重で行う。Service Layer が主、UI は UX 目的。
 
 **UI の出し分けはロール階層を1箇所から引く**（`roleAtLeast()` / `src/lib/roles.ts`）。

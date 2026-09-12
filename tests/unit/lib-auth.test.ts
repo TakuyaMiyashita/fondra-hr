@@ -22,6 +22,16 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock('@/services/auth', () => ({
+  getActiveMembership: vi.fn(),
+}));
+
+/** 既定は「メンバーシップが生きている」。取り消しのケースだけ上書きする。 */
+async function mockMembership(role: string | null) {
+  const { getActiveMembership } = await import('@/services/auth');
+  vi.mocked(getActiveMembership).mockResolvedValue(role ? ({ role } as never) : null);
+}
+
 type FakeUser = { id: string } | null;
 type FakeSession = { access_token: string } | null;
 
@@ -132,6 +142,7 @@ describe('getAuthContext', () => {
       user: { id: 'user-1' },
       session: { access_token: makeToken({ app_metadata: { org_id: 'org-1', role: 'owner' } }) },
     });
+    await mockMembership('owner');
 
     await expect(getAuthContext()).resolves.toEqual({
       userId: 'user-1',
@@ -154,6 +165,34 @@ describe('getAuthContext', () => {
     expect(redirect).toHaveBeenCalledWith('/login');
     // user が無い時点で打ち切られ、セッション取得まで進まないこと。
     expect(getSession).not.toHaveBeenCalled();
+  });
+
+  it('**role は JWT ではなく DB の値を返す**', async () => {
+    // claim は admin のままでも、DB で viewer に降格していれば viewer。
+    // claim を信じると、降格が最大1時間（jwt_expiry）効かない。
+    const { getAuthContext } = await import('@/lib/auth');
+
+    await mockSupabase({
+      user: { id: 'user-1' },
+      session: { access_token: makeToken({ app_metadata: { org_id: 'org-1', role: 'admin' } }) },
+    });
+    await mockMembership('viewer');
+
+    await expect(getAuthContext()).resolves.toMatchObject({ role: 'viewer' });
+  });
+
+  it('メンバーシップが消えていたらサインアウトへ逃がす', async () => {
+    // **`/login` に直接飛ばすとループする。** Supabase の認証自体は生きており、
+    // ミドルウェアが「認証済み」と見てダッシュボードへ戻すため。
+    const { getAuthContext } = await import('@/lib/auth');
+
+    await mockSupabase({
+      user: { id: 'user-1' },
+      session: { access_token: makeToken({ app_metadata: { org_id: 'org-1', role: 'admin' } }) },
+    });
+    await mockMembership(null);
+
+    await expect(getAuthContext()).rejects.toThrow('NEXT_REDIRECT:/auth/signout');
   });
 
   it('user はあるがセッションが無い場合も /login にリダイレクトする', async () => {

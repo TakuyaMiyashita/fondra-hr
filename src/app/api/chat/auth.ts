@@ -1,4 +1,5 @@
 import { parseJwtClaims } from '@/lib/auth';
+import { getActiveMembership } from '@/services/auth';
 import type { AuthContext } from '@/services/auth-context';
 import { createClient } from '@/lib/supabase/server';
 
@@ -19,5 +20,9 @@ export async function getAuthContextForApi(): Promise<AuthContext | null> {
   const claims = parseJwtClaims(session.access_token);
   if (!claims) return null;
 
-  return { userId: user.id, orgId: claims.orgId, role: claims.role };
+  // role の権威は DB（`src/lib/auth.ts` の getAuthContext と同じ理由）。
+  const membership = await getActiveMembership(user.id, claims.orgId);
+  if (!membership) return null;
+
+  return { userId: user.id, orgId: claims.orgId, role: membership.role };
 }

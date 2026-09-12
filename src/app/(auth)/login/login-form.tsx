@@ -19,6 +19,7 @@ export function LoginForm() {
   const [isPending, startTransition] = useTransition();
   const searchParams = useSearchParams();
   const registered = searchParams.get('registered');
+  const revoked = searchParams.get('reason') === 'membership-revoked';
 
   const {
     register,
@@ -39,6 +40,11 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {revoked && (
+        <p className="bg-muted text-muted-foreground mb-4 rounded-md p-3 text-sm">
+          この組織のメンバーではなくなったため、ログアウトしました。
+        </p>
+      )}
       {registered && (
         <p className="bg-primary/10 text-primary rounded-md p-3 text-center text-sm">
           アカウントを作成しました。メールを確認してからログインしてください。

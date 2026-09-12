@@ -250,6 +250,34 @@ describe('createOrganizationWithOwner', () => {
   });
 });
 
+describe('getActiveMembership', () => {
+  it('user_id と org_id の両方で絞って role を返す', async () => {
+    // **JWT の role は古くなる。** 降格や削除はトークンに反映されないので、
+    // ここが権威になる。片方でしか絞らないと他組織の role を拾う。
+    const { getActiveMembership } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[{ role: 'viewer' }]]));
+
+    expect(await getActiveMembership('user-1', 'org-1')).toEqual({ role: 'viewer' });
+
+    const chain = db.select.mock.results[0].value as ChainMock;
+    const params = collectParams(chain.where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'user_id', value: 'user-1' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
+  it('メンバーシップが無ければ null を返す', async () => {
+    // 呼び出し側はこれを見てサインアウトへ逃がす。空配列で落ちてはいけない。
+    const { getActiveMembership } = await import('@/services/auth');
+
+    const db = await getDb();
+    db.select.mockImplementation(createSequentialSelect([[]]));
+
+    expect(await getActiveMembership('user-1', 'org-1')).toBeNull();
+  });
+});
+
 describe('getUserMemberships', () => {
   it('自分の userId に紐づく所属組織のみを返す', async () => {
     const { getUserMemberships } = await import('@/services/auth');

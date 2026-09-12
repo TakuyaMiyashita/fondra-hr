@@ -1,7 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
-import { AUTH_FILES, FIXTURES_FILE, MARKERS, type Fixtures } from './authorization-fixtures';
+import {
+  AUTH_FILES,
+  E2E_PASSWORD,
+  FIXTURES_FILE,
+  MARKERS,
+  type Fixtures,
+} from './authorization-fixtures';
+import { adminHeaders, ensureAuthUser, ensureMembership, SUPABASE_URL } from './admin-api';
 
 /**
  * ロール別の認可が「画面まで」効いているかを検証する。
@@ -160,5 +167,45 @@ test.describe('viewer — 従業員レコードに紐付いていない場合', 
     await page.goto(`/employees/${fixtures().othersEmployeeId}`);
     await expect(page.getByRole('tab', { name: '基本情報' })).toBeVisible();
     expect(await bodyText(page)).not.toContain(MARKERS.othersBirthDate);
+  });
+});
+
+/**
+ * メンバーシップを取り消した瞬間に締め出されること。
+ *
+ * **JWT の claim は古くなる。** `app_metadata.role` / `org_id` はトークン発行時の
+ * 値で、既定の有効期間は1時間。claim を信じて認可すると、管理者がメンバーを
+ * 削除しても降格させても**最大1時間は元の権限で通る**。
+ *
+ * 実際、修正前はメンバーシップを消した直後に従業員一覧が開き、20件見えた。
+ */
+test.describe('メンバーシップの取り消し', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test('取り消された直後にログイン画面へ戻され、理由が出る', async ({ page }) => {
+    const fx: Fixtures = JSON.parse(readFileSync(FIXTURES_FILE, 'utf-8'));
+    const email = `revoked-${Date.now()}@example.com`;
+    const userId = await ensureAuthUser(email, E2E_PASSWORD);
+    await ensureMembership(userId, fx.orgId, 'admin');
+
+    await page.goto('/login');
+    await page.locator('#email').fill(email);
+    await page.locator('#password').fill(E2E_PASSWORD);
+    await page.getByRole('button', { name: 'ログイン' }).click();
+    await page.waitForURL('**/employees', { timeout: 20_000 });
+
+    // 管理者が removeMember した状態を service_role で作る。
+    await fetch(`${SUPABASE_URL}/rest/v1/memberships?user_id=eq.${userId}&org_id=eq.${fx.orgId}`, {
+      method: 'DELETE',
+      headers: adminHeaders(),
+    });
+
+    // トークンはまだ有効なまま、同じセッションで再アクセスする。
+    await page.goto('/employees');
+    await page.waitForLoadState('networkidle');
+
+    // **/login に直接飛ばすとループする**ので、サインアウト経由で戻ること。
+    await expect(page).toHaveURL(/\/login\?reason=membership-revoked/);
+    await expect(page.getByText('この組織のメンバーではなくなった')).toBeVisible();
   });
 });

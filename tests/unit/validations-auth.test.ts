@@ -7,6 +7,7 @@ import {
   signInSchema,
   signUpSchema,
   switchOrgSchema,
+  updatePasswordSchema,
 } from '@/lib/validations/auth';
 import { changeRoleSchema, inviteMemberSchema, updateOrgSchema } from '@/lib/validations/settings';
 
@@ -195,6 +196,58 @@ describe('auth validations', () => {
         code: 'invalid_format',
         message: '有効なメールアドレスを入力してください',
       });
+    });
+  });
+
+  describe('updatePasswordSchema（F-14）', () => {
+    it('8文字ちょうど・確認一致で通る', () => {
+      const result = updatePasswordSchema.safeParse({
+        password: '12345678',
+        confirmPassword: '12345678',
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it('7文字は password で弾く', () => {
+      const result = updatePasswordSchema.safeParse({
+        password: '1234567',
+        confirmPassword: '1234567',
+      });
+
+      expect(issuesByPath(result.error!)['password']).toEqual({
+        code: 'too_small',
+        message: 'パスワードは8文字以上で入力してください',
+      });
+    });
+
+    it('確認不一致は confirmPassword に付ける（画面で該当欄の下に出すため）', () => {
+      const result = updatePasswordSchema.safeParse({
+        password: 'password-1',
+        confirmPassword: 'password-2',
+      });
+
+      expect(issuesByPath(result.error!)['confirmPassword']).toEqual({
+        code: 'custom',
+        message: 'パスワードが一致しません',
+      });
+    });
+
+    it('確認欄が空なら弾く', () => {
+      const result = updatePasswordSchema.safeParse({
+        password: 'password-1',
+        confirmPassword: '',
+      });
+
+      // 不一致の issue も同じ欄に付きうるので、map ではなく一覧で探す。
+      expect(result.success).toBe(false);
+      expect(
+        result.error!.issues.some(
+          (i) =>
+            i.path.join('.') === 'confirmPassword' &&
+            i.message === '確認用のパスワードを入力してください',
+        ),
+      ).toBe(true);
     });
   });
 

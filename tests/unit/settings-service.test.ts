@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { REDACTED } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { AuthorizationError } from '@/services/authorize';
 
@@ -566,6 +567,21 @@ describe('changeRole — 見つからない・変更なし・監査ログ', () =
     expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
   });
 
+  it('UPDATE も id と org_id の両方で絞る（多層防御）', async () => {
+    const { changeRole } = await import('@/services/settings');
+
+    const db = await getDb();
+    db.select.mockImplementation(
+      createSequentialSelect([[{ id: 'm-3', userId: 'user-3', orgId: 'org-1', role: 'member' }]]),
+    );
+
+    await changeRole(adminCtx, { membershipId: 'm-3', role: 'admin' });
+
+    const params = collectParams(updateChain.where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'id', value: 'm-3' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
   it('ロール変更は before/after 付きで監査ログに残る', async () => {
     const { changeRole } = await import('@/services/settings');
 
@@ -618,6 +634,21 @@ describe('removeMember — 見つからない・監査ログ', () => {
     const params = collectParams(selectCallAt(db, 0).where.mock.calls[0][0]);
     expect(params).toContainEqual({ column: 'id', value: 'm-3' });
     expect(params).toContainEqual({ column: 'org_id', value: 'org-2' });
+  });
+
+  it('DELETE も id と org_id の両方で絞る（多層防御）', async () => {
+    const { removeMember } = await import('@/services/settings');
+
+    const db = await getDb();
+    db.select.mockImplementation(
+      createSequentialSelect([[{ id: 'm-3', userId: 'user-3', orgId: 'org-1', role: 'member' }]]),
+    );
+
+    await removeMember(adminCtx, 'm-3');
+
+    const params = collectParams(deleteChain.where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'id', value: 'm-3' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
   });
 
   it('メンバー削除は監査ログに userId を残す', async () => {
@@ -724,7 +755,8 @@ describe('createInvitation — 重複招待と監査ログ', () => {
       action: 'invitation.create',
       resourceType: 'invitation',
       resourceId: 'inv-1',
-      changes: { email: 'new@example.com', role: 'admin' },
+      // 招待先のメールも個人情報なので値は伏せる（F-02）。ロールは残す。
+      changes: { email: REDACTED, role: 'admin' },
     });
   });
 });
@@ -809,7 +841,24 @@ describe('revokeInvitation — 監査ログとテナント分離', () => {
     expect(sqlText(where)).toContain('is null');
   });
 
-  it('取消は監査ログにメールアドレスを残す', async () => {
+  it('DELETE も id と org_id の両方で絞る（多層防御）', async () => {
+    // 直前の SELECT で確認済みでも、事前チェックがリファクタで外れた瞬間に
+    // 越境しないよう、最終クエリにも org_id を付ける。
+    const { revokeInvitation } = await import('@/services/settings');
+
+    const db = await getDb();
+    db.select.mockImplementation(
+      createSequentialSelect([[{ id: 'inv-1', email: 'invited@example.com' }]]),
+    );
+
+    await revokeInvitation(adminCtx, 'inv-1');
+
+    const params = collectParams(deleteChain.where.mock.calls[0][0]);
+    expect(params).toContainEqual({ column: 'id', value: 'inv-1' });
+    expect(params).toContainEqual({ column: 'org_id', value: 'org-1' });
+  });
+
+  it('取消は監査ログに email 項目を残すが、値は伏せる', async () => {
     const { revokeInvitation } = await import('@/services/settings');
 
     const db = await getDb();
@@ -823,7 +872,7 @@ describe('revokeInvitation — 監査ログとテナント分離', () => {
       action: 'invitation.delete',
       resourceType: 'invitation',
       resourceId: 'inv-1',
-      changes: { email: 'invited@example.com' },
+      changes: { email: REDACTED },
     });
   });
 

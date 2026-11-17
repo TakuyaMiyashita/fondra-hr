@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 
+import { authErrorMessage } from '@/lib/auth-errors';
 import { createClient } from '@/lib/supabase/server';
 import { type Result, err } from '@/lib/result';
 import {
@@ -58,7 +59,9 @@ export async function acceptInviteAndSignUp(data: {
   });
 
   if (error) {
-    return err(error.message);
+    // signUp / signIn と同じく生の error.message は返さない。
+    // Supabase 側の制約（パスワード要件等）が利用者に漏れる。
+    return err(authErrorMessage(error));
   }
 
   if (!authData.user) {

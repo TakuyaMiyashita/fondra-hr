@@ -66,3 +66,51 @@ export const employeeListQuerySchema = z.object({
 });
 
 export type EmployeeListQuery = z.infer<typeof employeeListQuerySchema>;
+
+/**
+ * アバター画像の上限。**バケット（avatars）の file_size_limit と一致させる。**
+ * 以前はアプリ側だけ 5MB で、2〜5MB のファイルはアプリの検証を通ってから
+ * Storage で拒否され、Storage の生エラーが画面に出ていた。
+ * 定義元: supabase/migrations/20260816000001_create_avatars_bucket.sql
+ */
+export const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
+
+/** バケットの allowed_mime_types と同じ3種。 */
+export const ALLOWED_AVATAR_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+
+/** 保存パスの拡張子に使うため、拡張子も別途ホワイトリストで縛る。 */
+export const ALLOWED_AVATAR_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'] as const;
+
+const INVALID_AVATAR_FORMAT = '許可されていないファイル形式です（jpg, png, webp のみ）';
+
+/** ファイル名の拡張子を小文字で返す。保存パスの組み立てにも使う。 */
+export function avatarExtension(file: Pick<File, 'name'>): string {
+  return (file.name.split('.').pop() ?? '').toLowerCase();
+}
+
+/**
+ * アバターのアップロード入力。
+ *
+ * `formData.get('file')` は文字列も返しうる（UI を経由しない呼び出し）。
+ * `File` であることを確かめずに `file.name` を触ると例外になる。
+ *
+ * MIME はクライアント申告の値で、偽装はできる。それでもバケット側と
+ * 同じ条件をアプリでも先に見ておけば、Storage の生エラーを画面に
+ * 出さずに済む。
+ */
+export const uploadAvatarSchema = z.object({
+  employeeId: uuidField('従業員'),
+  file: z
+    .instanceof(File, { message: 'ファイルが選択されていません' })
+    .refine(
+      (file) => (ALLOWED_AVATAR_EXTENSIONS as readonly string[]).includes(avatarExtension(file)),
+      INVALID_AVATAR_FORMAT,
+    )
+    .refine(
+      (file) => (ALLOWED_AVATAR_MIME_TYPES as readonly string[]).includes(file.type),
+      INVALID_AVATAR_FORMAT,
+    )
+    .refine((file) => file.size <= MAX_AVATAR_SIZE, 'ファイルサイズが大きすぎます（最大2MB）'),
+});
+
+export type UploadAvatarInput = z.infer<typeof uploadAvatarSchema>;

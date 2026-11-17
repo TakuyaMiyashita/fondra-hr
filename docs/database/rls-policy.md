@@ -102,8 +102,28 @@ Custom Access Token Hook が `memberships` テーブルを参照し、ユーザ�
 
 `anon` ロールにはいずれのテーブルへのアクセスも付与しない。
 
+## Storage（avatars バケット）
+
+テーブルと違い、Storage はブラウザから Supabase Storage API を直接叩けるため
+Service Layer が経路上に無い。ポリシーが唯一の実行地点なので、ロールと
+デモ組織の判定もポリシーに持たせる（`20260829000001`）。
+
+| 操作                 | 条件（パスの1階層目 = 対象組織）                                          |
+| -------------------- | ------------------------------------------------------------------------- |
+| SELECT               | 呼び出したユーザーが対象組織のメンバーである                              |
+| INSERT/UPDATE/DELETE | 対象組織で owner / admin である **かつ** `organizations.is_demo` が false |
+
+- ロールは JWT の claim ではなく `public.memberships` から引く
+  （`private.avatar_org_role()`、security definer・`search_path` 固定）。
+  claim は最大1時間古くなるため（ADR 0018 と同じ理由）。降格・除名は即時に効く
+- デモ組織の判定は `private.is_demo_org()`。アプリ側の
+  `DEMO_READONLY_ORG_ID`（ADR 0012）と同じ組織に `is_demo = true` を立てておくこと
+- ヘルパ関数は `private` スキーマに置き、Data API の RPC として公開しない。
+  EXECUTE は `authenticated` のみ
+
 ## テスト
 
+- `tests/rls/storage-avatars.test.ts` — avatars バケットのポリシー（ロール・降格の即時反映・デモ組織）
 - `tests/rls/tenant-isolation.test.ts` — テナント基盤テーブル
 - `tests/rls/domain-tables.test.ts` — 業務ドメインテーブル
 

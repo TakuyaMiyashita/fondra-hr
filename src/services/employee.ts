@@ -217,20 +217,28 @@ export async function createEmployee(
   // 上の存在チェックと INSERT の間に別のリクエストが同じ社員番号を
   // 入れることがある。同時実行を止められるのは DB の一意制約だけなので、
   // 違反を拾って事前チェックと同じメッセージに揃える。
+  //
+  // 本体と監査ログは同じトランザクションで書く。監査ログの INSERT だけが
+  // 落ちると「記録の無い従業員」ができるため（F-08）。
   let created: { id: string };
   try {
-    [created] = await db
-      .insert(employees)
-      .values({ ...data, orgId: ctx.orgId, userId })
-      .returning({ id: employees.id });
+    created = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(employees)
+        .values({ ...data, orgId: ctx.orgId, userId })
+        .returning({ id: employees.id });
+
+      // 氏名・メール等は writeAuditLog 側で伏せる（F-02）。
+      await writeAuditLog(ctx, 'employee.create', 'employee', row.id, data, tx);
+
+      return row;
+    });
   } catch (e) {
     if (isUniqueViolation(e)) {
       return err(DUPLICATE_EMPLOYEE_CODE);
     }
     throw e;
   }
-
-  await writeAuditLog(ctx, 'employee.create', 'employee', created.id, data);
 
   return ok({ id: created.id });
 }
@@ -294,18 +302,20 @@ export async function updateEmployee(
   }
 
   try {
-    await db
-      .update(employees)
-      .set(updateData)
-      .where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(employees)
+        .set(updateData)
+        .where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
+
+      await writeAuditLog(ctx, 'employee.update', 'employee', id, changes, tx);
+    });
   } catch (e) {
     if (isUniqueViolation(e)) {
       return err(DUPLICATE_EMPLOYEE_CODE);
     }
     throw e;
   }
-
-  await writeAuditLog(ctx, 'employee.update', 'employee', id, changes);
 
   return ok(undefined);
 }
@@ -373,9 +383,13 @@ export async function deleteEmployee(ctx: AuthContext, id: string): Promise<Resu
     );
   }
 
-  await db.delete(employees).where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
+  await db.transaction(async (tx) => {
+    await tx.delete(employees).where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
 
-  await writeAuditLog(ctx, 'employee.delete', 'employee', id, { fullName: target.fullName });
+    // fullName は監査ログ側で伏せる（F-02）。キーは「誰を消したか」の
+    // 手掛かりとして残すが、値は残さない。
+    await writeAuditLog(ctx, 'employee.delete', 'employee', id, { fullName: target.fullName }, tx);
+  });
 
   return ok(undefined);
 }
@@ -416,25 +430,27 @@ export async function anonymizeEmployee(ctx: AuthContext, id: string): Promise<R
     return err('この従業員は既に匿名化されています');
   }
 
-  await db
-    .update(employees)
-    .set({
-      fullName: ANONYMIZED_NAME,
-      fullNameKana: null,
-      email: null,
-      birthDate: null,
-      avatarPath: null,
-      // 紐付けを残すと、本人限定の閲覧範囲がアカウント側から生き続ける。
-      userId: null,
-      employeeCode: `ANON-${id.slice(0, 8)}`,
-      status: 'retired',
-      updatedAt: new Date(),
-    })
-    .where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(employees)
+      .set({
+        fullName: ANONYMIZED_NAME,
+        fullNameKana: null,
+        email: null,
+        birthDate: null,
+        avatarPath: null,
+        // 紐付けを残すと、本人限定の閲覧範囲がアカウント側から生き続ける。
+        userId: null,
+        employeeCode: `ANON-${id.slice(0, 8)}`,
+        status: 'retired',
+        updatedAt: new Date(),
+      })
+      .where(and(eq(employees.id, id), eq(employees.orgId, ctx.orgId)));
 
-  // 監査ログに旧氏名は残さない。何を消したかの記録に個人情報を戻しては
-  // 意味が無いため、消した事実と対象 id だけを残す。
-  await writeAuditLog(ctx, 'employee.anonymize', 'employee', id, { anonymized: true });
+    // 監査ログに旧氏名は残さない。何を消したかの記録に個人情報を戻しては
+    // 意味が無いため、消した事実と対象 id だけを残す。
+    await writeAuditLog(ctx, 'employee.anonymize', 'employee', id, { anonymized: true }, tx);
+  });
 
   return ok(undefined);
 }

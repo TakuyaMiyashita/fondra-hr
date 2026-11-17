@@ -26,6 +26,24 @@ export const resetPasswordSchema = z.object({
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+/**
+ * 再設定リンクから来た利用者が新しいパスワードを決める（F-14）。
+ *
+ * 確認欄との一致は入力ミスで自分を締め出さないため。最小長はサインアップと
+ * 同じ8文字（supabase/config.toml の minimum_password_length も 8）。
+ */
+export const updatePasswordSchema = z
+  .object({
+    password: z.string().min(8, 'パスワードは8文字以上で入力してください'),
+    confirmPassword: z.string().min(1, '確認用のパスワードを入力してください'),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    message: 'パスワードが一致しません',
+    path: ['confirmPassword'],
+  });
+
+export type UpdatePasswordInput = z.infer<typeof updatePasswordSchema>;
+
 export const acceptInviteSchema = z.object({
   invitationId: uuidField('招待'),
   orgId: uuidField('組織'),

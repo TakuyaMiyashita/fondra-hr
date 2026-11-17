@@ -10,6 +10,7 @@ import {
   createEmployeeSchema,
   employeeListQuerySchema,
   updateEmployeeSchema,
+  uploadAvatarSchema,
 } from '@/lib/validations/employee';
 
 function issuesByPath(error: ZodError): Record<string, { code: string; message: string }> {
@@ -577,5 +578,74 @@ describe('department validations', () => {
       expect(result.success).toBe(false);
       expect(issuesByPath(result.error!)['id'].code).toBe('invalid_format');
     });
+  });
+});
+
+/**
+ * アバターのアップロード入力。
+ *
+ * 上限と MIME はバケット（avatars）の file_size_limit / allowed_mime_types と
+ * 一致させる。ずれるとアプリを通ってから Storage で拒否される。
+ */
+describe('uploadAvatarSchema', () => {
+  const EMPLOYEE_ID = '11111111-1111-4111-8111-111111111111';
+  const MB = 1024 * 1024;
+
+  function fileOf(name: string, type: string, size = 1024): File {
+    const file = new File(['x'], name, { type });
+    Object.defineProperty(file, 'size', { value: size });
+    return file;
+  }
+
+  function messageOf(input: unknown): string | undefined {
+    const result = uploadAvatarSchema.safeParse(input);
+    return result.success ? undefined : result.error.issues[0].message;
+  }
+
+  it.each([
+    ['a.jpg', 'image/jpeg'],
+    ['a.jpeg', 'image/jpeg'],
+    ['a.PNG', 'image/png'],
+    ['a.webp', 'image/webp'],
+  ])('%s (%s) を通す', (name, type) => {
+    expect(messageOf({ employeeId: EMPLOYEE_ID, file: fileOf(name, type) })).toBeUndefined();
+  });
+
+  it('employeeId が UUID でなければ失敗する', () => {
+    expect(messageOf({ employeeId: 'abc', file: fileOf('a.png', 'image/png') })).toBe(
+      '無効な従業員IDです',
+    );
+  });
+
+  it.each([
+    ['null', null],
+    ['文字列', 'a.png'],
+    ['File でないオブジェクト', { name: 'a.png', size: 1, type: 'image/png' }],
+  ])('file が File でなければ失敗する（%s）', (_label, file) => {
+    expect(messageOf({ employeeId: EMPLOYEE_ID, file })).toBe('ファイルが選択されていません');
+  });
+
+  it.each([['a.svg'], ['a.gif'], ['avatar'], ['a.png.exe']])('拡張子 %s は拒否する', (name) => {
+    expect(messageOf({ employeeId: EMPLOYEE_ID, file: fileOf(name, 'image/png') })).toBe(
+      '許可されていないファイル形式です（jpg, png, webp のみ）',
+    );
+  });
+
+  it.each([['image/svg+xml'], ['image/gif'], ['text/html'], ['']])(
+    'MIME %s は拒否する（拡張子が許可されていても）',
+    (type) => {
+      expect(messageOf({ employeeId: EMPLOYEE_ID, file: fileOf('a.png', type) })).toBe(
+        '許可されていないファイル形式です（jpg, png, webp のみ）',
+      );
+    },
+  );
+
+  it('2MB ちょうどは通し、1バイトでも超えたら失敗する', () => {
+    expect(
+      messageOf({ employeeId: EMPLOYEE_ID, file: fileOf('a.png', 'image/png', 2 * MB) }),
+    ).toBeUndefined();
+    expect(
+      messageOf({ employeeId: EMPLOYEE_ID, file: fileOf('a.png', 'image/png', 2 * MB + 1) }),
+    ).toBe('ファイルサイズが大きすぎます（最大2MB）');
   });
 });

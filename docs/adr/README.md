@@ -21,24 +21,25 @@
 
 ## 一覧
 
-| #                                                                 | タイトル                                                      | 状態 |
-| ----------------------------------------------------------------- | ------------------------------------------------------------- | ---- |
-| [0001](./0001-rls-is-tenant-isolation-only.md)                    | RLS にはテナント分離だけを持たせる                            | 採用 |
-| [0002](./0002-db-access-through-drizzle-only.md)                  | DB アクセスは Drizzle に一本化する                            | 採用 |
-| [0003](./0003-unlinked-user-sees-nothing.md)                      | 従業員レコードと未紐付けのユーザーは何も見えない側に倒す      | 採用 |
-| [0004](./0004-evaluation-comment-disclosed-after-confirmation.md) | 評価コメントの本人開示は確定後のみ                            | 採用 |
-| [0005](./0005-single-environment.md)                              | 本番環境を作らず検証環境ひとつで運用する                      | 採用 |
-| [0006](./0006-defer-org-creation-until-email-confirmed.md)        | 組織作成をメール確認後まで遅らせる                            | 採用 |
-| [0007](./0007-keep-email-confirmation-disabled.md)                | 検証環境ではメール確認を有効化しない                          | 採用 |
-| [0008](./0008-skill-presets-live-in-code-not-in-db.md)            | スキルの入力候補は DB ではなくコードに置く                    | 採用 |
-| [0009](./0009-form-a11y-wiring-lives-in-base-ui-field.md)         | フォームの a11y 配線は Base UI の Field に任せる              | 採用 |
-| [0010](./0010-color-contrast-is-in-scope.md)                      | 配色のコントラストも担保する（0009 のスコープを上書き）       | 採用 |
-| [0011](./0011-data-api-is-closed.md)                              | Data API を閉じ、RLS の役割を実態に合わせる（0001 を補う）    | 採用 |
-| [0012](./0012-demo-org-is-read-only.md)                           | 公開デモの組織は閲覧専用にする                                | 採用 |
-| [0013](./0013-health-check-runs-on-github-actions.md)             | 死活監視は GitHub Actions の cron に置き、失敗を Issue にする | 採用 |
-| [0014](./0014-contrast-is-measured-on-rendered-text.md)           | コントラストは実テキストを走査して測る（0010 の手段を具体化） | 採用 |
-| [0015](./0015-dashboard-charts-are-lazy-loaded.md)                | ダッシュボードのグラフは遅延読み込みする（総量は増える）      | 採用 |
-| [0016](./0016-employee-delete-is-blocked-anonymize-instead.md)    | 記録の残る従業員は削除させず、匿名化で応える                  | 採用 |
-| [0017](./0017-health-check-is-on-demand-only.md)                  | 死活監視の定期実行をやめる（0013 の cron 判断を上書き）       | 採用 |
-| [0018](./0018-role-authority-is-the-database.md)                  | ロールの権威は JWT の claim ではなく DB                       | 採用 |
-| [0019](./0019-signup-tells-you-the-email-is-taken.md)             | サインアップは「既に登録済み」を伝える（列挙を受け入れる）    | 採用 |
+| #                                                                 | タイトル                                                         | 状態 |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------- | ---- |
+| [0001](./0001-rls-is-tenant-isolation-only.md)                    | RLS にはテナント分離だけを持たせる                               | 採用 |
+| [0002](./0002-db-access-through-drizzle-only.md)                  | DB アクセスは Drizzle に一本化する                               | 採用 |
+| [0003](./0003-unlinked-user-sees-nothing.md)                      | 従業員レコードと未紐付けのユーザーは何も見えない側に倒す         | 採用 |
+| [0004](./0004-evaluation-comment-disclosed-after-confirmation.md) | 評価コメントの本人開示は確定後のみ                               | 採用 |
+| [0005](./0005-single-environment.md)                              | 本番環境を作らず検証環境ひとつで運用する                         | 採用 |
+| [0006](./0006-defer-org-creation-until-email-confirmed.md)        | 組織作成をメール確認後まで遅らせる                               | 採用 |
+| [0007](./0007-keep-email-confirmation-disabled.md)                | 検証環境ではメール確認を有効化しない                             | 採用 |
+| [0008](./0008-skill-presets-live-in-code-not-in-db.md)            | スキルの入力候補は DB ではなくコードに置く                       | 採用 |
+| [0009](./0009-form-a11y-wiring-lives-in-base-ui-field.md)         | フォームの a11y 配線は Base UI の Field に任せる                 | 採用 |
+| [0010](./0010-color-contrast-is-in-scope.md)                      | 配色のコントラストも担保する（0009 のスコープを上書き）          | 採用 |
+| [0011](./0011-data-api-is-closed.md)                              | Data API を閉じ、RLS の役割を実態に合わせる（0001 を補う）       | 採用 |
+| [0012](./0012-demo-org-is-read-only.md)                           | 公開デモの組織は閲覧専用にする                                   | 採用 |
+| [0013](./0013-health-check-runs-on-github-actions.md)             | 死活監視は GitHub Actions の cron に置き、失敗を Issue にする    | 採用 |
+| [0014](./0014-contrast-is-measured-on-rendered-text.md)           | コントラストは実テキストを走査して測る（0010 の手段を具体化）    | 採用 |
+| [0015](./0015-dashboard-charts-are-lazy-loaded.md)                | ダッシュボードのグラフは遅延読み込みする（総量は増える）         | 採用 |
+| [0016](./0016-employee-delete-is-blocked-anonymize-instead.md)    | 記録の残る従業員は削除させず、匿名化で応える                     | 採用 |
+| [0017](./0017-health-check-is-on-demand-only.md)                  | 死活監視の定期実行をやめる（0013 の cron 判断を上書き）          | 採用 |
+| [0018](./0018-role-authority-is-the-database.md)                  | ロールの権威は JWT の claim ではなく DB                          | 採用 |
+| [0019](./0019-signup-tells-you-the-email-is-taken.md)             | サインアップは「既に登録済み」を伝える（列挙を受け入れる）       | 採用 |
+| [0020](./0020-get-signout-is-accepted.md)                         | GET でのサインアウトを受け入れる（ログアウト CSRF は可用性のみ） | 採用 |

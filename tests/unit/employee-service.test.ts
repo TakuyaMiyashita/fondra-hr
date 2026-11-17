@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { REDACTED } from '@/services/audit-log';
 import type { AuthContext } from '@/services/auth-context';
 import { AuthorizationError } from '@/services/authorize';
 
@@ -42,12 +43,16 @@ let updateChain: ReturnType<typeof createChainMock>;
 let deleteChain: ReturnType<typeof createChainMock>;
 
 vi.mock('@/db', () => {
-  const mockDb = {
+  const mockDb: Record<string, ReturnType<typeof vi.fn>> = {
     select: vi.fn(),
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
   };
+  // 変更系は本体と監査ログを同じトランザクションで書く（F-08）。
+  // トランザクションには同じモックをそのまま渡し、既存の db.insert / db.update
+  // へのアサーションで「トランザクションの中で何を書いたか」を検証する。
+  mockDb.transaction = vi.fn(async (cb: (tx: unknown) => unknown) => cb(mockDb));
   return { db: mockDb };
 });
 
@@ -58,6 +63,7 @@ async function getDb() {
     insert: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
+    transaction: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -447,11 +453,27 @@ describe('updateEmployee', () => {
     expect(auditInsertChain.values).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'employee.update',
+        // 氏名は個人情報なので値を伏せる（F-02）。変更した事実は残る。
         changes: expect.objectContaining({
-          fullName: { from: '山田太郎', to: '山田花子' },
+          fullName: { from: REDACTED, to: REDACTED },
         }),
       }),
     );
+    expect(JSON.stringify(auditInsertChain.values.mock.calls[0][0])).not.toContain('山田');
+  });
+
+  it('本体の UPDATE と監査ログを同じトランザクションで書く', async () => {
+    // 監査ログだけ落ちたときに「記録の無い変更」が成立しないようにする（F-08）。
+    const { updateEmployee } = await import('@/services/employee');
+
+    const db = await getDb();
+    db.select.mockReturnValue(createChainMock([currentEmployee]));
+
+    await updateEmployee(adminCtx, 'emp-1', { fullName: '山田花子' });
+
+    expect(db.transaction).toHaveBeenCalledTimes(1);
+    expect(db.update).toHaveBeenCalledTimes(1);
+    expect(db.insert).toHaveBeenCalledTimes(1);
   });
 
   it('returns err when employee not found', async () => {
@@ -609,9 +631,11 @@ describe('deleteEmployee', () => {
       expect.objectContaining({
         action: 'employee.delete',
         actorUserId: 'user-1',
-        changes: { fullName: '山田太郎' },
+        // 削除した従業員の氏名は監査ログに平文で残さない（F-02）。
+        changes: { fullName: REDACTED },
       }),
     );
+    expect(db.transaction).toHaveBeenCalledTimes(1);
   });
 
   it('returns err when employee not found', async () => {
@@ -976,7 +1000,7 @@ describe('updateEmployee — 差分更新の詳細', () => {
 
     expect(insertChain.values.mock.calls[0][0]).toMatchObject({
       action: 'employee.update',
-      changes: { fullName: { from: '山田太郎', to: '山田花子' } },
+      changes: { fullName: { from: REDACTED, to: REDACTED } },
     });
     expect(
       (insertChain.values.mock.calls[0][0] as { changes: Record<string, unknown> }).changes,
@@ -999,7 +1023,7 @@ describe('updateEmployee — 差分更新の詳細', () => {
 
     expect(insertChain.values.mock.calls[0][0]).toMatchObject({
       changes: {
-        email: { from: 'yamada@example.com', to: null },
+        email: { from: REDACTED, to: REDACTED },
         position: { from: 'エンジニア', to: null },
       },
     });
@@ -1034,7 +1058,7 @@ describe('updateEmployee — 差分更新の詳細', () => {
 
     expect(insertChain.values.mock.calls[0][0]).toMatchObject({
       changes: {
-        fullName: { from: '山田太郎', to: '山田花子' },
+        fullName: { from: REDACTED, to: REDACTED },
         position: { from: 'エンジニア', to: 'マネージャー' },
         status: { from: 'active', to: 'inactive' },
       },

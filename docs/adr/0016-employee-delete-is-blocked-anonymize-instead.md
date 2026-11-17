@@ -108,6 +108,28 @@ Service Layer のガードを外しても DB で止まる。
 厳密な削除請求対応には、本文を対象にした個別の仕組み（該当箇所の指摘と
 編集の導線）が要る。
 
+**過去の監査ログに残った個人情報は匿名化の対象外。**（2026-11-17 追記。
+`security-audit-report.md` F-02）
+
+上の「監査ログに旧氏名を残さない」は匿名化時に書く1行だけの話で、それ以前の
+`employee.create` / `employee.update` / `employee.delete` の行には氏名・カナ・
+メール・社員番号が平文で残っていた。監査ログは全ロールが読めるため、匿名化しても
+`/audit-logs` から元の値が読める。
+
+- **これから書く行**は、`src/services/audit-log.ts` の `REDACTED_FIELDS` に
+  `fullName` / `fullNameKana` / `email` / `employeeCode` を加えて値を伏せるようにした。
+  フィールド名と変更の事実は残る
+- **既に書かれた行は洗い替えていない。** `audit_logs` は
+  `prevent_audit_log_modification` トリガーで UPDATE を常に禁止している
+  （DELETE も組織パージ中のみ）。洗い替えにはこのトリガーに例外経路を開ける
+  必要があり、それは「監査ログは追記専用」という前提そのものを弱める。
+  改変禁止と衝突しない方法が無いため、今回は手を付けない
+
+厳密に応えるなら、改変禁止を保ったまま特定行の `changes` だけを消せる経路
+（例: service_role 専用の security definer 関数に限ってトランザクションローカルの
+フラグで UPDATE を許し、その操作自体を監査ログに残す）を、別の ADR で設計してから
+入れること。
+
 ## 関連
 
 - [認可マトリクス](../database/authorization-matrix.md)

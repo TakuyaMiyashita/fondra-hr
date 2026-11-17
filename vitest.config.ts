@@ -44,7 +44,7 @@ export default defineConfig({
       ],
       // 到達した水準は下げない。回帰防止のための下限。
       //
-      // branches だけ 99 なのは、employees/actions.ts の
+      // branches だけ 99 なのは、lib/validations/employee.ts（avatarExtension）の
       // `(file.name.split('.').pop() ?? '')` の `?? ''` 側が実行時には
       // 到達不能なため（String.prototype.split は必ず長さ1以上の配列を返す）。
       // TypeScript は pop() を string | undefined と推論するので式自体は消せない。

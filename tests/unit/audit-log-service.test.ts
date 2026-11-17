@@ -375,7 +375,7 @@ describe('writeAuditLog', () => {
     const insertChain = createSequentialSelect([[]])() as ChainMock;
     db.insert.mockReturnValue(insertChain);
 
-    await writeAuditLog(adminCtx, 'employee.create', 'employee', 'emp-1', { fullName: '山田太郎' });
+    await writeAuditLog(adminCtx, 'employee.create', 'employee', 'emp-1', { position: '課長' });
 
     expect(insertChain.values.mock.calls[0][0]).toEqual({
       orgId: 'org-1',
@@ -383,7 +383,27 @@ describe('writeAuditLog', () => {
       action: 'employee.create',
       resourceType: 'employee',
       resourceId: 'emp-1',
-      changes: { fullName: '山田太郎' },
+      changes: { position: '課長' },
+    });
+  });
+
+  it('executor を渡すと db ではなくそちら（トランザクション）に書く', async () => {
+    // 本体と同じトランザクションで書かないと、監査ログだけ落ちたときに
+    // 「記録の無い変更」が成立する（F-08）。
+    const { writeAuditLog } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    const txInsertChain = createSequentialSelect([[]])() as ChainMock;
+    const tx = { insert: vi.fn().mockReturnValue(txInsertChain) };
+
+    await writeAuditLog(adminCtx, 'employee.update', 'employee', 'emp-1', undefined, tx as never);
+
+    expect(tx.insert).toHaveBeenCalledTimes(1);
+    expect(db.insert).not.toHaveBeenCalled();
+    expect(txInsertChain.values.mock.calls[0][0]).toMatchObject({
+      orgId: 'org-1',
+      actorUserId: 'user-1',
+      action: 'employee.update',
     });
   });
 
@@ -436,20 +456,68 @@ describe('writeAuditLog — 機微フィールドの伏せ字', () => {
   it('{ from, to } 形式でない素の値も伏せる', async () => {
     // createEmployee は cleanInput の戻り値をそのまま渡すため、
     // birthDate が入れ子ではなく素の値で来る経路がある。
-    const changes = await write({ birthDate: '1990-01-01', fullName: '山田太郎' });
+    const changes = await write({ birthDate: '1990-01-01', position: '課長' });
 
-    expect(changes).toEqual({ birthDate: REDACTED, fullName: '山田太郎' });
+    expect(changes).toEqual({ birthDate: REDACTED, position: '課長' });
+  });
+
+  /**
+   * 個人を特定できる値（F-02）。
+   *
+   * 監査ログは追記専用で後から消せない。匿名化（ADR 0016）で従業員マスタから
+   * 消しても、ここに平文で残っていれば viewer を含む全員が監査ログ画面で読める。
+   */
+  it.each([
+    ['fullName', '山田太郎', '山田花子'],
+    ['fullNameKana', 'ヤマダタロウ', 'ヤマダハナコ'],
+    ['email', 'yamada@example.com', 'hanako@example.com'],
+    ['employeeCode', 'E001', 'E002'],
+  ])('%s（個人情報）は from / to の両方を伏せる', async (field, from, to) => {
+    const changes = await write({ [field]: { from, to } });
+
+    expect(changes[field]).toEqual({ from: REDACTED, to: REDACTED });
+    expect(JSON.stringify(changes)).not.toContain(from);
+    expect(JSON.stringify(changes)).not.toContain(to);
+  });
+
+  it('employee.create 相当の素の入力でも個人情報は1つも平文で残らない', async () => {
+    // createEmployee は cleanInput の戻り値を丸ごと渡す。
+    const input = {
+      employeeCode: 'EMP-SECRET-1',
+      fullName: '監査太郎',
+      fullNameKana: 'カンサタロウ',
+      email: 'kansa@example.com',
+      birthDate: '1980-02-03',
+      position: 'エンジニア',
+      status: 'active',
+    };
+
+    const changes = await write(input);
+
+    for (const secret of [
+      input.employeeCode,
+      input.fullName,
+      input.fullNameKana,
+      input.email,
+      input.birthDate,
+    ]) {
+      expect(JSON.stringify(changes)).not.toContain(secret);
+    }
+    // 個人情報でない項目は残る。
+    expect(changes).toMatchObject({ position: 'エンジニア', status: 'active' });
+    // どの項目を入れたかは分かる。
+    expect(Object.keys(changes)).toEqual(Object.keys(input));
   });
 
   it('機微でないフィールドは値をそのまま残す', async () => {
     // 伏せ過ぎると監査ログとして役に立たなくなる。
     const changes = await write({
-      employeeCode: { from: 'E001', to: 'E002' },
+      position: { from: 'エンジニア', to: 'マネージャー' },
       status: { from: 'active', to: 'retired' },
     });
 
     expect(changes).toEqual({
-      employeeCode: { from: 'E001', to: 'E002' },
+      position: { from: 'エンジニア', to: 'マネージャー' },
       status: { from: 'active', to: 'retired' },
     });
   });
@@ -462,5 +530,46 @@ describe('writeAuditLog — 機微フィールドの伏せ字', () => {
     });
 
     expect(Object.keys(changes)).toEqual(['notes', 'heldOn']);
+  });
+});
+
+describe('writeAuditLogAs — AuthContext が無い経路', () => {
+  it('明示した orgId / userId を actor として記録する', async () => {
+    // 組織作成・招待受諾は AuthContext 確定前に走る（F-08）。
+    const { writeAuditLogAs } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    const insertChain = createSequentialSelect([[]])() as ChainMock;
+    db.insert.mockReturnValue(insertChain);
+
+    await writeAuditLogAs(
+      { orgId: 'org-9', userId: 'user-9' },
+      'invitation.accept',
+      'invitation',
+      'inv-1',
+      { role: 'member', email: 'invitee@example.com' },
+    );
+
+    expect(insertChain.values.mock.calls[0][0]).toEqual({
+      orgId: 'org-9',
+      actorUserId: 'user-9',
+      action: 'invitation.accept',
+      resourceType: 'invitation',
+      resourceId: 'inv-1',
+      // 伏せ字はこちらの経路でも同じように効く。
+      changes: { role: 'member', email: REDACTED },
+    });
+  });
+
+  it('changes 省略時は null で保存する', async () => {
+    const { writeAuditLogAs } = await import('@/services/audit-log');
+
+    const db = await getDb();
+    const insertChain = createSequentialSelect([[]])() as ChainMock;
+    db.insert.mockReturnValue(insertChain);
+
+    await writeAuditLogAs({ orgId: 'org-9', userId: 'user-9' }, 'x.create', 'x', null);
+
+    expect(insertChain.values.mock.calls[0][0]).toMatchObject({ changes: null });
   });
 });

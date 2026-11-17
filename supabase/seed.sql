@@ -148,12 +148,15 @@ where u.email like '%@fondra.example.com';
 -- 組織とメンバーシップ
 --------------------------------------------------------------------------------
 
-insert into public.organizations (id, name, slug, plan, created_at)
+-- is_demo: Storage ポリシーがデモ組織への書き込みを拒否する印
+-- （20260829000001。アプリ側の DEMO_READONLY_ORG_ID と同じ組織を指す）。
+insert into public.organizations (id, name, slug, plan, is_demo, created_at)
 values (
   'f0d3a000-0000-4000-8000-000000000001',
   '株式会社フォンドラ',
   'fondra-demo',
   'pro',
+  true,
   now() - interval '400 days'
 );
 

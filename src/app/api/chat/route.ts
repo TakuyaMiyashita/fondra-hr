@@ -8,10 +8,28 @@ import {
   createUIMessageStreamResponse,
 } from 'ai';
 
+import { createRateLimiter } from '@/lib/rate-limit';
 import { chatRequestSchema } from '@/lib/validations/chat';
 
 import { getAuthContextForApi } from './auth';
 import { buildSystemPrompt } from './system-prompt';
+
+/**
+ * 1回の応答で生成させるトークン数の上限。費用の上限を置くため。
+ * 集計値の説明やアドバイス程度なら十分に収まる長さ。
+ */
+const MAX_OUTPUT_TOKENS = 2000;
+
+/**
+ * ユーザー単位のレート制限（1分あたり20リクエスト）。
+ *
+ * **インメモリなので、プロセス（サーバーレスならインスタンス）ごとに独立する。**
+ * インスタンスが複数立てば実効上限はその数だけ増え、コールドスタートで
+ * カウンタは消える。デモの資格情報が公開されている前提で、濫用の勢いを
+ * 削ぐ最低限の歯止めであり、厳密なクォータではない。厳密にするなら
+ * 共有ストア（Upstash Redis 等）に置き換える（src/lib/rate-limit.ts 参照）。
+ */
+const chatRateLimiter = createRateLimiter({ limit: 20, windowMs: 60_000 });
 
 function createMockResponse(lastUserMessage: string) {
   const responses: Record<string, string> = {
@@ -35,6 +53,15 @@ export async function POST(req: Request) {
   const ctx = await getAuthContextForApi();
   if (!ctx) {
     return new Response('Unauthorized', { status: 401 });
+  }
+
+  // 本文の検証より前に数える。壊れたリクエストの連打も濫用のうち。
+  const limit = chatRateLimiter.check(ctx.userId);
+  if (!limit.allowed) {
+    return Response.json(
+      { error: 'リクエストが多すぎます。しばらく待ってからやり直してください' },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
+    );
   }
 
   // **ここは入力境界。** UI を経由しない呼び出しが常に可能なので、
@@ -87,6 +114,7 @@ export async function POST(req: Request) {
     model: anthropic('claude-haiku-4-5-20251001'),
     system: systemPrompt,
     messages: modelMessages,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
   });
 
   return result.toUIMessageStreamResponse();

@@ -260,6 +260,22 @@ describe('GET /auth/callback', () => {
       });
     });
 
+    it.each([
+      ['@evil.example'],
+      ['.evil.example'],
+      ['//evil.example'],
+      ['/\\evil.example'],
+      ['https://evil.example'],
+    ])('next=%s のような外部への遷移は /employees に落とす', async (next) => {
+      // オープンリダイレクト対策。連結すると外部ドメインになる入力を拒否する。
+      mockSupabase();
+
+      expect(await locationOf(`?code=abc&next=${encodeURIComponent(next)}`)).toEqual({
+        status: 307,
+        location: `${ORIGIN}/employees`,
+      });
+    });
+
     it('リダイレクト先は常にリクエスト元のオリジンを使う', async () => {
       mockSupabase();
       const { GET } = await route();

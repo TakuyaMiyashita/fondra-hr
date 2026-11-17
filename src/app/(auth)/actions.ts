@@ -109,7 +109,10 @@ export async function resetPassword(data: { email: string }): Promise<Result<voi
   const supabase = await createClient();
 
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/settings`,
+    // 戻り先は新しいパスワードを決める専用画面（F-14）。以前は /settings に
+    // 戻していたが、そこにはパスワード変更の入力が無く、リンクが実質
+    // 「メールでのログイン」になっていた。
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password/update`,
   });
 
   if (error) {

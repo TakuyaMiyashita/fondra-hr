@@ -32,6 +32,7 @@
   `fireEvent` は DOM イベントを直接発火するだけで、実際のクリックに伴う
   フォーカス移動やポインタイベントの並びを再現しない。Base UI の Select /
   Popover はそれらに依存して開閉するため、`fireEvent` では検証できない
+- `server-only` — service_role キーを使う `src/lib/supabase/admin.ts` と DB 接続の `src/db/index.ts` を Client Component から誤って import したときにビルドで止めるため（追加済み、セキュリティ監査 F-15）
 - `date-fns` — 日付操作
 - `@axe-core/playwright` + `axe-core` — a11y の横断検査（追加済み）。
   ユニットテストはコンポーネント単位でしか見られず、テストを持たない画面は
@@ -75,7 +76,9 @@ Storage の新バケット等）は、認可マトリクスをどう守るかを
 Storage はブラウザから Supabase Storage API を直接叩けるため、
 Service Layer が経路上に無い。ポリシーが唯一の実行地点なので、
 **書き込み（作成・更新・削除）のロール制御はポリシーに持たせる**
-（`avatars` は admin 以上。参照は全ロール）。テーブルとは前提が違う。
+（`avatars` は admin 以上かつデモ組織以外。参照はその組織の全メンバー）。
+ロールは JWT の claim ではなく `memberships` から引く（降格・除名を即時に効かせるため。
+`20260829000001`）。テーブルとは前提が違う。
 
 アップロード自体は Service Layer の外で起きる。Server Action では
 **アップロードより先に**権限を確かめること（`assertCanUpdateAvatar()`）。
@@ -269,6 +272,9 @@ lines 100%、branches 99）。計測対象は `src/services/` `src/lib/` `src/ap
 | screen-inventory  | 実ルートが `docs/design/screen-inventory.md` に載っているか                     |
 | data-api-grant    | `anon` / `authenticated` にテーブル権限が残っていないか（ADR 0011）             |
 | db-access         | `@/db` を直接 import しているのが Service Layer だけか                          |
+| security-headers  | `next.config.ts` にセキュリティヘッダーと `poweredByHeader: false` があるか     |
+| server-only       | `admin.ts` / `db/index.ts` に `import 'server-only'` があるか                   |
+| public-env        | `src` で参照する `NEXT_PUBLIC_*` が許可リスト内か（秘密の露出防止）             |
 
 **落ちたら検査ではなく実装を直す。** 検査を消して通すのは本末転倒。
 

@@ -29,6 +29,7 @@ erDiagram
         text name
         text slug UK
         text plan
+        boolean is_demo
         timestamptz created_at
         timestamptz updated_at
     }

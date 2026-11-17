@@ -52,6 +52,9 @@ test.describe('監査ログの機微フィールド', () => {
 
     // 生年月日の値そのものは、ページのどこにも出てはならない。
     await expect(viewerPage.getByText(SECRET_BIRTH_DATE)).toHaveCount(0);
+    // 社員番号も個人を特定できる値として伏せる（F-02）。匿名化しても
+    // 監査ログに残っていては削除請求に応えたことにならない。
+    await expect(viewerPage.getByText(code)).toHaveCount(0);
 
     await viewerContext.close();
   });

@@ -271,6 +271,79 @@ for (const file of walk(join(ROOT, 'src'), (p) => p.endsWith('.ts') || p.endsWit
   report('db-access', path, '@/db を直接 import している（Service Layer 経由にする）');
 }
 
+/** JS/TS からブロックコメントと行コメントを落とす。説明文中の語を拾わないため。 */
+function stripJsComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+
+// ---------------------------------------------------------------------------
+// 10. セキュリティヘッダーと X-Powered-By の抑止
+//
+// 監査 F-15 系。next.config.ts の headers() で付けているセキュリティヘッダーと
+// `poweredByHeader: false` は、設定を整理したときに黙って消えても
+// lint / typecheck / ビルドのどれも落ちない。消えるとクリックジャッキング対策
+// （X-Frame-Options）や MIME スニッフィング対策（X-Content-Type-Options）が
+// 無言で外れるので、ここで存在を確かめる。
+// コメント中の語に反応しないよう、コメントを落としてから見る。
+// ---------------------------------------------------------------------------
+const NEXT_CONFIG = 'next.config.ts';
+const nextConfigPath = join(ROOT, NEXT_CONFIG);
+if (!existsSync(nextConfigPath)) {
+  report('security-headers', NEXT_CONFIG, 'ファイルが無い（セキュリティヘッダーを確認できない）');
+} else {
+  const configSrc = stripJsComments(read(nextConfigPath));
+  for (const header of ['X-Frame-Options', 'X-Content-Type-Options']) {
+    if (!new RegExp(`key:\\s*['"]${header}['"]`).test(configSrc)) {
+      report('security-headers', NEXT_CONFIG, `${header} ヘッダーが定義されていない`);
+    }
+  }
+  if (!/\bpoweredByHeader:\s*false\b/.test(configSrc)) {
+    report('security-headers', NEXT_CONFIG, 'poweredByHeader: false になっていない');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 11. サーバー専用モジュールに `import 'server-only'` があるか
+//
+// 監査 F-15。admin.ts は service_role キー（RLS を丸ごと迂回する）を、
+// db/index.ts は DB 接続文字列を持つ。Client Component から誤って import されると
+// バンドルに秘密が載りうる。`server-only` があればビルドで止まるが、
+// 行が消えても何も落ちないので、ここで残っていることを確かめる。
+// ---------------------------------------------------------------------------
+const SERVER_ONLY_FILES = ['src/lib/supabase/admin.ts', 'src/db/index.ts'];
+const SERVER_ONLY_RE = /^\s*import\s+['"]server-only['"]\s*;?\s*$/m;
+
+for (const path of SERVER_ONLY_FILES) {
+  const full = join(ROOT, path);
+  if (!existsSync(full)) {
+    report('server-only', path, 'ファイルが無い（server-only を確認できない）');
+  } else if (!SERVER_ONLY_RE.test(read(full))) {
+    report('server-only', path, "import 'server-only'; が無い");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 12. クライアントに露出する環境変数（NEXT_PUBLIC_*）が許可リスト内か
+//
+// 監査 F-15 系。NEXT_PUBLIC_ を付けた変数はビルド時にクライアントバンドルへ
+// 埋め込まれる。秘密（service_role キー等）に誤って付けると、ブラウザから
+// 誰でも読める。公開してよいものだけを許可リストに置き、それ以外の参照を止める。
+// 新しく足すときは「ブラウザに配ってよい値か」を確認してからここに加える。
+// ---------------------------------------------------------------------------
+const ALLOWED_PUBLIC_ENV = new Set([
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'NEXT_PUBLIC_APP_URL',
+]);
+
+for (const file of walk(join(ROOT, 'src'), (p) => /\.(?:[cm]?[jt]sx?)$/.test(p))) {
+  const found = new Set(read(file).match(/\bNEXT_PUBLIC_[A-Z0-9_]+/g) ?? []);
+  for (const name of found) {
+    if (ALLOWED_PUBLIC_ENV.has(name)) continue;
+    report('public-env', rel(file), `${name} は許可リストに無い NEXT_PUBLIC_ 環境変数`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 出力
 // ---------------------------------------------------------------------------

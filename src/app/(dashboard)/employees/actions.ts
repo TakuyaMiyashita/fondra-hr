@@ -7,9 +7,11 @@ import { type Result, err, ok } from '@/lib/result';
 import { uuidField } from '@/lib/validations/common';
 import { createClient } from '@/lib/supabase/server';
 import {
+  avatarExtension,
   createEmployeeSchema,
   employeeListQuerySchema,
   updateEmployeeSchema,
+  uploadAvatarSchema,
   type EmployeeListQuery,
 } from '@/lib/validations/employee';
 import {
@@ -145,7 +147,9 @@ async function listAvatarFiles(
   const { data, error } = await supabase.storage.from('avatars').list(folder);
 
   if (error) {
-    return err(`アバターの確認に失敗しました: ${error.message}`);
+    // Storage の生エラーは画面に出さない。詳細はサーバーログへ。
+    console.error('[listAvatarFiles] storage list failed', error);
+    return err('アバターの確認に失敗しました');
   }
   if (!data) {
     return err('アバターの確認に失敗しました');
@@ -192,7 +196,8 @@ export async function anonymizeEmployeeAction(id: string): Promise<Result<void>>
         .from('avatars')
         .remove(listed.data.map((name) => `${folder}/${name}`));
       if (removeError) {
-        return err(`アバターの削除に失敗しました: ${removeError.message}`);
+        console.error('[anonymizeEmployeeAction] storage remove failed', removeError);
+        return err('アバターの削除に失敗しました');
       }
 
       // **remove() はポリシーで拒否されても error を返さない。** 消せなかった
@@ -219,13 +224,21 @@ export async function anonymizeEmployeeAction(id: string): Promise<Result<void>>
   }
 }
 
-const ALLOWED_AVATAR_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
-const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
-
 export async function uploadAvatarAction(
-  employeeId: string,
+  rawEmployeeId: string,
   formData: FormData,
 ): Promise<Result<{ path: string }>> {
+  // employeeId もファイルも未検証の入力。UUID でない ID は後段の DB クエリを
+  // 例外で落とし、文字列の file は file.name で落ちる。どちらも Result で返す。
+  const parsed = uploadAvatarSchema.safeParse({
+    employeeId: rawEmployeeId,
+    file: formData.get('file'),
+  });
+  if (!parsed.success) {
+    return err(parsed.error.issues[0].message);
+  }
+  const { employeeId, file } = parsed.data;
+
   try {
     const ctx = await getAuthContext();
 
@@ -235,17 +248,8 @@ export async function uploadAvatarAction(
     const allowed = await assertCanUpdateAvatarSvc(ctx, employeeId);
     if (!allowed.success) return allowed;
 
-    const file = formData.get('file') as File | null;
-    if (!file) return err('ファイルが選択されていません');
-
-    const ext = (file.name.split('.').pop() ?? '').toLowerCase();
-    if (!ALLOWED_AVATAR_EXTENSIONS.includes(ext)) {
-      return err('許可されていないファイル形式です（jpg, png, webp のみ）');
-    }
-    if (file.size > MAX_AVATAR_SIZE) {
-      return err('ファイルサイズが大きすぎます（最大5MB）');
-    }
-
+    // 拡張子はスキーマでホワイトリスト済み。
+    const ext = avatarExtension(file);
     const storagePath = `${ctx.orgId}/${employeeId}/avatar.${ext}`;
 
     const supabase = await createClient();
@@ -253,7 +257,11 @@ export async function uploadAvatarAction(
       .from('avatars')
       .upload(storagePath, file, { upsert: true });
 
-    if (uploadError) return err(`アップロードに失敗しました: ${uploadError.message}`);
+    if (uploadError) {
+      // Storage の生エラーは画面に出さない（内部の制約やバケット名が漏れる）。
+      console.error('[uploadAvatarAction] storage upload failed', uploadError);
+      return err('アップロードに失敗しました');
+    }
 
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(storagePath);
 

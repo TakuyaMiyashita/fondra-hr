@@ -108,7 +108,9 @@ export async function changeRole(ctx: AuthContext, input: ChangeRoleInput): Prom
   await db
     .update(memberships)
     .set({ role: input.role, updatedAt: new Date() })
-    .where(eq(memberships.id, input.membershipId));
+    // 直前の SELECT で組織は確認済みだが、最終クエリにも org_id を付ける
+    // （事前チェックがリファクタで外れても越境しないための多層防御）。
+    .where(and(eq(memberships.id, input.membershipId), eq(memberships.orgId, ctx.orgId)));
 
   await writeAuditLog(ctx, 'membership.update', 'membership', input.membershipId, {
     role: { from: target.role, to: input.role },
@@ -138,7 +140,9 @@ export async function removeMember(ctx: AuthContext, membershipId: string): Prom
     return err('自分自身を削除することはできません');
   }
 
-  await db.delete(memberships).where(eq(memberships.id, membershipId));
+  await db
+    .delete(memberships)
+    .where(and(eq(memberships.id, membershipId), eq(memberships.orgId, ctx.orgId)));
 
   await writeAuditLog(ctx, 'membership.delete', 'membership', membershipId, {
     userId: target.userId,
@@ -248,7 +252,9 @@ export async function revokeInvitation(
     return err('招待が見つかりません');
   }
 
-  await db.delete(invitations).where(eq(invitations.id, invitationId));
+  await db
+    .delete(invitations)
+    .where(and(eq(invitations.id, invitationId), eq(invitations.orgId, ctx.orgId)));
 
   await writeAuditLog(ctx, 'invitation.delete', 'invitation', invitationId, {
     email: target.email,

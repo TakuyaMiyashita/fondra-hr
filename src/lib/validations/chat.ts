@@ -24,12 +24,23 @@ const textPart = z.object({
   text: z.string(),
 });
 
-/** text 以外のパートは素通しする（AI SDK が増やしても壊れないように）。 */
-const messagePart = z.union([textPart, z.object({ type: z.string() }).loose()]);
+/**
+ * **パートは text のみ受け付ける。** 以前は text 以外を素通ししていたが、
+ * 総量チェックは text しか数えないため、`file` パート（data URL の画像・PDF 等）が
+ * サイズ上限の対象外になっていた。クライアント（ai-assistant-client.tsx）が
+ * 送るのは text だけなので、それ以外は拒否する。必要になったら型ごとに
+ * 上限付きで追加すること。
+ */
+const messagePart = textPart;
 
+/**
+ * **role に `system` を含めない。** system はサーバー（system-prompt.ts）だけが
+ * 与えるもので、クライアントから受け取るとシステムプロンプトの指示を
+ * 上書きできてしまう。
+ */
 const chatMessage = z.object({
   id: z.string().optional(),
-  role: z.enum(['user', 'assistant', 'system']),
+  role: z.enum(['user', 'assistant'], { message: '無効なロールです' }),
   parts: z.array(messagePart).max(MAX_MESSAGES),
 });
 
@@ -43,13 +54,7 @@ export const chatRequestSchema = z
   .refine(
     (value) =>
       value.messages.reduce(
-        (total, message) =>
-          total +
-          message.parts.reduce(
-            (sum, part) =>
-              sum + ('text' in part && typeof part.text === 'string' ? part.text.length : 0),
-            0,
-          ),
+        (total, message) => total + message.parts.reduce((sum, part) => sum + part.text.length, 0),
         0,
       ) <= MAX_TOTAL_TEXT,
     { message: `メッセージが長すぎます（合計${MAX_TOTAL_TEXT}文字まで）` },

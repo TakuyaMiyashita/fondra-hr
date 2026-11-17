@@ -176,6 +176,12 @@ DEMO_READONLY_ORG_ID=f0d3a000-0000-4000-8000-000000000001
 UUID は `supabase/seed.sql` が作るデモ組織のもの。seed を作り直しても
 ID は固定なので、変数を差し替える必要はない。
 
+**Storage（アバター）は環境変数ではなく `organizations.is_demo` で止める。**
+Storage はブラウザから直接叩けて Service Layer を通らないため、ポリシーが
+DB の列を見る（`20260829000001`）。このマイグレーションと `seed.sql` が
+上の UUID の組織に `is_demo = true` を立てる。別の組織をデモにする場合は、
+環境変数と `is_demo` の両方を揃えること。
+
 ### デモデータの投入
 
 `supabase db push` はマイグレーションだけを適用し、`supabase/seed.sql` は流さない。
@@ -249,7 +255,8 @@ seed は冒頭で `purge_organization()` を呼び、`%@fondra.example.com` の�
 | `site_url`                        | localhost のまま | 独自ドメイン。上記のとおり必須                       |
 | `auth.rate_limit`                 | 緩め             | サインイン・OTP の上限を絞る                         |
 | DB バックアップ                   | 不要             | 有料プランの PITR を検討                             |
-| `minimum_password_length`         | `6`              | 8 以上を推奨                                         |
+| `minimum_password_length`         | `8`              | 不要（アプリの Zod と同じ 8 に揃えてある）           |
+| `secure_password_change`          | `true`           | 不要（パスワード変更に再認証を求める）               |
 
 `enable_confirmations` は `supabase/config.toml` の `[auth.email]` にあり、
 ローカル開発の利便性のため `false` にしてある。`config push` するとこの値が

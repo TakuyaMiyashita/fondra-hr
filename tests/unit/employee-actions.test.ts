@@ -458,14 +458,16 @@ describe('anonymizeEmployeeAction', () => {
   it('refuses to anonymize when the listing cannot be read', async () => {
     // 一覧が取れない＝写真の有無が分からない。そのまま進めると
     // 「消したつもりで残っている」になる。
+    // Storage の生エラーは画面に出さず、サーバーログにだけ残す。
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { anonymizeEmployeeAction } = await actions();
     const s = await svc();
     storageList.mockReset().mockResolvedValue({ data: null, error: { message: 'denied' } });
 
-    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(
-      err('アバターの確認に失敗しました: denied'),
-    );
+    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(err('アバターの確認に失敗しました'));
     expect(s.anonymizeEmployee).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(expect.any(String), { message: 'denied' });
+    consoleError.mockRestore();
   });
 
   it('refuses to anonymize when the listing comes back null without an error', async () => {
@@ -479,14 +481,15 @@ describe('anonymizeEmployeeAction', () => {
 
   it('stops before anonymizing when the avatar cannot be removed', async () => {
     // ここで先に進むと「匿名化済みなのに顔写真は残っている」状態になる。
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { anonymizeEmployeeAction } = await actions();
     const s = await svc();
     storageRemove.mockResolvedValue({ error: { message: 'network' } });
 
-    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(
-      err('アバターの削除に失敗しました: network'),
-    );
+    expect(await anonymizeEmployeeAction(EMPLOYEE_ID)).toEqual(err('アバターの削除に失敗しました'));
     expect(s.anonymizeEmployee).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(expect.any(String), { message: 'network' });
+    consoleError.mockRestore();
   });
 
   it('stops when files survive a remove that reported no error', async () => {
@@ -643,17 +646,18 @@ describe('uploadAvatarAction', () => {
     expect(storageUpload).not.toHaveBeenCalled();
   });
 
-  it('rejects a file larger than 5MB', async () => {
-    // Storage の課金と帯域を守る上限。境界のすぐ上を通す。
+  it('rejects a file larger than 2MB (the bucket limit)', async () => {
+    // Storage の課金と帯域を守る上限。バケットの file_size_limit（2MB）と揃える。
+    // ずれているとアプリを通ってから Storage で拒否され、生エラーが出る。
     const { uploadAvatarAction } = await actions();
 
     expect(
-      await uploadAvatarAction(EMPLOYEE_ID, formOf(fileOf('big.jpg', 5 * 1024 * 1024 + 1))),
-    ).toEqual(err('ファイルサイズが大きすぎます（最大5MB）'));
+      await uploadAvatarAction(EMPLOYEE_ID, formOf(fileOf('big.jpg', 2 * 1024 * 1024 + 1))),
+    ).toEqual(err('ファイルサイズが大きすぎます（最大2MB）'));
     expect(storageUpload).not.toHaveBeenCalled();
   });
 
-  it('accepts a file exactly at the 5MB limit', async () => {
+  it('accepts a file exactly at the 2MB limit', async () => {
     // 上限は「超えたら NG」であり「ちょうどは OK」。off-by-one を固定する。
     const { uploadAvatarAction } = await actions();
     const s = await svc();
@@ -661,10 +665,43 @@ describe('uploadAvatarAction', () => {
 
     const result = await uploadAvatarAction(
       EMPLOYEE_ID,
-      formOf(fileOf('exact.jpeg', 5 * 1024 * 1024)),
+      formOf(fileOf('exact.jpeg', 2 * 1024 * 1024)),
     );
 
     expect(result.success).toBe(true);
+  });
+
+  it('rejects a non-UUID employeeId before touching the service or Storage', async () => {
+    // 以前は検証なしで DB クエリに渡り、型エラーの例外で error 境界に落ちていた。
+    const { uploadAvatarAction } = await actions();
+    const s = await svc();
+
+    expect(await uploadAvatarAction('../other-org', formOf(fileOf('me.png')))).toEqual(
+      err('無効な従業員IDです'),
+    );
+    expect(s.assertCanUpdateAvatar).not.toHaveBeenCalled();
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it('rejects a string sent in place of the file', async () => {
+    // UI を経由しなければ file に文字列を入れられる。以前は file.name で例外になった。
+    const { uploadAvatarAction } = await actions();
+    const fd = new FormData();
+    fd.append('file', 'not a file');
+
+    expect(await uploadAvatarAction(EMPLOYEE_ID, fd)).toEqual(err('ファイルが選択されていません'));
+    expect(storageUpload).not.toHaveBeenCalled();
+  });
+
+  it('rejects a disallowed MIME type even with an allowed extension', async () => {
+    // バケットの allowed_mime_types（jpeg / png / webp）と同じ条件を先に見る。
+    const { uploadAvatarAction } = await actions();
+    const file = new File(['<svg/>'], 'avatar.png', { type: 'image/svg+xml' });
+
+    expect(await uploadAvatarAction(EMPLOYEE_ID, formOf(file))).toEqual(
+      err('許可されていないファイル形式です（jpg, png, webp のみ）'),
+    );
+    expect(storageUpload).not.toHaveBeenCalled();
   });
 
   it('scopes the storage path by org and employee', async () => {
@@ -690,14 +727,20 @@ describe('uploadAvatarAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith(`/employees/${EMPLOYEE_ID}`);
   });
 
-  it('surfaces the storage error message and skips the DB update', async () => {
+  it('hides the raw storage error, logs it server-side, and skips the DB update', async () => {
+    // Storage の生エラー（バケット名・内部の制約）を画面に出さない。
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { uploadAvatarAction } = await actions();
     const s = await svc();
     storageUpload.mockResolvedValue({ error: { message: 'bucket not found' } });
 
     expect(await uploadAvatarAction(EMPLOYEE_ID, formOf(fileOf('me.jpg')))).toEqual(
-      err('アップロードに失敗しました: bucket not found'),
+      err('アップロードに失敗しました'),
     );
+    expect(consoleError).toHaveBeenCalledWith(expect.any(String), {
+      message: 'bucket not found',
+    });
+    consoleError.mockRestore();
     expect(s.updateEmployeeAvatar).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
   });

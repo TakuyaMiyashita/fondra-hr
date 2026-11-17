@@ -10,7 +10,7 @@
 | departments       | CRUD            | CRUD            | R               | R      |
 | employees         | CRUD            | CRUD            | R               | R      |
 | skills            | CRUD            | CRUD            | CRU             | R      |
-| employee_skills   | CRUD            | CRUD            | CRD             | R      |
+| employee_skills   | CRUD            | CRUD            | CRUD†           | R      |
 | one_on_ones       | CRUD            | CRUD            | CR*U*           | R*     |
 | evaluation_cycles | CRUD            | CRUD            | R               | R      |
 | evaluations       | CRUD            | CRUD            | CRU**           | R      |
@@ -23,6 +23,12 @@
 - **削除は原則 admin 以上**。employees / skills / departments / evaluation_cycles /
   evaluations / one_on_ones のいずれも member は削除できない
   （`employee_skills` の割当解除のみ member 可）
+- **`†` member のスキル割当の更新**: `assignSkill`（`src/services/skill.ts`）は
+  `authorize(ctx, 'create', 'employee_skill')` で、既存の割当があればレベルを
+  UPDATE する（監査ログは `employee_skill.update`）。member は割当の削除と
+  再作成ができるので、**更新を許しても削除→再作成と実質同等**であり、
+  できることは増えない。そのため実装を正としてマトリクスを `CRUD` にしている
+  （`security-audit-report.md` F-12。以前は `CRD` と書いていて実装と食い違っていた）
 - **従業員の削除は、評価・1on1 が紐づいていると拒否される。** 他人が書いた記録まで
   道連れで消えるため。退職者は `status = 'retired'` に倒し、個人情報を消す
   必要がある場合は**匿名化**（`anonymizeEmployee` / admin 以上）を使う。
@@ -126,7 +132,9 @@ admin 以上に限定する（`supabase/migrations/20260823000001_restrict_avata
 削除・降格しても**最大1時間は元の権限で通る**。`getAuthContext()` は毎リクエスト
 `memberships` を1件引き、行が無ければサインアウトへ逃がす
 （[ADR 0018](../adr/0018-role-authority-is-the-database.md)）。
-claim は「どの組織を見ているか」と、Storage ポリシー（`auth.jwt()` を読む）のために残す。
+claim は「どの組織を見ているか」の指定のために残す。Storage ポリシーも
+以前は `auth.jwt()` の role を読んでいたが、`20260829000001` で
+`memberships` を引く方式に切り替えた（降格・除名が Storage にも即時に効く）。
 
 認可チェックは Service Layer と UI の二重で行う。Service Layer が主、UI は UX 目的。
 
@@ -143,6 +151,11 @@ claim は「どの組織を見ているか」と、Storage ポリシー（`auth.
 create / update / delete を拒否する（[ADR 0012](../adr/0012-demo-org-is-read-only.md)）。
 読み取りはこの表のとおりに動く。環境変数が未設定なら何も起きないので、
 ローカル・CI では表がそのまま効く。
+
+Storage（アバター）は Service Layer を通らないため、同じ禁止を
+`organizations.is_demo` を見るポリシーで持っている（`20260829000001`、
+[RLS ポリシー設計](./rls-policy.md)）。**デモ組織を変えるときは
+`DEMO_READONLY_ORG_ID` と `is_demo` の両方を揃えること。**
 
 **この表のロール制御を持っているのは Service Layer だけ**である。RLS は
 `org_id` しか見ないため、Service Layer を通らない経路が開いていると

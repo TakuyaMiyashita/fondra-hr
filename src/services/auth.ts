@@ -6,6 +6,7 @@ import { invitations } from '@/db/schema/invitations';
 import { memberships } from '@/db/schema/memberships';
 import { organizations } from '@/db/schema/organizations';
 import { type Result, err, ok } from '@/lib/result';
+import { writeAuditLogAs } from '@/services/audit-log';
 import type { Role } from '@/services/auth-context';
 
 export async function createOrganizationWithOwner(
@@ -37,13 +38,27 @@ export async function createOrganizationWithOwner(
         role: 'owner',
       });
 
+      // 「誰がこの組織を作り、owner になったか」の記録（F-08）。
+      // AuthContext はまだ無いので actor と組織を明示する。同じトランザクションで
+      // 書くので、記録だけ欠けた組織はできない。
+      await writeAuditLogAs(
+        { orgId: org.id, userId },
+        'organization.create',
+        'organization',
+        org.id,
+        { name: orgName, ownerUserId: userId },
+        tx,
+      );
+
       return org.id;
     });
 
     return ok({ orgId });
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Unknown error';
-    return err(`組織の作成に失敗しました: ${message}`);
+    // e.message は Postgres の制約名・カラム名を含みうる。画面にも
+    // /auth/callback の ?error= にも載るため、利用者には固定文言だけ返す。
+    console.error('[createOrganizationWithOwner] failed', e);
+    return err('組織の作成に失敗しました');
   }
 }
 
@@ -158,7 +173,7 @@ export async function acceptInvitation(
   email: string,
 ): Promise<Result<void>> {
   try {
-    // 3つの書き込みは1つの単位。途中で落ちると、メンバーにはなったのに
+    // 3つの書き込み（と監査ログ）は1つの単位。途中で落ちると、メンバーにはなったのに
     // 招待が未消費のまま残る（別のアカウントで再受諾できる）、
     // あるいは従業員レコードと紐付かず本人限定の操作ができない、
     // といった中途半端な状態になる。
@@ -168,7 +183,9 @@ export async function acceptInvitation(
       await tx
         .update(invitations)
         .set({ acceptedAt: new Date() })
-        .where(eq(invitations.id, invitationId));
+        // id だけでも一意だが、招待レコードの組織でも絞る（多層防御）。
+        // 呼び出し側が渡す orgId はトークンから引き直した招待の値。
+        .where(and(eq(invitations.id, invitationId), eq(invitations.orgId, orgId)));
 
       // 招待より先に従業員レコードが作られているのが実務上は普通なので
       // （入社手続きで登録し、後からアカウントを発行する）、ここでも紐付ける。
@@ -186,12 +203,25 @@ export async function acceptInvitation(
             sql`lower(${employees.email}) = lower(${email})`,
           ),
         );
+
+      // 招待の受諾は権限付与そのもの。作成（invitation.create）だけでなく
+      // 「どのアカウントが、どのロールで加わったか」を残す（F-08）。
+      // メールは個人情報なので書かない（audit-log.ts の REDACTED_FIELDS）。
+      await writeAuditLogAs(
+        { orgId, userId },
+        'invitation.accept',
+        'invitation',
+        invitationId,
+        { userId, role },
+        tx,
+      );
     });
 
     return ok(undefined);
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Unknown error';
-    return err(`招待の承認に失敗しました: ${message}`);
+    // 生のエラー文言（制約名など）は画面に出さない。詳細はサーバーログへ。
+    console.error('[acceptInvitation] failed', e);
+    return err('招待の承認に失敗しました');
   }
 }
 

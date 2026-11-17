@@ -441,7 +441,9 @@ describe('resetPassword', () => {
 
     expect(await resetPassword({ email: 'user@example.com' })).toEqual(ok(undefined));
     expect(auth.resetPasswordForEmail).toHaveBeenCalledWith('user@example.com', {
-      redirectTo: 'https://app.example.com/auth/callback?next=/settings',
+      // 新しいパスワードを決める専用画面へ戻す（F-14）。/settings には
+      // パスワード変更の入力が無く、リンクが実質ログインになっていた。
+      redirectTo: 'https://app.example.com/auth/callback?next=/reset-password/update',
     });
   });
 

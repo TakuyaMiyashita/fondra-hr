@@ -94,8 +94,62 @@ describe('複数書き込みのトランザクション', () => {
     await createOrganizationWithOwner('user-1', 'テスト組織');
 
     expect(db.transaction).toHaveBeenCalledTimes(1);
-    // 2件の INSERT がどちらもトランザクションのコールバックの中で走っている。
-    expect(db.insert).toHaveBeenCalledTimes(2);
+    // 組織・メンバーシップ・監査ログの3件の INSERT が、どれも
+    // トランザクションのコールバックの中で走っている。
+    expect(db.insert).toHaveBeenCalledTimes(3);
+  });
+
+  it('createOrganizationWithOwner は作成者を actor として organization.create を記録する', async () => {
+    // 「誰がこの組織を作り owner になったか」が残らないと、権限付与の起点を追えない（F-08）。
+    const { createOrganizationWithOwner } = await import('@/services/auth');
+
+    await createOrganizationWithOwner('user-1', 'テスト組織');
+
+    expect(insertChain.values.mock.calls[2][0]).toEqual({
+      orgId: 'org-new',
+      actorUserId: 'user-1',
+      action: 'organization.create',
+      resourceType: 'organization',
+      resourceId: 'org-new',
+      changes: { name: 'テスト組織', ownerUserId: 'user-1' },
+    });
+  });
+
+  it('acceptInvitation は受諾者を actor として invitation.accept を記録し、メールは残さない', async () => {
+    const { acceptInvitation } = await import('@/services/auth');
+
+    await acceptInvitation('inv-1', 'user-1', 'org-1', 'member', 'secret@example.com');
+
+    const audit = insertChain.values.mock.calls[1][0];
+    expect(audit).toEqual({
+      orgId: 'org-1',
+      actorUserId: 'user-1',
+      action: 'invitation.accept',
+      resourceType: 'invitation',
+      resourceId: 'inv-1',
+      changes: { userId: 'user-1', role: 'member' },
+    });
+    expect(JSON.stringify(audit)).not.toContain('secret@example.com');
+  });
+
+  it('監査ログの INSERT が落ちたら招待受諾ごと失敗させる', async () => {
+    // 監査ログをトランザクションの外で書くと、記録の無い権限付与が成立する。
+    const { acceptInvitation } = await import('@/services/auth');
+
+    const db = await getDb();
+    const failingAudit = createChainMock([]);
+    failingAudit.then = vi
+      .fn()
+      .mockImplementation((_ok, onRejected) =>
+        Promise.reject(new Error('audit insert failed')).then(undefined, onRejected),
+      );
+    db.insert.mockReturnValueOnce(insertChain).mockReturnValueOnce(failingAudit);
+    db.transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb(db));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const result = await acceptInvitation('inv-1', 'user-1', 'org-1', 'member', 'a@example.com');
+
+    expect(result).toMatchObject({ success: false });
   });
 
   it('メンバーシップ登録が落ちたら組織作成ごと失敗させる', async () => {
@@ -117,7 +171,7 @@ describe('複数書き込みのトランザクション', () => {
     await acceptInvitation('inv-1', 'user-1', 'org-1', 'member', 'a@example.com');
 
     expect(db.transaction).toHaveBeenCalledTimes(1);
-    expect(db.insert).toHaveBeenCalledTimes(1); // memberships
+    expect(db.insert).toHaveBeenCalledTimes(2); // memberships / audit_logs
     expect(db.update).toHaveBeenCalledTimes(2); // invitations / employees
   });
 
@@ -150,7 +204,8 @@ describe('createOrganizationWithOwner', () => {
     expect(result).toEqual({ success: true, data: { orgId: 'org-new' } });
 
     const db = await getDb();
-    expect(db.insert).toHaveBeenCalledTimes(2);
+    // 組織 / メンバーシップ / 監査ログ
+    expect(db.insert).toHaveBeenCalledTimes(3);
 
     // 組織の insert
     expect(insertChain.values.mock.calls[0][0]).toEqual({
@@ -198,25 +253,27 @@ describe('createOrganizationWithOwner', () => {
     expect(values.slug).toBe(`org-${suffix}-${suffix}`);
   });
 
-  it('DB エラー時は例外を投げず、メッセージ付きの失敗 Result を返す', async () => {
+  it('DB エラー時は例外を投げず、固定文言の失敗 Result を返す', async () => {
     // サインアップ直後に呼ばれるため、例外が漏れると新規登録画面が 500 になる。
+    // 生のエラー文言（制約名・カラム名）は画面にも URL にも出さず、ログにだけ残す。
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { createOrganizationWithOwner } = await import('@/services/auth');
 
     const db = await getDb();
+    const dbError = new Error('duplicate key value violates unique constraint');
     db.insert.mockImplementation(() => {
-      throw new Error('duplicate key value violates unique constraint');
+      throw dbError;
     });
 
     const result = await createOrganizationWithOwner('user-1', 'Acme');
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain('組織の作成に失敗しました');
-      expect(result.error).toContain('duplicate key');
-    }
+    expect(result).toEqual({ success: false, error: '組織の作成に失敗しました' });
+    expect(consoleError).toHaveBeenCalledWith(expect.any(String), dbError);
+    consoleError.mockRestore();
   });
 
-  it('Error 以外が throw された場合は Unknown error として扱う', async () => {
+  it('Error 以外が throw された場合も固定文言を返す', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { createOrganizationWithOwner } = await import('@/services/auth');
 
     const db = await getDb();
@@ -226,10 +283,8 @@ describe('createOrganizationWithOwner', () => {
 
     const result = await createOrganizationWithOwner('user-1', 'Acme');
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toBe('組織の作成に失敗しました: Unknown error');
-    }
+    expect(result).toEqual({ success: false, error: '組織の作成に失敗しました' });
+    consoleError.mockRestore();
   });
 
   it('メンバーシップ登録に失敗した場合も失敗 Result を返す', async () => {
@@ -245,7 +300,8 @@ describe('createOrganizationWithOwner', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toContain('membership insert failed');
+      // F-09: 生のエラーメッセージは返さず、固定文言にする（詳細はサーバーログへ）
+      expect(result.error).toBe('組織の作成に失敗しました');
     }
   });
 });
@@ -426,6 +482,11 @@ describe('acceptInvitation', () => {
       column: 'id',
       value: 'inv-1',
     });
+    // 招待レコードの組織でも絞る（最終クエリにも org_id を付ける多層防御）。
+    expect(collectParams(updateChain.where.mock.calls[0][0])).toContainEqual({
+      column: 'org_id',
+      value: 'org-1',
+    });
   });
 
   /**
@@ -459,25 +520,27 @@ describe('acceptInvitation', () => {
 
   it('メンバーシップ作成が失敗した場合は失敗 Result を返す', async () => {
     // 同一ユーザー・同一組織の unique 制約違反（二重承認）で到達する経路。
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { acceptInvitation } = await import('@/services/auth');
 
     const db = await getDb();
+    const dbError = new Error('duplicate membership');
     db.insert.mockImplementation(() => {
-      throw new Error('duplicate membership');
+      throw dbError;
     });
 
     const result = await acceptInvitation('inv-1', 'user-1', 'org-1', 'member', 'taro@example.com');
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toContain('招待の承認に失敗しました');
-      expect(result.error).toContain('duplicate membership');
-    }
+    // 生のエラー文言は返さず、サーバーログにだけ残す。
+    expect(result).toEqual({ success: false, error: '招待の承認に失敗しました' });
+    expect(consoleError).toHaveBeenCalledWith(expect.any(String), dbError);
+    consoleError.mockRestore();
     // 失敗時に招待を承認済みにしてしまわないこと。
     expect(db.update).not.toHaveBeenCalled();
   });
 
-  it('Error 以外が throw された場合は Unknown error として扱う', async () => {
+  it('Error 以外が throw された場合も固定文言を返す', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { acceptInvitation } = await import('@/services/auth');
 
     const db = await getDb();
@@ -487,10 +550,8 @@ describe('acceptInvitation', () => {
 
     const result = await acceptInvitation('inv-1', 'user-1', 'org-1', 'viewer', 'taro@example.com');
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toBe('招待の承認に失敗しました: Unknown error');
-    }
+    expect(result).toEqual({ success: false, error: '招待の承認に失敗しました' });
+    consoleError.mockRestore();
   });
 });
 
@@ -583,7 +644,7 @@ describe('completePendingSignUp', () => {
 
     expect(result).toEqual({
       success: false,
-      error: '組織の作成に失敗しました: duplicate key',
+      error: '組織の作成に失敗しました',
     });
   });
 
@@ -682,7 +743,7 @@ describe('completePendingSignUp', () => {
 
     expect(result).toEqual({
       success: false,
-      error: '招待の承認に失敗しました: duplicate membership',
+      error: '招待の承認に失敗しました',
     });
   });
 

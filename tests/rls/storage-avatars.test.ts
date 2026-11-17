@@ -142,4 +142,148 @@ describe('Storage: avatars バケットのポリシー', () => {
 
     expect(error).not.toBeNull();
   });
+
+  /**
+   * ロールの権威は DB（20260829000001 / ADR 0018）。
+   *
+   * 以前のポリシーは JWT の app_metadata.role を見ていたため、降格・除名しても
+   * 手元のトークンが失効するまで（最大1時間）元の権限で書けた。
+   * ここではトークンを取り直さずに DB だけを変え、即時に効くことを確かめる。
+   */
+  describe('ロールは JWT claim ではなく DB のメンバーシップで判定する', () => {
+    function claimsOf(accessToken: string) {
+      const payload = accessToken.split('.')[1];
+      return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+        app_metadata?: { role?: string; org_id?: string };
+      };
+    }
+
+    it('通常組織（is_demo = false）の admin は書き込める', async () => {
+      const { data: org } = await admin
+        .from('organizations')
+        .select('is_demo')
+        .eq('id', orgId)
+        .single();
+      expect(org?.is_demo).toBe(false);
+
+      const { error } = await clients.admin.storage
+        .from('avatars')
+        .upload(`${orgId}/emp/avatar-admin-normal.png`, pngBlob(), { upsert: true });
+
+      expect(error).toBeNull();
+      await admin.storage.from('avatars').remove([`${orgId}/emp/avatar-admin-normal.png`]);
+    });
+
+    it('DB で member に降格済みなら、JWT claim が admin のままでも書けない', async () => {
+      const client = await createMember(orgId, 'admin', 'demoted');
+      const userId = userIds[userIds.length - 1];
+
+      await admin
+        .from('memberships')
+        .update({ role: 'member' })
+        .eq('user_id', userId)
+        .eq('org_id', orgId);
+
+      // 前提: トークンは降格前に発行されたもので、claim はまだ admin。
+      const { data: session } = await client.auth.getSession();
+      expect(claimsOf(session.session!.access_token).app_metadata?.role).toBe('admin');
+
+      const { error } = await client.storage
+        .from('avatars')
+        .upload(`${orgId}/emp/avatar-demoted.png`, pngBlob());
+      expect(error).not.toBeNull();
+
+      await admin.storage
+        .from('avatars')
+        .upload(`${orgId}/seed/avatar.png`, pngBlob(), { upsert: true });
+      const { data: removed } = await client.storage
+        .from('avatars')
+        .remove([`${orgId}/seed/avatar.png`]);
+      expect(removed ?? []).toHaveLength(0);
+    });
+
+    it('DB でメンバーから外されたら、JWT claim が残っていても読めない', async () => {
+      const client = await createMember(orgId, 'viewer', 'removed');
+      const userId = userIds[userIds.length - 1];
+
+      await admin.from('memberships').delete().eq('user_id', userId).eq('org_id', orgId);
+
+      const { data: session } = await client.auth.getSession();
+      expect(claimsOf(session.session!.access_token).app_metadata?.org_id).toBe(orgId);
+
+      await admin.storage
+        .from('avatars')
+        .upload(`${orgId}/seed/avatar.png`, pngBlob(), { upsert: true });
+
+      // RLS で見えないオブジェクトは list から黙って除外される。
+      const { data } = await client.storage.from('avatars').list(`${orgId}/seed`);
+      expect(data ?? []).toHaveLength(0);
+    });
+  });
+
+  /**
+   * デモ組織の書き込み禁止（20260829000001 / ADR 0012）。
+   *
+   * デモの owner / admin の資格情報は README で公開している。Service Layer の
+   * authorize() はデモへの書き込みを拒否するが、Storage は Service Layer を
+   * 経由しないため、ポリシー側にも同じ禁止が要る。
+   */
+  describe('デモ組織（is_demo = true）', () => {
+    let demoOrgId: string;
+    let demoOwner: SupabaseClient;
+
+    beforeAll(async () => {
+      const { data: demo } = await admin
+        .from('organizations')
+        .insert({ name: `Demo ${testId}`, slug: `demo-${testId}`, is_demo: true })
+        .select()
+        .single();
+      demoOrgId = demo!.id;
+      demoOwner = await createMember(demoOrgId, 'owner', 'demo-owner');
+
+      await admin.storage
+        .from('avatars')
+        .upload(`${demoOrgId}/seed/avatar.png`, pngBlob(), { upsert: true });
+    }, 30_000);
+
+    afterAll(async () => {
+      await admin.storage.from('avatars').remove([`${demoOrgId}/seed/avatar.png`]);
+      await admin.rpc('purge_organization', { p_org_id: demoOrgId });
+    });
+
+    it('owner でもアップロードできない', async () => {
+      const { error } = await demoOwner.storage
+        .from('avatars')
+        .upload(`${demoOrgId}/emp/avatar.png`, pngBlob());
+
+      expect(error).not.toBeNull();
+    });
+
+    it('owner でも既存のアバターを上書きできない', async () => {
+      const { error } = await demoOwner.storage
+        .from('avatars')
+        .upload(`${demoOrgId}/seed/avatar.png`, pngBlob(), { upsert: true });
+
+      expect(error).not.toBeNull();
+    });
+
+    it('owner でも既存のアバターを削除できない', async () => {
+      const { data } = await demoOwner.storage
+        .from('avatars')
+        .remove([`${demoOrgId}/seed/avatar.png`]);
+
+      expect(data ?? []).toHaveLength(0);
+
+      const { data: still } = await admin.storage.from('avatars').list(`${demoOrgId}/seed`);
+      expect(still?.map((o) => o.name)).toContain('avatar.png');
+    });
+
+    it('閲覧はできる', async () => {
+      // デモは「見てもらう」ための組織。参照まで塞ぐと画面が壊れる。
+      const { data, error } = await demoOwner.storage.from('avatars').list(`${demoOrgId}/seed`);
+
+      expect(error).toBeNull();
+      expect(data?.map((o) => o.name)).toContain('avatar.png');
+    });
+  });
 });

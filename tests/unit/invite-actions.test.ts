@@ -236,18 +236,34 @@ describe('acceptInviteAndSignUp — input validation', () => {
 });
 
 describe('acceptInviteAndSignUp — Supabase Auth failures', () => {
-  it('returns the Supabase error and leaves the invitation unconsumed', async () => {
+  it('converts the Supabase error and leaves the invitation unconsumed', async () => {
     // 既に登録済みのメールで受諾された場合など。招待を消費してはならない。
+    // signUp / signIn と同じく authErrorMessage() で利用者向けの文言に変換する。
     const { acceptInviteAndSignUp } = await actions();
     const s = await svc();
     auth.signUp.mockResolvedValue({
       data: { user: null },
-      error: { message: 'User already registered' },
+      error: { code: 'user_already_exists', message: 'User already registered' },
     });
 
-    expect(await acceptInviteAndSignUp(VALID)).toEqual(err('User already registered'));
+    expect(await acceptInviteAndSignUp(VALID)).toEqual(
+      err('このメールアドレスは既に登録されています'),
+    );
     expect(s.acceptInvitation).not.toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('does not leak the raw message of an unmapped Supabase error', async () => {
+    // 対応表に無いエラー（パスワード要件など）の生文言は、内部の制約を漏らす。
+    const { acceptInviteAndSignUp } = await actions();
+    auth.signUp.mockResolvedValue({
+      data: { user: null },
+      error: { code: 'unexpected_failure', message: 'Password should be at least 6 characters.' },
+    });
+
+    expect(await acceptInviteAndSignUp(VALID)).toEqual(
+      err('処理に失敗しました。しばらく待ってからやり直してください'),
+    );
   });
 
   it('reports a Japanese error when signUp succeeds but returns no user', async () => {

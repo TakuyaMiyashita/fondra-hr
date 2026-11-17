@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { safeRedirectPath } from '@/lib/safe-redirect';
 import { createClient } from '@/lib/supabase/server';
 import {
   PENDING_INVITATION_TOKEN_KEY,
@@ -17,7 +18,8 @@ import {
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/employees';
+  // next は URL から来る未検証の値。相対パス以外は既定の遷移先に落とす（F-03）。
+  const next = safeRedirectPath(searchParams.get('next'), origin);
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=auth`);

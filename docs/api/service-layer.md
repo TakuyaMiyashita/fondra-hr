@@ -128,6 +128,28 @@ DB アクセス（Drizzle）は別系統で、DB だけ落ちると「ログイ�
 | `createOrganizationWithOwner` | 誰も入れない組織が残る（削除は service_role 専用）    |
 | `acceptInvitation`            | メンバーなのに招待が未消費 / 従業員レコードと未紐付け |
 
+### 監査ログも同じトランザクションで書く
+
+監査ログの INSERT が本体と別だと、監査ログだけ落ちたときに「記録の無い変更」が
+成立する。`writeAuditLog()` / `writeAuditLogAs()` は最後の引数に
+トランザクション（`tx`）を受け取れるので、本体と同じトランザクションで書く。
+
+```typescript
+await db.transaction(async (tx) => {
+  await tx.update(employees).set(...).where(...);
+  await writeAuditLog(ctx, 'employee.update', 'employee', id, changes, tx);
+});
+```
+
+- 対応済み: `createOrganizationWithOwner`（`organization.create`）・
+  `acceptInvitation`（`invitation.accept`）・従業員の create / update / delete / anonymize
+- 未対応: それ以外の変更系（部署・スキル・1on1・評価・設定）は本体と監査ログが
+  別クエリのまま。新しく書く変更系、触る機会のある変更系から順に寄せる
+
+認証ブートストラップ（AuthContext が未確定）では `writeAuditLogAs({ orgId, userId }, ...)` で
+actor と組織を明示する。氏名・カナ・メール・社員番号などの個人情報は
+`REDACTED_FIELDS`（`src/services/audit-log.ts`）で値を伏せる。
+
 ## 本人限定の認可
 
 ロール別の CRUD だけでは「member は自分が当事者のデータだけ扱える」を表現できない。

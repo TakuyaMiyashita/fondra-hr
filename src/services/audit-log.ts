@@ -19,8 +19,25 @@ import type { AuditLog, AuditLogListResult } from '@/types/audit-log';
  *
  * 監査ログに要るのは「誰がいつ何を変えたか」であって、変更後の値ではない。
  * フィールド名と変更があった事実だけを残し、値は伏せる。
+ *
+ * 氏名・カナ・メール・社員番号も伏せる（security-audit-report.md F-02）。
+ * 監査ログは追記専用で後から消せない（`prevent_audit_log_modification`）。
+ * ここに個人情報を書くと、匿名化（ADR 0016）で従業員マスタから消しても
+ * 監査ログ画面には残り続け、全ロールが読める。書く時点で落とすしかない。
+ * `email` は招待の監査ログ（`invitation.create` / `invitation.delete`）でも
+ * 同じキーを使っており、そちらも伏せる（招待先のメールも個人情報）。
  */
-const REDACTED_FIELDS = new Set(['birthDate', 'notes', 'comment', 'aiSummary', 'ratings']);
+const REDACTED_FIELDS = new Set([
+  'birthDate',
+  'notes',
+  'comment',
+  'aiSummary',
+  'ratings',
+  'fullName',
+  'fullNameKana',
+  'email',
+  'employeeCode',
+]);
 
 /** 伏せた値の表示。UI はこの文字列をそのまま描画する。 */
 export const REDACTED = '（記録しない）';
@@ -48,21 +65,57 @@ function redact(changes: Record<string, unknown>): Record<string, unknown> {
   return result;
 }
 
+/**
+ * 監査ログを書き込む先。`db` そのものか、`db.transaction()` のコールバックが
+ * 受け取るトランザクション。本体の変更と同じトランザクションで書くと、
+ * 監査ログの INSERT が落ちたときに変更ごと巻き戻る（記録の欠落を防ぐ）。
+ */
+export type AuditLogExecutor = Pick<typeof db, 'insert'>;
+
+/** 監査ログの「誰が・どの組織で」。AuthContext が無い経路で明示する。 */
+export type AuditActor = { orgId: string; userId: string };
+
+/**
+ * actor と組織を明示して監査ログを書く。
+ *
+ * 認証ブートストラップ（組織作成・招待受諾）は AuthContext が確定する前に
+ * 走るため `writeAuditLog(ctx, ...)` を使えない。その経路のための版。
+ * 認可は呼び出し側の責任（ここは書き込みしかしない）。
+ */
+export async function writeAuditLogAs(
+  actor: AuditActor,
+  action: string,
+  resourceType: string,
+  resourceId: string | null,
+  changes?: Record<string, unknown>,
+  executor: AuditLogExecutor = db,
+) {
+  await executor.insert(auditLogs).values({
+    orgId: actor.orgId,
+    actorUserId: actor.userId,
+    action,
+    resourceType,
+    resourceId,
+    changes: changes ? redact(changes) : null,
+  });
+}
+
 export async function writeAuditLog(
   ctx: AuthContext,
   action: string,
   resourceType: string,
   resourceId: string | null,
   changes?: Record<string, unknown>,
+  executor: AuditLogExecutor = db,
 ) {
-  await db.insert(auditLogs).values({
-    orgId: ctx.orgId,
-    actorUserId: ctx.userId,
+  await writeAuditLogAs(
+    { orgId: ctx.orgId, userId: ctx.userId },
     action,
     resourceType,
     resourceId,
-    changes: changes ? redact(changes) : null,
-  });
+    changes,
+    executor,
+  );
 }
 
 export async function listAuditLogs(
